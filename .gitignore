@@ -1,0 +1,14 @@
+# App
+soc/results
+tmp
+
+# Python
+__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+
+
+# OSX
+.DS_Store
+.vscode

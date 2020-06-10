@@ -1,0 +1,37 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Soc
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: OSX run
+    runs-on: 'macos-latest'
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Conda and PIP dependencies
+        uses: goanpeca/setup-miniconda@v1
+        with:
+          activate-environment: soc
+          environment-file: environment_darwin.yml
+          auto-activate-base: false
+          auto-update-conda: true
+      - name: Lint with flake8
+        shell: bash -l {0}
+        run: |
+          make lint
+      - name: Check types
+        shell: bash -l {0}
+        run: |
+          make typecheck
+      - name: Test with pytest
+        shell: bash -l {0}
+        run: |
+          make test

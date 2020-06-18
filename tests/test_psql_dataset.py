@@ -43,6 +43,8 @@ class TestSocPSQLDataset(unittest.TestCase):
 
         seq = dataset[0]
         assert len(seq) == 297
+        assert seq[0][0].shape == (7, 7, 245)
 
         seq = dataset[1]
         assert len(seq) == 270
+        assert seq[0][0].shape == (7, 7, 245)

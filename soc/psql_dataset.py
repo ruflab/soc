@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
+import numpy as np
 import pandas as pd
+from typing import List
 from . import utils
 
 
@@ -57,7 +59,14 @@ class SocPSQLDataset(Dataset):
     def __len__(self) -> int:
         return self._get_length()
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> List:
+        """
+            Return one datapoint from the dataset
+
+            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
+
+        """
+
         df_states = self._get_states_from_db(idx)
         df_actions = self._get_actions_from_db(idx)
 
@@ -65,10 +74,19 @@ class SocPSQLDataset(Dataset):
         game_length = len(df_states)
 
         df_states = self._preprocess_states(df_states)
-        # import pdb;pdb.set_trace()
+        df_actions = self._preprocess_actions(df_actions)
+
         seq = []
         for i in range(game_length):
-            seq.append((df_states.iloc[i].values, df_actions.iloc[i].values))
+            current_state_df = df_states.iloc[i]
+            current_action_df = df_actions.iloc[i]
+
+            current_state_np = np.concatenate([
+                current_state_df[col] for col in self._obs_columns
+            ], axis=2)
+            current_action_np = current_action_df.values
+
+            seq.append((current_state_np, current_action_np))
 
         return seq
 
@@ -103,29 +121,32 @@ class SocPSQLDataset(Dataset):
             observation to a spatial representation.
 
             The spatial representation is like this:
-                - plan 0: Tile type
+                - plan 0: Tile type (hexlayout)
                 - plan 1: Tile number
                 - plan 2: Robber position
-                (3 type of pieces, 6 way to put it around the hex)
-                - plan 3-20: Player 1 pieces
-                - plan 21-38: Player 2 pieces
-                - plan 39-56: Player 3 pieces
-                - plan 57-74: Player 4 pieces
-                (id, public VP, roads, settlements, cities, soldiers, ressources, dev cards)
-                - plan 75-82: Player 1 public info
-                - plan 83-90: Player 2 public info
-                - plan 91-98: Player 3 public info
-                - plan 99-106: Player 4 public info
-                - plan 107: Game phase id
-                - plan 108: Development card left
-                - plan 109-113: Ressources card left
-                - plan 114: Starting player id
-                - plan 115: Current player id
-                - plan 116: Last dice result
-                - plan 117: Current player has played a developement card during its turn
+                - plan 3: Game phase id
+                - plan 4: Development card left
+                - plan 5: Last dice result
+                - plan 6: Starting player id
+                - plan 7: Current player id
+                - plan 8: Current player has played a developement card during its turn
+                3 type of pieces, 6 way to put it around the hex
+                - plan 9-26: Player 1 pieces
+                - plan 27-44: Player 2 pieces
+                - plan 45-62: Player 3 pieces
+                - plan 63-80: Player 4 pieces
+                see utils.parse_player_infos for more information
+                - plan 81-121: Player 1 public info
+                - plan 122-162: Player 2 public info
+                - plan 163-203: Player 3 public info
+                - plan 204-244: Player 4 public info
 
-            State dimensions: 7x7x118
+            State shape: 7x7x245
         """
+        del df_states['touchingnumbers']
+        del df_states['name']
+        del df_states['id']
+
         df_states['hexlayout'] = df_states['hexlayout'].apply(utils.parse_layout) \
                                                        .apply(utils.mapping_1d_2d)
         df_states['numberlayout'] = df_states['numberlayout'].apply(utils.parse_layout) \
@@ -133,6 +154,11 @@ class SocPSQLDataset(Dataset):
         df_states['robberhex'] = df_states['robberhex'].apply(utils.get_1d_id_from_hex) \
                                                        .apply(utils.get_2d_id) \
                                                        .apply(utils.get_one_hot_plan)
+
+        df_states['piecesonboard'] = df_states['piecesonboard'].apply(utils.parse_pieces)
+
+        df_states['players'] = df_states['players'].apply(utils.parse_player_infos)
+
         df_states['gamestate'] = df_states['gamestate'].apply(utils.get_replicated_plan)
         df_states['devcardsleft'] = df_states['devcardsleft'].apply(utils.get_replicated_plan)
         df_states['diceresult'] = df_states['diceresult'].apply(utils.get_replicated_plan)
@@ -140,7 +166,7 @@ class SocPSQLDataset(Dataset):
         df_states['currentplayer'] = df_states['currentplayer'].apply(utils.get_replicated_plan)
         df_states['playeddevcard'] = df_states['playeddevcard'].apply(utils.get_replicated_plan)
 
-        import pdb
-        pdb.set_trace()
-
         return df_states
+
+    def _preprocess_actions(self, df_actions: pd.DataFrame) -> pd.DataFrame:
+        return df_actions

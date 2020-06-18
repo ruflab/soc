@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from typing import List, Tuple, Dict
 
@@ -69,19 +70,27 @@ _lands_adjacent_segments_mapping = {
 }
 
 _segments_adjacent_lands_mapping: Dict[int, List] = {}
-for land, nodes in _lands_adjacent_nodes_mapping.items():
+for land, nodes in _lands_adjacent_segments_mapping.items():
     for node in nodes:
-        if node not in _nodes_adjacent_lands_mapping.keys():
-            _nodes_adjacent_lands_mapping[node] = [land]
+        if node not in _segments_adjacent_lands_mapping.keys():
+            _segments_adjacent_lands_mapping[node] = [land]
         else:
-            _nodes_adjacent_lands_mapping[node].append(land)
+            _segments_adjacent_lands_mapping[node].append(land)
 
 _lands_building_rel_pos = {
-    0x01: 0, 0x12: 1, 0x21: 2, 0x10: 3, -0x01: 4, -0x10: 5,
-}
+    0x01: 0,
+    0x12: 1,
+    0x21: 2,
+    0x10: 3,
+    -0x01: 4,
+    -0x10: 5, }
 _lands_road_rel_pos = {
-    0x01: 0, 0x11: 1, 0x10: 2, -0x01: 3, -0x11: 4, -0x10: 5,
-}
+    0x01: 0,
+    0x11: 1,
+    0x10: 2,
+    -0x01: 3,
+    -0x11: 4,
+    -0x10: 5, }
 
 
 def parse_layout(data: str) -> IntVector:
@@ -105,11 +114,11 @@ def mapping_1d_2d(data: IntVector) -> np.ndarray:
         [-1] * 3 + data[33:],
     ], dtype=np.int64)  # yapf: disable
 
-    return data_2d
+    return data_2d[:, :, np.newaxis]
 
 
 def mapping_2d_1d(data: np.ndarray) -> List:
-    assert data.shape == (7, 7)
+    assert data.shape == (7, 7) or data.shape == (7, 7, 1)
 
     data_1d = data[data != -1]
     data_1d.flatten()
@@ -147,14 +156,14 @@ def get_1d_id_from_hex(hex_i: int) -> int:
 
 
 def get_one_hot_plan(coord: Tuple) -> np.ndarray:
-    plan = np.zeros([7, 7])
+    plan = np.zeros([7, 7, 1])
     plan[coord] = 1
 
     return plan
 
 
 def get_replicated_plan(i: int) -> np.ndarray:
-    plan = np.ones([7, 7]) * i
+    plan = np.ones([7, 7, 1]) * i
 
     return plan
 
@@ -176,8 +185,11 @@ def parse_pieces(pieces: str) -> np.ndarray:
             - For roads: NE, E, SE, SW, W, NW
             - For buildings: N, NE, SE, S, SW, NW
     """
+    if pieces == '{}':
+        return np.zeros([7, 7, 4 * 18])
+
     pieces = pieces[1:-1]
-    pieces_arr = [piece[1:-1].split(',') for piece in pieces.split(',')]
+    pieces_arr = [piece[1:-1].split(',') for piece in re.findall(r'\{\d+,\d+,\d+\}', pieces)]
     pieces_cleaned = map(lambda piece_desc: [int(p) for p in piece_desc], pieces_arr)
 
     pieces_plans = np.zeros([7, 7, 4 * 18])
@@ -189,12 +201,13 @@ def parse_pieces(pieces: str) -> np.ndarray:
         if building_type == 0:
             lands_hex = _segments_adjacent_lands_mapping[piece_hex_coord]
 
-            lands_1d = map(lambda hex: _lands_hex_1d_mapping[hex], lands_hex)
-            lands_2d = map(lambda v_1d: get_2d_id(v_1d), lands_1d)
+            lands_2d = map(lambda hex: get_2d_id(_lands_hex_1d_mapping[hex]), lands_hex)
             for i, id_2d in enumerate(lands_2d):
                 current_land_hex = lands_hex[i]
                 diff = piece_hex_coord - current_land_hex
                 plan_id = player_id * 18 + building_type * 6 + _lands_road_rel_pos[diff]
+
+                pieces_plans[id_2d[0], id_2d[1], plan_id] = 1
         else:
             lands_hex = _nodes_adjacent_lands_mapping[piece_hex_coord]
 
@@ -205,6 +218,48 @@ def parse_pieces(pieces: str) -> np.ndarray:
                 diff = piece_hex_coord - current_land_hex
                 plan_id = player_id * 18 + building_type * 6 + _lands_building_rel_pos[diff]
 
-            pieces_plans[id_2d[0], id_2d[1], plan_id] = 1
+                pieces_plans[id_2d[0], id_2d[1], plan_id] = 1
 
     return pieces_plans
+
+
+def parse_player_infos(p_infos: str) -> np.ndarray:
+    """
+        Parse the JAVA representation for players
+
+        It is a list of int ordered as:
+            - player's ID (from the db, int)
+            - public vp (int)
+            - total vp (int)
+            - largest army (LA, bool)
+            - longest road (LR, bool)
+            - total number of development cards in hand (int)
+            - number of dev cards which represent a vp (int)
+
+            - an array[5] of all the unplayed dev cards
+            - an array[5] of all the newly bought dev cards
+            - number of played knights
+
+            - an array[6]: number of each resource (clay, ore, sheep, wheat, wood, unknown)
+
+            - an array[5] of which resource types the player is touching
+            - an array[6] of which port types the player is touching
+            - an array[3] of all the pieces the player can still build.
+
+            - number of road building cards this player has played
+            - number of discovery cards this player has played
+            - number of monopoly cards this player has played
+
+        All booleans (LA, LR, touching stuff are represented in 1 for true or 0 for false).
+    """
+    p_infos_separated = [
+        re.sub(r'\{|\}', '', e).split(',') for e in re.findall(r'\{.*?\}', p_infos)
+    ]
+    p_infos_cleaned = [map(int, arr) for arr in p_infos_separated]
+
+    all_player_infos = []
+    for player_info in p_infos_cleaned:
+        p_info = np.concatenate([get_replicated_plan(v) for v in player_info], axis=2)
+        all_player_infos.append(p_info)
+
+    return np.concatenate(all_player_infos, axis=2)

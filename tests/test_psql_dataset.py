@@ -41,10 +41,11 @@ class TestSocPSQLDataset(unittest.TestCase):
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
 
-        seq = dataset[0]
-        assert len(seq) == 297
-        assert seq[0][0].shape == (7, 7, 245)
+        seqs = dataset[0]
+        assert len(seqs) == 2
+        assert len(seqs[0]) == 297
+        assert seqs[0][0].shape == (7, 7, 245)
 
-        seq = dataset[1]
-        assert len(seq) == 270
-        assert seq[0][0].shape == (7, 7, 245)
+        seqs = dataset[1]
+        assert len(seqs[0]) == 270
+        assert seqs[0][0].shape == (7, 7, 245)

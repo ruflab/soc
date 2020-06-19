@@ -1,92 +1,54 @@
 import os
 import unittest
-import numpy as np
 import pandas as pd
+from torch.utils.data import DataLoader
+from unittest.mock import MagicMock
+from soc import SocPSQLDataset
 from soc import utils
+
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
 
 
 class TestUtils(unittest.TestCase):
-    def test_parse_layout(self):
-        data = '{1,2,3,4,54}'
-        formatted_data = utils.parse_layout(data)
 
-        np.testing.assert_array_equal(formatted_data, [1, 2, 3, 4, 54])
+    df_states: pd.DataFrame
+    df_actions: pd.DataFrame
 
-    def test_mapping_1d_2d(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df_states = pd.read_csv(obs_file)
-        hexlayout = df_states['hexlayout'].iloc[0]
+    obs_files = [
+        os.path.join(fixture_dir, 'obsgamestates_100.csv'),
+        os.path.join(fixture_dir, 'obsgamestates_101.csv'),
+    ]
+    actions_files = [
+        os.path.join(fixture_dir, 'gameactions_100.csv'),
+        os.path.join(fixture_dir, 'gameactions_101.csv'),
+    ]
 
-        data_2d = utils.mapping_1d_2d(utils.parse_layout(hexlayout))
-        x = np.array(data_2d)
+    def setUp(self):
+        states = [pd.read_csv(file) for file in self.obs_files]
+        actions = [pd.read_csv(file) for file in self.actions_files]
 
-        assert x.shape == (7, 7, 1)
+        def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
+            return states[idx]
 
-    def test_mapping_2d_1d(self):
-        mat = np.vstack([
-            np.concatenate([np.arange(0, 4), -1 * np.ones(3)]),
-            np.concatenate([np.arange(4, 9), -1 * np.ones(2)]),
-            np.concatenate([np.arange(9, 15), -1 * np.ones(1)]),
-            np.arange(15, 22),
-            np.concatenate([-1 * np.ones(1), np.arange(22, 28)]),
-            np.concatenate([-1 * np.ones(2), np.arange(28, 33)]),
-            np.concatenate([-1 * np.ones(3), np.arange(33, 37)]),
-        ]).astype(np.int64)  # yapf: disable
+        def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
+            return actions[idx]
 
-        x = utils.mapping_2d_1d(mat)
-        y = list(range(37))
+        self._get_states_from_db_se_f = _get_states_from_db_se_f
+        self._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
-        np.testing.assert_array_equal(x, y)
+    def test_loading_pipeline(self):
+        dataset = SocPSQLDataset(no_db=True)
 
-    def test_get_1d_2d(self):
-        id_2d = (3, 5)
-        x = utils.get_1d_id(id_2d)
+        dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
+        dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
+        dataset._get_length = MagicMock(return_value=2)
 
-        assert x == 20
+        dataloader = DataLoader(dataset, batch_size=2, collate_fn=utils.pad_collate_fn)
 
-    def test_get_one_hot_plan(self):
-        id_2d = (3, 5)
-        x = utils.get_one_hot_plan(id_2d)
+        x = next(iter(dataloader))
 
-        y = np.zeros([7, 7, 1])
-        y[3, 5, 0] = 1
-
-        np.testing.assert_array_equal(x, y)
-
-    def test_parse_pieces_empty(self):
-        x = utils.parse_pieces('{}')
-        y = np.zeros([7, 7, 4 * 18])
-
-        np.testing.assert_array_equal(x, y)
-
-    def test_parse_pieces(self):
-        pieces = '{{2,137,0},{1,148,1},{0,167,2}}'
-
-        x = utils.parse_pieces(pieces)
-
-        y = np.zeros([7, 7, 4 * 18])
-        # City player 0
-        y[2, 3, 0 + 12 + 3] = 1
-        y[3, 3, 0 + 12 + 1] = 1
-        y[3, 4, 0 + 12 + 5] = 1
-        # Settlement player 1
-        # y[5, 3, 18 + 6 + 0] = 1  # Water tile not counted for now
-        y[5, 4, 18 + 6 + 4] = 1
-        y[5, 3, 18 + 6 + 2] = 1
-        # Road player 2
-        y[4, 4, 36 + 0 + 2] = 1
-        y[5, 5, 36 + 0 + 5] = 1
-
-        np.testing.assert_array_equal(x, y)
-
-    def test_parse_player_infos(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df = pd.read_csv(obs_file)
-        p_infos = df['players'].iloc[50]
-
-        players_plans = utils.parse_player_infos(p_infos)
-
-        assert players_plans.shape == (7, 7, 4 * 41)
+        assert len(x) == 2
+        assert x[0].shape == (2, 297, 7, 7, 245)
+        assert x[1].shape == (2, 297, 7, 7, 17)

@@ -57,13 +57,13 @@ typecheck:
 	mypy $(CURRENT_DIR)/soc
 
 lint:
-	flake8 soc/.
+	flake8 soc/. tests/.
 
 yapf:
-	yapf --style tox.ini -r -i soc/.
+	yapf --style tox.ini -r -i soc/. tests/.
 
 test:
-	pytest soc/
+	pytest .
 
 ci: lint typecheck test
 

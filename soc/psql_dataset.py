@@ -1,3 +1,4 @@
+import sqlalchemy
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
 import numpy as np
@@ -68,7 +69,6 @@ class SocPSQLDataset(Dataset):
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-
         df_states = self._get_states_from_db(idx)
         df_actions = self._get_actions_from_db(idx)
 
@@ -95,26 +95,36 @@ class SocPSQLDataset(Dataset):
 
     def _get_states_from_db(self, idx: int) -> pd.DataFrame:
         db_id = 100 + idx  # The first row in the DB starts at 100 in the JAVA app
+        query = """
+            SELECT *
+            FROM obsgamestates_{}
+        """.format(db_id)
 
-        query = "SELECT * from obsgamestates_{}".format(db_id)
         df_states = pd.read_sql_query(query, con=self.engine)
 
         return df_states
 
     def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
-        query = "SELECT * from gameactions_{}".format(idx)
+        db_id = 100 + idx
+        query = """
+            SELECT *
+            FROM gameactions_{}
+        """.format(db_id)
+
         df_states = pd.read_sql_query(query, con=self.engine)
 
         return df_states
 
     def _get_length(self) -> int:
         if self._length == -1 and self.engine is not None:
-            query = r"SELECT count(tablename) FROM pg_catalog.pg_tables WHERE \
-                schemaname != 'pg_catalog' AND \
-                schemaname != 'information_schema' AND \
-                tablename SIMILAR TO 'obsgamestates_%\d\d\d+%'"
-
-            self._length = self.engine.execute(query)
+            query = r"""
+                SELECT count(tablename)
+                FROM pg_catalog.pg_tables
+                WHERE schemaname != 'information_schema'
+                AND tablename SIMILAR TO 'obsgamestates_%\d\d\d+%'
+            """
+            res = self.engine.execute(sqlalchemy.text(query))
+            self._length = res.scalar()
 
         return self._length
 
@@ -138,7 +148,7 @@ class SocPSQLDataset(Dataset):
                 - plan 27-44: Player 2 pieces
                 - plan 45-62: Player 3 pieces
                 - plan 63-80: Player 4 pieces
-                see ju.parse_player_infos for more information
+                see java_utils.parse_player_infos for more information
                 - plan 81-121: Player 1 public info
                 - plan 122-162: Player 2 public info
                 - plan 163-203: Player 3 public info

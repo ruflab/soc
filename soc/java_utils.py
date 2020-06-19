@@ -93,8 +93,11 @@ _lands_road_rel_pos = {
     -0x10: 5, }
 
 
-def parse_layout(data: str) -> IntVector:
-    data = data[1:-1]
+def parse_layout(raw_data: str) -> IntVector:
+    if isinstance(raw_data, list):
+        return raw_data
+
+    data = raw_data[1:-1]
     data_arr = data.split(',')
     data_cleaned = [int(datum) for datum in data_arr]
 
@@ -185,12 +188,17 @@ def parse_pieces(pieces: str) -> np.ndarray:
             - For roads: NE, E, SE, SW, W, NW
             - For buildings: N, NE, SE, S, SW, NW
     """
-    if pieces == '{}':
+    if isinstance(pieces, str) and pieces == '{}':
+        return np.zeros([7, 7, 4 * 18])
+    if isinstance(pieces, list) and len(pieces) == 0:
         return np.zeros([7, 7, 4 * 18])
 
-    pieces = pieces[1:-1]
-    pieces_arr = [piece[1:-1].split(',') for piece in re.findall(r'\{\d+,\d+,\d+\}', pieces)]
-    pieces_cleaned = map(lambda piece_desc: [int(p) for p in piece_desc], pieces_arr)
+    if isinstance(pieces, str):
+        pieces = pieces[1:-1]
+        pieces_arr = [piece[1:-1].split(',') for piece in re.findall(r'\{\d+,\d+,\d+\}', pieces)]
+        pieces_cleaned = map(lambda piece_desc: [int(p) for p in piece_desc], pieces_arr)
+    else:
+        pieces_cleaned = pieces
 
     pieces_plans = np.zeros([7, 7, 4 * 18])
     for piece in pieces_cleaned:
@@ -252,10 +260,13 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
 
         All booleans (LA, LR, touching stuff are represented in 1 for true or 0 for false).
     """
-    p_infos_separated = [
-        re.sub(r'\{|\}', '', e).split(',') for e in re.findall(r'\{.*?\}', p_infos)
-    ]
-    p_infos_cleaned = [map(int, arr) for arr in p_infos_separated]
+    if isinstance(p_infos, str):
+        p_infos_separated = [
+            re.sub(r'\{|\}', '', e).split(',') for e in re.findall(r'\{.*?\}', p_infos)
+        ]
+        p_infos_cleaned = [map(int, arr) for arr in p_infos_separated]
+    else:
+        p_infos_cleaned = p_infos
 
     all_player_infos = []
     for player_info in p_infos_cleaned:

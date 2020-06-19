@@ -54,10 +54,10 @@ endif
 # CI
 ###
 typecheck:
-	mypy $(CURRENT_DIR)/soc
+	mypy $(CURRENT_DIR)/soc $(CURRENT_DIR)/scripts
 
 lint:
-	flake8 soc/. tests/.
+	flake8 soc/. tests/. scripts/.
 
 yapf:
 	yapf --style tox.ini -r -i soc/. tests/.

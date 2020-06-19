@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 from soc import SocPSQLDataset
 from soc import utils
 
-
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
 

@@ -1,6 +1,6 @@
 # App
-soc/results
 tmp
+scripts/results
 
 # Python
 __pycache__

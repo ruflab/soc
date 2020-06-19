@@ -23,6 +23,10 @@ jobs:
           environment-file: environment_darwin.yml
           auto-activate-base: false
           auto-update-conda: true
+      - name: Install soc
+        shell: bash -l {0}
+        run: |
+          pip install -e .
       - name: Lint with flake8
         shell: bash -l {0}
         run: |

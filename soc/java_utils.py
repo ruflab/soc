@@ -117,7 +117,7 @@ def mapping_1d_2d(data: IntVector) -> np.ndarray:
         [-1] * 3 + data[33:],
     ], dtype=np.int64)  # yapf: disable
 
-    return data_2d[:, :, np.newaxis]
+    return data_2d[np.newaxis, :, :]
 
 
 def mapping_2d_1d(data: np.ndarray) -> List:
@@ -159,14 +159,15 @@ def get_1d_id_from_hex(hex_i: int) -> int:
 
 
 def get_one_hot_plan(coord: Tuple) -> np.ndarray:
-    plan = np.zeros([7, 7, 1])
+    plan = np.zeros([7, 7])
     plan[coord] = 1
+    plan = plan[np.newaxis, :, :]
 
     return plan
 
 
 def get_replicated_plan(i: int) -> np.ndarray:
-    plan = np.ones([7, 7, 1]) * i
+    plan = np.ones([1, 7, 7]) * i
 
     return plan
 
@@ -189,9 +190,9 @@ def parse_pieces(pieces: str) -> np.ndarray:
             - For buildings: N, NE, SE, S, SW, NW
     """
     if isinstance(pieces, str) and pieces == '{}':
-        return np.zeros([7, 7, 4 * 18])
+        return np.zeros([4 * 18, 7, 7])
     if isinstance(pieces, list) and len(pieces) == 0:
-        return np.zeros([7, 7, 4 * 18])
+        return np.zeros([4 * 18, 7, 7])
 
     if isinstance(pieces, str):
         pieces = pieces[1:-1]
@@ -200,7 +201,7 @@ def parse_pieces(pieces: str) -> np.ndarray:
     else:
         pieces_cleaned = pieces
 
-    pieces_plans = np.zeros([7, 7, 4 * 18])
+    pieces_plans = np.zeros([4 * 18, 7, 7])
     for piece in pieces_cleaned:
         building_type = piece[0]
         piece_hex_coord = piece[1]
@@ -215,7 +216,7 @@ def parse_pieces(pieces: str) -> np.ndarray:
                 diff = piece_hex_coord - current_land_hex
                 plan_id = player_id * 18 + building_type * 6 + _lands_road_rel_pos[diff]
 
-                pieces_plans[id_2d[0], id_2d[1], plan_id] = 1
+                pieces_plans[plan_id, id_2d[0], id_2d[1]] = 1
         else:
             lands_hex = _nodes_adjacent_lands_mapping[piece_hex_coord]
 
@@ -226,7 +227,7 @@ def parse_pieces(pieces: str) -> np.ndarray:
                 diff = piece_hex_coord - current_land_hex
                 plan_id = player_id * 18 + building_type * 6 + _lands_building_rel_pos[diff]
 
-                pieces_plans[id_2d[0], id_2d[1], plan_id] = 1
+                pieces_plans[plan_id, id_2d[0], id_2d[1]] = 1
 
     return pieces_plans
 
@@ -270,10 +271,10 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
 
     all_player_infos = []
     for player_info in p_infos_cleaned:
-        p_info = np.concatenate([get_replicated_plan(v) for v in player_info], axis=2)
+        p_info = np.concatenate([get_replicated_plan(v) for v in player_info], axis=0)
         all_player_infos.append(p_info)
 
-    return np.concatenate(all_player_infos, axis=2)
+    return np.concatenate(all_player_infos, axis=0)
 
 
 _ACTIONS = {
@@ -298,9 +299,9 @@ _ACTIONS = {
 
 
 def parse_actions(action: float):
-    actions_plan = np.zeros([7, 7, len(_ACTIONS)])
+    actions_plan = np.zeros([len(_ACTIONS), 7, 7])
     idx = list(_ACTIONS.values()).index(action)
 
-    actions_plan[:, :, idx] = 1
+    actions_plan[idx, :, :] = 1
 
     return actions_plan

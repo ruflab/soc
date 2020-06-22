@@ -22,18 +22,19 @@ class TestSocPSQLDataset(unittest.TestCase):
         os.path.join(fixture_dir, 'gameactions_101.csv'),
     ]
 
-    def setUp(self):
-        states = [pd.read_csv(file) for file in self.obs_files]
-        actions = [pd.read_csv(file) for file in self.actions_files]
+    @classmethod
+    def setUpClass(cls):
+        states = [pd.read_csv(file) for file in cls.obs_files]
+        actions = [pd.read_csv(file) for file in cls.actions_files]
 
-        def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
+        def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
             return states[idx]
 
-        def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
+        def _get_actions_from_db_se_f(self, idx: int) -> pd.DataFrame:
             return actions[idx]
 
-        self._get_states_from_db_se_f = _get_states_from_db_se_f
-        self._get_actions_from_db_se_f = _get_actions_from_db_se_f
+        cls._get_states_from_db_se_f = _get_states_from_db_se_f
+        cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_soc_psql_dataset(self):
         dataset = SocPSQLDataset(no_db=True)
@@ -44,8 +45,8 @@ class TestSocPSQLDataset(unittest.TestCase):
         seqs = dataset[0]
         assert len(seqs) == 2
         assert len(seqs[0]) == 297
-        assert seqs[0][0].shape == (7, 7, 245)
+        assert seqs[0][0].shape == (245, 7, 7)
 
         seqs = dataset[1]
         assert len(seqs[0]) == 270
-        assert seqs[0][0].shape == (7, 7, 245)
+        assert seqs[0][0].shape == (245, 7, 7)

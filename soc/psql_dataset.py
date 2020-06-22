@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from typing import Tuple
 from . import java_utils as ju
+from .utils import pad_collate_fn
 
 
 class SocPSQLDataset(Dataset):
@@ -85,7 +86,7 @@ class SocPSQLDataset(Dataset):
             current_action_df = df_actions.iloc[i]
 
             current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=2)
+                                              axis=0)
             current_action_np = current_action_df['type']
 
             states_seq.append(current_state_np)
@@ -154,7 +155,7 @@ class SocPSQLDataset(Dataset):
                 - plan 163-203: Player 3 public info
                 - plan 204-244: Player 4 public info
 
-            State shape: 7x7x245
+            State shape: 245x7x7
         """
         del df_states['touchingnumbers']
         del df_states['name']
@@ -190,3 +191,13 @@ class SocPSQLDataset(Dataset):
         df_actions['type'] = df_actions['type'].apply(ju.parse_actions)
 
         return df_actions
+
+    def get_input_size(self):
+        channels = 245
+        width = 7
+        height = 7
+
+        return [channels, width, height]
+
+    def get_collate_fn(self):
+        return pad_collate_fn

@@ -60,7 +60,7 @@ lint:
 	flake8 soc/. tests/. scripts/.
 
 yapf:
-	yapf --style tox.ini -r -i soc/. tests/.
+	yapf --style tox.ini -r -i soc/. tests/. scripts/.
 
 test:
 	pytest .

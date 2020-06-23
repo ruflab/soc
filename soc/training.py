@@ -56,6 +56,7 @@ def train_on_dataset(
             if 'end_batch_callback' in callbacks:
                 callbacks['end_batch_callback'](i_epoch, i_batch, n_batchs, loss)
 
+        # Validation and scheduler step should appear here
         if 'end_epoch_callback' in callbacks:
             callbacks['end_epoch_callback'](i_epoch)
 
@@ -68,21 +69,31 @@ def train_on_dataset(
 def train_on_batch(
         batch: Tuple, model: Module, loss_f: Callable, optimizer: Optimizer
 ) -> torch.Tensor:
-    batched_states_seq = batch[0]
-    batched_actions_seq = batch[1]
+    batched_states_seq_t = batch[0]
+    batched_actions_seq_t = batch[1]
 
-    # TODO: make it real
+    # We concat on the channel dim
     final_inputs = torch.cat([
-        batched_states_seq[0],
-        batched_actions_seq[0], ], dim=-1)
-    true_preds = batched_states_seq[1]
+        batched_states_seq_t,
+        batched_actions_seq_t, ], dim=2)  # BsxSxCxWxH
+    true_preds = batched_states_seq_t[:, 1:]
 
-    preds, _ = model(final_inputs)
-    preds = preds[:, :-1, :]
+    layer_preds, _ = model(final_inputs)
+    preds = layer_preds[-1]
+    preds = preds[:, :-1]
 
-    n_preds_features = preds.shape[-1]
+    mask = true_preds != 0
+    preds = mask * preds
 
-    loss = loss_f(preds.reshape(-1, n_preds_features), true_preds.reshape(-1, n_preds_features))
+    bs = preds.shape[0]
+    seq_len = preds.shape[1]
+    C = batched_states_seq_t.shape[2]
+    W = batched_states_seq_t.shape[3]
+    H = batched_states_seq_t.shape[4]
+    loss = loss_f(
+        preds.reshape(bs * seq_len, C, W, H),
+        true_preds.reshape(bs * seq_len, C, W, H)
+    )
 
     model.zero_grad()
     loss.backward()

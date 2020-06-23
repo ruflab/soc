@@ -1,3 +1,3 @@
-from .psql_dataset import SocPSQLDataset
+from .psql_dataset import SocPSQLSeqDataset
 
-__all__ = ['SocPSQLDataset']
+__all__ = ['SocPSQLSeqDataset']

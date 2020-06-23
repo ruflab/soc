@@ -3,12 +3,13 @@ from sqlalchemy import create_engine
 from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd
-from typing import Tuple
+from typing import Any, Tuple, Callable
 from . import java_utils as ju
 from .utils import pad_collate_fn
+from .typing import SOCSeq
 
 
-class SocPSQLDataset(Dataset):
+class _SocPSQLDataset(Dataset):
     """
         Defines a Settlers of Catan postgresql dataset.
 
@@ -39,6 +40,9 @@ class SocPSQLDataset(Dataset):
         'players',
     ]
 
+    _state_size = [245, 7, 7]
+    _action_size = [17, 7, 7]
+
     def __init__(
             self,
             no_db: bool = False,
@@ -47,9 +51,10 @@ class SocPSQLDataset(Dataset):
             psql_port: int = 5432,
             psql_db_name: str = 'soc'
     ) -> None:
-        super(SocPSQLDataset, self).__init__()
+        super(_SocPSQLDataset, self).__init__()
 
         self._length = -1
+        self._first_index = 100  # Due to the java implementation
 
         if no_db:
             self.engine = None
@@ -63,71 +68,17 @@ class SocPSQLDataset(Dataset):
     def __len__(self) -> int:
         return self._get_length()
 
-    def __getitem__(self, idx: int) -> Tuple:
-        """
-            Return one datapoint from the dataset
-
-            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
-
-        """
-        df_states = self._get_states_from_db(idx)
-        df_actions = self._get_actions_from_db(idx)
-
-        assert len(df_states.index) == len(df_actions.index)
-        game_length = len(df_states)
-
-        df_states = self._preprocess_states(df_states)
-        df_actions = self._preprocess_actions(df_actions)
-
-        states_seq = []
-        actions_seq = []
-        for i in range(game_length):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
-
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
-            current_action_np = current_action_df['type']
-
-            states_seq.append(current_state_np)
-            actions_seq.append(current_action_np)
-
-        return np.array(states_seq), np.array(actions_seq)
+    def __getitem__(self, idx: int) -> Any:
+        raise NotImplementedError
 
     def _get_states_from_db(self, idx: int) -> pd.DataFrame:
-        db_id = 100 + idx  # The first row in the DB starts at 100 in the JAVA app
-        query = """
-            SELECT *
-            FROM obsgamestates_{}
-        """.format(db_id)
-
-        df_states = pd.read_sql_query(query, con=self.engine)
-
-        return df_states
+        raise NotImplementedError
 
     def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
-        db_id = 100 + idx
-        query = """
-            SELECT *
-            FROM gameactions_{}
-        """.format(db_id)
-
-        df_states = pd.read_sql_query(query, con=self.engine)
-
-        return df_states
+        raise NotImplementedError
 
     def _get_length(self) -> int:
-        if self._length == -1 and self.engine is not None:
-            query = r"""
-                SELECT count(tablename)
-                FROM pg_catalog.pg_tables
-                WHERE schemaname != 'information_schema'
-                AND tablename SIMILAR TO 'obsgamestates_%\d\d\d+%'
-            """
-            res = self.engine.execute(sqlalchemy.text(query))
-            self._length = res.scalar()
-
-        return self._length
+        raise NotImplementedError
 
     def _preprocess_states(self, df_states: pd.DataFrame) -> pd.DataFrame:
         """
@@ -192,12 +143,100 @@ class SocPSQLDataset(Dataset):
 
         return df_actions
 
-    def get_input_size(self):
-        channels = 245
-        width = 7
-        height = 7
+    def get_input_size(self) -> Any:
+        raise NotImplementedError
 
-        return [channels, width, height]
+    def get_collate_fn(self) -> Callable:
+        raise NotImplementedError
+
+
+class SocPSQLSeqDataset(_SocPSQLDataset):
+    """
+        Defines a Settlers of Catan postgresql dataset for sequence models.
+        One datapoint is a tuple (states, actions):
+        - states is the full sequence of game states
+        - actions is the full sequence of actions
+
+        Args:
+            psql_username: (str) username
+            psql_host: (str) host
+            psql_port: (int) port
+            psql_db_name: (str) database name
+
+        Returns:
+            dataset: (Dataset) A pytorch Dataset giving access to the data
+
+    """
+    def __getitem__(self, idx: int) -> SOCSeq:
+        """
+            Return one datapoint from the dataset
+
+            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
+
+        """
+        df_states = self._get_states_from_db(idx)
+        df_actions = self._get_actions_from_db(idx)
+
+        assert len(df_states.index) == len(df_actions.index)
+        game_length = len(df_states)
+
+        df_states = self._preprocess_states(df_states)
+        df_actions = self._preprocess_actions(df_actions)
+
+        state_seq = []
+        action_seq = []
+        for i in range(game_length):
+            current_state_df = df_states.iloc[i]
+            current_action_df = df_actions.iloc[i]
+
+            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
+                                              axis=0)
+            current_action_np = current_action_df['type']
+
+            state_seq.append(current_state_np)
+            action_seq.append(current_action_np)
+
+        return np.array(state_seq), np.array(action_seq)
+
+    def _get_states_from_db(self, idx: int) -> pd.DataFrame:
+        db_id = self._first_index + idx
+        query = """
+            SELECT *
+            FROM obsgamestates_{}
+        """.format(db_id)
+
+        df_states = pd.read_sql_query(query, con=self.engine)
+
+        return df_states
+
+    def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
+        db_id = self._first_index + idx
+        query = """
+            SELECT *
+            FROM gameactions_{}
+        """.format(db_id)
+
+        df_states = pd.read_sql_query(query, con=self.engine)
+
+        return df_states
+
+    def _get_length(self) -> int:
+        if self._length == -1 and self.engine is not None:
+            query = r"""
+                SELECT count(id)
+                FROM simulation_games
+            """
+            res = self.engine.execute(sqlalchemy.text(query))
+            self._length = res.scalar()
+
+        return self._length
+
+    def get_input_size(self) -> Tuple:
+        """
+            Return the input dimension
+        """
+
+        return (self._state_size, self._action_size)
 
     def get_collate_fn(self):
         return pad_collate_fn

@@ -4,9 +4,9 @@ import argparse
 import random
 import time
 from tqdm import tqdm
-from soc import SocPSQLDataset
+import soc
 from soc.training import train_on_dataset
-from soc.models import make_model
+from soc.models import make_model, get_models_list
 from soc import utils
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training configuration')
 
     # Generic HP
+    parser.add_argument('--config', '-c', type=str, help='A configuration file')
     parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
     parser.add_argument(
         '--results_d', type=str, default=default_results_d, help='The result folder'
@@ -39,12 +40,23 @@ if __name__ == "__main__":
 
     # Data HP
     parser.add_argument(
-        '--dataset_name', '--dn', type=str, default='socpsql', help='The dataset name'
+        '--dataset_name', '--dn', type=str, default='socpsqlseq', help='The dataset name'
     )
 
     # Model HP
-    parser.add_argument('--arch', type=str, default='Resnet18', help='The architecture name')
-    parser.add_argument('--pretrained', type=bool, default=False, help='Using a pretrained model')
+    parser.add_argument(
+        '--arch', choices=get_models_list(), default='ConvLSTM', help='The architecture name'
+    )
+    parser.add_argument(
+        '--in_chan_dim', type=list, default=245 + 17, help='Number of input channels'
+    )
+    parser.add_argument(
+        '--h_chan_dim', type=list, default=[300, 245], help='List of hidden channels per layer'
+    )
+    parser.add_argument(
+        '--kernel_size', type=list, default=[(3, 3), (3, 3)], help='List of Kernel size per layer'
+    )
+    parser.add_argument('--num_layers', type=int, default=2, help='Number of layers')
 
     # Training HP
     parser.add_argument('--loss_name', '--ln', type=str, default='mse', help='The loss name')
@@ -76,10 +88,14 @@ if __name__ == "__main__":
         '--batch_size',
         '--bs',
         type=int,
-        default=16,
+        default=4,
         help='Batch size', )
 
     config = vars(parser.parse_args())
+
+    if config['config'] is not None:
+        if os.path.isfile(config['config']):
+            config = torch.load(config['config'])
 
     # Generics
     utils.set_seed(config['seed'])
@@ -89,8 +105,8 @@ if __name__ == "__main__":
         config, checkpoints = utils.load(config['results_d'])
 
     # Data
-    if config['dataset_name'] == 'socpsql':
-        dataset = SocPSQLDataset()
+    if config['dataset_name'] == 'socpsqlseq':
+        dataset = soc.SocPSQLSeqDataset()
     else:
         raise Exception('Unknown dataset {}'.format(config['dataset_name']))
     config['input_size'] = dataset.get_input_size()
@@ -133,4 +149,5 @@ if __name__ == "__main__":
     final_model = train_on_dataset(
         config, dataset, model, loss_f, optimizer, collate_fn=collate_fn, callbacks=callbacks
     )
+
     utils.save(config, final_model, optimizer)

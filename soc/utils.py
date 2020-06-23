@@ -6,6 +6,7 @@ from torch.optim.optimizer import Optimizer
 import random
 import numpy as np
 from typing import Tuple, Dict
+from .typing import SOCSeqList, SOCSeqTorch
 
 
 def set_seed(seed: int):
@@ -60,7 +61,7 @@ def load(folder: str) -> Tuple:
     return config, ckpts
 
 
-def pad_collate_fn(inputs) -> Tuple:
+def pad_collate_fn(inputs: SOCSeqList) -> SOCSeqTorch:
     """
         Pad the different inputs
 
@@ -68,11 +69,11 @@ def pad_collate_fn(inputs) -> Tuple:
     """
     batch_states_seq = []
     batch_actions_seq = []
-    for t in inputs:
-        states_seq, actions_seq = t
+    for tuple_seq in inputs:
+        states_seq, actions_seq = tuple_seq
 
-        batch_states_seq.append(torch.tensor(states_seq))
-        batch_actions_seq.append(torch.tensor(actions_seq))
+        batch_states_seq.append(torch.tensor(states_seq, dtype=torch.float32))
+        batch_actions_seq.append(torch.tensor(actions_seq, dtype=torch.float32))
 
     batch_states_seq_t = torch.nn.utils.rnn.pad_sequence(batch_states_seq, batch_first=True)
     batch_actions_seq_t = torch.nn.utils.rnn.pad_sequence(batch_actions_seq, batch_first=True)

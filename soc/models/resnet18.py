@@ -328,9 +328,7 @@ def resnext50_32x4d(config, progress=True, **kwargs):
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 4
-    return _resnet(
-        config, 'resnext50_32x4d', Bottleneck, [3, 4, 6, 3], progress, **kwargs
-    )
+    return _resnet(config, 'resnext50_32x4d', Bottleneck, [3, 4, 6, 3], progress, **kwargs)
 
 
 def resnext101_32x8d(config, progress=True, **kwargs):
@@ -343,9 +341,7 @@ def resnext101_32x8d(config, progress=True, **kwargs):
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 8
-    return _resnet(
-        config, 'resnext101_32x8d', Bottleneck, [3, 4, 23, 3], progress, **kwargs
-    )
+    return _resnet(config, 'resnext101_32x8d', Bottleneck, [3, 4, 23, 3], progress, **kwargs)
 
 
 def wide_resnet50_2(config, progress=True, **kwargs):
@@ -361,9 +357,7 @@ def wide_resnet50_2(config, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     kwargs['width_per_group'] = 64 * 2
-    return _resnet(
-        config, 'wide_resnet50_2', Bottleneck, [3, 4, 6, 3], progress, **kwargs
-    )
+    return _resnet(config, 'wide_resnet50_2', Bottleneck, [3, 4, 6, 3], progress, **kwargs)
 
 
 def wide_resnet101_2(config, progress=True, **kwargs):
@@ -379,6 +373,4 @@ def wide_resnet101_2(config, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     kwargs['width_per_group'] = 64 * 2
-    return _resnet(
-        config, 'wide_resnet101_2', Bottleneck, [3, 4, 23, 3], progress, **kwargs
-    )
+    return _resnet(config, 'wide_resnet101_2', Bottleneck, [3, 4, 23, 3], progress, **kwargs)

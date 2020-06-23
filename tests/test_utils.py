@@ -7,7 +7,7 @@ import time
 from torch.utils.data import DataLoader
 import numpy as np
 from unittest.mock import MagicMock
-from soc import SocPSQLDataset
+import soc
 from soc import utils
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -50,7 +50,7 @@ class TestUtils(unittest.TestCase):
         shutil.rmtree(os.path.join(fixture_dir, 'test_save_load'))
 
     def test_data_loading_pipeline(self):
-        dataset = SocPSQLDataset(no_db=True)
+        dataset = soc.SocPSQLSeqDataset(no_db=True)
 
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

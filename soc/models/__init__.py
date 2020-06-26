@@ -1,9 +1,11 @@
 from .resnet18 import resnet18
 from .conv_lstm import ConvLSTM
+from .conv3d import Conv3dModel
 
 __all__ = [
     "resnet18",
-    "ConvLSTM", ]
+    "ConvLSTM",
+    "Conv3dModel", ]
 
 
 def make_model(config):

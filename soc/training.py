@@ -17,8 +17,12 @@ def train_on_dataset(
         optimizer: Optimizer,
         scheduler: object = None,
         collate_fn: CollateFnType = None,
-        callbacks: dict = {}
+        training_type: str = 'supervised',
+        callbacks: dict = {},
 ) -> Module:
+    if config['verbose']:
+        print('Launching training')
+
     batch_size = config['batch_size']
     n_epochs = config['n_epochs']
 
@@ -51,7 +55,12 @@ def train_on_dataset(
             if 'start_batch_callback' in callbacks:
                 callbacks['start_batch_callback'](i_epoch, i_batch, n_batchs)
 
-            loss = train_on_batch(batch, model, loss_f, optimizer)
+            if training_type == 'supervised':
+                loss = train_on_supervised_batch(batch, model, loss_f, optimizer)
+            else:
+                raise Exception(
+                    "No training process exist for this training type: {}".format(training_type)
+                )
 
             if 'end_batch_callback' in callbacks:
                 callbacks['end_batch_callback'](i_epoch, i_batch, n_batchs, loss)
@@ -66,34 +75,28 @@ def train_on_dataset(
     return model
 
 
-def train_on_batch(
-        batch: Tuple, model: Module, loss_f: Callable, optimizer: Optimizer
+def train_on_supervised_batch(
+        batch: Tuple, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
 ) -> torch.Tensor:
-    batched_states_seq_t = batch[0]
-    batched_actions_seq_t = batch[1]
+    """
+        This function apply an batch update to the model.
 
-    # We concat on the channel dim
-    final_inputs = torch.cat([
-        batched_states_seq_t,
-        batched_actions_seq_t, ], dim=2)  # BsxSxCxWxH
-    true_preds = batched_states_seq_t[:, 1:]
+        The dataloader is expected to to provide a tuple of x and y values
+    """
+    x = batch[0]
+    y_true = batch[1]
 
-    layer_preds, _ = model(final_inputs)
-    preds = layer_preds[-1]
-    preds = preds[:, :-1]
+    # We assume the model outputs a tuple where the first element
+    # is the actual predictions
+    outputs = model(x)
+    y_preds = outputs[0]
 
-    mask = true_preds != 0
-    preds = mask * preds
+    mask = y_true != 0
+    y = mask * y_preds
 
-    bs = preds.shape[0]
-    seq_len = preds.shape[1]
-    C = batched_states_seq_t.shape[2]
-    W = batched_states_seq_t.shape[3]
-    H = batched_states_seq_t.shape[4]
-    loss = loss_f(
-        preds.reshape(bs * seq_len, C, W, H),
-        true_preds.reshape(bs * seq_len, C, W, H)
-    )
+    bs, seq_len, C, H, W = y_true.shape
+
+    loss = loss_f(y.reshape(bs * seq_len, C, W, H), y_true.reshape(bs * seq_len, C, W, H))
 
     model.zero_grad()
     loss.backward()

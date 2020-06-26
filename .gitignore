@@ -1,6 +1,7 @@
 # App
 tmp
 scripts/results
+data/
 
 # Python
 __pycache__

@@ -2,10 +2,10 @@ import os
 import unittest
 import pandas as pd
 from unittest.mock import MagicMock
-import soc
+from soc import datasets
 
 cfd = os.path.dirname(os.path.realpath(__file__))
-fixture_dir = os.path.join(cfd, 'fixtures')
+fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestSocPSQLDataset(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestSocPSQLDataset(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_soc_psql_seq_dataset(self):
-        dataset = soc.SocPSQLSeqDataset(no_db=True)
+        dataset = datasets.SocPSQLSeqDataset(no_db=True)
 
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

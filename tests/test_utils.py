@@ -9,6 +9,7 @@ import numpy as np
 from unittest.mock import MagicMock
 import soc
 from soc import utils
+from soc.datasets import utils as ds_utils
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -50,13 +51,12 @@ class TestUtils(unittest.TestCase):
         shutil.rmtree(os.path.join(fixture_dir, 'test_save_load'))
 
     def test_data_loading_pipeline(self):
-        dataset = soc.SocPSQLSeqDataset(no_db=True)
-
+        dataset = soc.datasets.SocPSQLSeqDataset(no_db=True)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
         dataset._get_length = MagicMock(return_value=2)
 
-        dataloader = DataLoader(dataset, batch_size=2, collate_fn=utils.pad_collate_fn)
+        dataloader = DataLoader(dataset, batch_size=2, collate_fn=ds_utils.pad_seq)
 
         x = next(iter(dataloader))
 

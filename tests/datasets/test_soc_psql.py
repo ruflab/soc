@@ -37,7 +37,7 @@ class TestSocPSQLDataset(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_soc_psql_seq_dataset(self):
-        dataset = datasets.SocPSQLSeqDataset(no_db=True)
+        dataset = datasets.SocPSQLSeqDataset({'no_db': True})
 
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

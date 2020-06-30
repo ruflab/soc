@@ -45,8 +45,8 @@ def build_config(default_config: Dict, cli_config: Dict) -> Dict:
 def instantiate_training_params(config):
     # Data
     dataset = make_dataset(config)
-    config['data_input_dims'] = dataset.get_input_size()
-    config['data_output_dims'] = dataset.get_output_size()
+    config['data_input_size'] = dataset.get_input_size()
+    config['data_output_size'] = dataset.get_output_size()
     collate_fn = dataset.get_collate_fn()
     training_type = dataset.get_training_type()
 

@@ -40,7 +40,9 @@ if __name__ == "__main__":
         'verbose': True,
         # Data
         'dataset': 'SocPSQLSeqSAToSDataset',
-        'no_db': False,
+        'history_length': 8,
+        'future_length': 1,
+        'no_db': False,  # Used for testing
         # Model
         'arch': 'ConvLSTM',
         'defaul_arch': False,
@@ -84,6 +86,18 @@ if __name__ == "__main__":
         choices=get_datasets_list(),
         default=argparse.SUPPRESS,
         help='The dataset name'
+    )
+    parser.add_argument(
+        '--history_length',
+        type=int,
+        default=argparse.SUPPRESS,
+        help='History length for the feedforward training pipeline'
+    )
+    parser.add_argument(
+        '--future_length',
+        type=int,
+        default=argparse.SUPPRESS,
+        help='Future length for the feedforward training pipeline'
     )
 
     # Model HP

@@ -91,8 +91,11 @@ def train_on_supervised_batch(
     outputs = model(x)
     y_preds = outputs[0]
 
+    # TODO: This is dubious, potentially setting zeros at random places
+    # TODO: set the batch function to the dataset
     mask = y_true != 0
     y = mask * y_preds
+    breakpoint()
 
     bs, seq_len, C, H, W = y_true.shape
 

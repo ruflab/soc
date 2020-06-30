@@ -2,7 +2,7 @@ import sqlalchemy
 import numpy as np
 import pandas as pd
 from typing import List
-from .psql import SocPSQLDataset
+from .soc_psql import SocPSQLDataset
 from . import utils
 from ..typing import SOCSeq
 

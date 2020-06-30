@@ -13,13 +13,13 @@ class TestConv3dModel(unittest.TestCase):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
             'arch': 'Conv3dModel',
-            'data_input_dims': (7, 11, 13),
-            'data_output_dims': (3, 11, 13),
+            'data_input_size': (7, 11, 13),
+            'data_output_size': (3, 11, 13),
             'num_layers': 2,
             'h_chan_dim': 5,
             'kernel_size': (3, 3, 3),
             'strides': (1, 1, 1),
-            'paddings': (1, 2, 3),
+            'paddings': (1, 1, 2, 2, 3, 3),
         }
         batch_size = 3
         input_tensor = torch.rand((batch_size, ) + input_dim)
@@ -38,13 +38,13 @@ class TestConv3dModel(unittest.TestCase):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
             'arch': 'Conv3dModel',
-            'data_input_dims': (7, 11, 13),
-            'data_output_dims': (3, 11, 13),
+            'data_input_size': (7, 11, 13),
+            'data_output_size': (3, 11, 13),
             'num_layers': 2,
             'h_chan_dim': 5,
             'kernel_size': (3, 3, 3),
             'strides': (1, 1, 1),
-            'paddings': (1, 2, 3),
+            'paddings': (1, 1, 2, 2, 3, 3),
         }
         batch_size = 3
         bs_input_dim = (batch_size, ) + input_dim
@@ -64,13 +64,13 @@ class TestConv3dModel(unittest.TestCase):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
             'arch': 'Conv3dModel',
-            'data_input_dims': (7, 11, 13),
-            'data_output_dims': (3, 11, 13),
+            'data_input_size': (7, 11, 13),
+            'data_output_size': (3, 11, 13),
             'num_layers': 2,
             'h_chan_dim': 5,
             'kernel_size': (3, 3, 3),
             'strides': (1, 1, 1),
-            'paddings': (0, 0, 0),
+            'paddings': 0,
         }
         batch_size = 3
         bs_input_dim = (batch_size, ) + input_dim

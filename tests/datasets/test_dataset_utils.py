@@ -38,7 +38,7 @@ class TestUtils(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_pad_seq_sas(self):
-        dataset = datasets.SocPSQLSeqSAToSDataset(no_db=True)
+        dataset = datasets.SocPSQLSeqSAToSDataset({'no_db': True})
 
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

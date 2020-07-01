@@ -36,10 +36,6 @@ class TestUtils(unittest.TestCase):
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 1000000)))
 
-    # def tearDown(self):
-    #     shutil.rmtree(self.folder)
-    #     self.folder = None
-
     def test_training_socseqsas_convlstm(self):
         states = self.states
         actions = self.actions

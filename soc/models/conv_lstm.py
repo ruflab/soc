@@ -163,11 +163,7 @@ class ConvLSTM(nn.Module):
 
         b, s, _, height, width = input_tensor.size()
 
-        # Implement stateful ConvLSTM
-        if hidden_state is not None:
-            raise NotImplementedError()
-        else:
-            # Since the init is done in forward. Can send image size here
+        if hidden_state is None:
             hidden_state = self._init_hidden(batch_size=b, image_size=(height, width))
 
         layer_output_list = []

@@ -1,10 +1,11 @@
 import sqlalchemy
 import numpy as np
 import pandas as pd
+import torch
 from typing import List
 from .soc_psql import SocPSQLDataset
 from . import utils
-from ..typing import SOCSeq
+from ..typing import SocDatasetItem
 
 
 class SocPSQLSeqDataset(SocPSQLDataset):
@@ -38,7 +39,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return self._length
 
-    def __getitem__(self, idx: int) -> SOCSeq:
+    def __getitem__(self, idx: int) -> SocDatasetItem:
         """
             Return one datapoint from the dataset
 
@@ -64,10 +65,13 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                                               axis=0)
             current_action_np = current_action_df['type']
 
-            state_seq.append(current_state_np)
-            action_seq.append(current_action_np)
+            state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
+            action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
 
-        return np.array(state_seq), np.array(action_seq)
+        state_seq_t = torch.stack(state_seq)
+        action_seq_t = torch.stack(action_seq)
+
+        return state_seq_t, action_seq_t
 
     def _get_states_from_db(self, idx: int) -> pd.DataFrame:
         db_id = self._first_index + idx
@@ -91,9 +95,6 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return df_states
 
-    def get_collate_fn(self):
-        return utils.pad_seq
-
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     """
@@ -106,11 +107,17 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         Output: Next state
             Dims: S x C_states x H x W
     """
-    def __getitem__(self, idx: int) -> SOCSeq:
+    def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSDataset, self).__getitem__(idx)
-        input_np = np.concatenate([data[0], data[1]], axis=1)
 
-        return input_np[:-1], data[0][1:]
+        state_seq_t = data[0]  # SxFsxHxW
+        action_seq_t = data[1]  # SxFaxHxW
+        input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+
+        x_t = input_t[:-1]
+        y_t = state_seq_t[1:]
+
+        return x_t, y_t
 
     def get_input_size(self) -> List:
         """
@@ -132,4 +139,4 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         return utils.pad_seq_sas
 
     def get_training_type(self):
-        return 'supervised'
+        return 'supervised_seq'

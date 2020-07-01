@@ -1,9 +1,12 @@
 import torch
-import numpy as np
-from typing import List, Tuple, Dict, Any
+# from torch.nn.utils.rnn import PackedSequence
+from typing import List, Tuple, Dict, Callable, Any
 
-SOCSeq = Tuple[np.ndarray, np.ndarray]
-SOCSeqList = List[SOCSeq]
-SOCSeqTorch = Tuple[torch.Tensor, torch.Tensor]
+SocDatasetItem = Tuple[torch.Tensor, torch.Tensor]
+SocBatch = Tuple[torch.Tensor, torch.Tensor]
+SocSeqBatch = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+# SocSeqBatch = Tuple[PackedSequence, PackedSequence]
+SocSeqList = List[SocDatasetItem]
+SocCollateFn = Callable[[SocSeqList], SocBatch]
 
 SocConfig = Dict[str, Any]

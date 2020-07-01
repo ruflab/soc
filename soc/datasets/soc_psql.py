@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
-from typing import Any, Callable
-from ..typing import SocConfig
+from typing import Any
+from ..typing import SocConfig, SocCollateFn
 
 
 class SocPSQLDataset(Dataset):
@@ -76,5 +76,5 @@ class SocPSQLDataset(Dataset):
     def get_output_size(self) -> Any:
         raise NotImplementedError
 
-    def get_collate_fn(self) -> Callable:
+    def get_collate_fn(self) -> SocCollateFn:
         raise NotImplementedError

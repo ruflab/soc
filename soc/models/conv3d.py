@@ -16,7 +16,6 @@ class Conv3dModel(nn.Module):
     def __init__(self, config):
         super(Conv3dModel, self).__init__()
 
-        # breakpoint()
         self.data_input_size = config.get('data_input_size')
         self.data_output_size = config.get('data_output_size')
         self.num_layers = config.get('num_layers')
@@ -74,7 +73,7 @@ class Conv3dModel(nn.Module):
 
         output_tensor = out.permute(0, 2, 1, 3, 4)
 
-        return output_tensor
+        return (output_tensor, )
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""

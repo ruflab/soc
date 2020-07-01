@@ -5,7 +5,7 @@ import torch
 from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils
-from ..typing import SOCSeq, SocConfig
+from ..typing import SocDatasetItem, SocConfig
 
 
 class SocPSQLForwardDataset(SocPSQLDataset):
@@ -49,7 +49,7 @@ class SocPSQLForwardDataset(SocPSQLDataset):
 
         return self._length
 
-    def __getitem__(self, idx: int) -> SOCSeq:
+    def __getitem__(self, idx: int) -> SocDatasetItem:
         """
             Return one datapoint from the dataset
 
@@ -179,4 +179,4 @@ class SocPSQLForwardDataset(SocPSQLDataset):
         return None
 
     def get_training_type(self):
-        return 'supervised'
+        return 'supervised_forward'

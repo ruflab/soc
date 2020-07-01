@@ -27,7 +27,7 @@ class TestConv3dModel(unittest.TestCase):
         model = make_model(config)
         model.eval()
 
-        out = model(input_tensor)
+        out = model(input_tensor)[0]
 
         x = model.get_output_dim(input_dim)
         y = out.shape[1:]  # We remove the batch size
@@ -53,7 +53,7 @@ class TestConv3dModel(unittest.TestCase):
         model = make_model(config)
         model.eval()
 
-        out = model(input_tensor)
+        out = model(input_tensor)[0]
 
         x = model.get_output_dim(bs_input_dim)
         y = out.shape
@@ -79,7 +79,7 @@ class TestConv3dModel(unittest.TestCase):
         model = make_model(config)
         model.eval()
 
-        out = model(input_tensor)
+        out = model(input_tensor)[0]
 
         x = model.get_output_dim(input_dim)
         y = out.shape[1:]  # We remove the batch size

@@ -1,6 +1,6 @@
 # Roadmap
 
-- Finish a training pipeline for feedforward network
+- Check catalyst just in case
 - Implements logging
 - Check training on collab and build the tooling to facilitate such process
 - Build a first evaluation function output computing accuracy per feature type

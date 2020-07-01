@@ -23,7 +23,7 @@ class TestJavaUtils(unittest.TestCase):
         data_2d = ju.mapping_1d_2d(ju.parse_layout(hexlayout))
         x = np.array(data_2d)
 
-        assert x.shape == (7, 7, 1)
+        assert x.shape == (1, 7, 7)
 
     def test_mapping_2d_1d(self):
         mat = np.vstack([
@@ -51,34 +51,34 @@ class TestJavaUtils(unittest.TestCase):
         id_2d = (3, 5)
         x = ju.get_one_hot_plan(id_2d)
 
-        y = np.zeros([7, 7, 1])
-        y[3, 5, 0] = 1
+        y = np.zeros([1, 7, 7])
+        y[0, 3, 5] = 1
 
         np.testing.assert_array_equal(x, y)
 
     def test_parse_pieces_empty(self):
         x = ju.parse_pieces('{}')
-        y = np.zeros([7, 7, 4 * 18])
+        y = np.zeros([4 * 18, 7, 7])
 
         np.testing.assert_array_equal(x, y)
 
     def test_parse_pieces(self):
-        pieces = '{{2,137,0},{1,148,1},{0,167,2}}'
+        pieces = r'{{2,137,0},{1,148,1},{0,167,2}}'
 
         x = ju.parse_pieces(pieces)
 
-        y = np.zeros([7, 7, 4 * 18])
+        y = np.zeros([4 * 18, 7, 7])
         # City player 0
-        y[2, 3, 0 + 12 + 3] = 1
-        y[3, 3, 0 + 12 + 1] = 1
-        y[3, 4, 0 + 12 + 5] = 1
+        y[0 + 12 + 3, 2, 3] = 1
+        y[0 + 12 + 1, 3, 3] = 1
+        y[0 + 12 + 5, 3, 4] = 1
         # Settlement player 1
         # y[5, 3, 18 + 6 + 0] = 1  # Water tile not counted for now
-        y[5, 4, 18 + 6 + 4] = 1
-        y[5, 3, 18 + 6 + 2] = 1
+        y[18 + 6 + 4, 5, 4] = 1
+        y[18 + 6 + 2, 5, 3] = 1
         # Road player 2
-        y[4, 4, 36 + 0 + 2] = 1
-        y[5, 5, 36 + 0 + 5] = 1
+        y[36 + 0 + 2, 4, 4] = 1
+        y[36 + 0 + 5, 5, 5] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -89,4 +89,4 @@ class TestJavaUtils(unittest.TestCase):
 
         players_plans = ju.parse_player_infos(p_infos)
 
-        assert players_plans.shape == (7, 7, 4 * 41)
+        assert players_plans.shape == (4 * 41, 7, 7)

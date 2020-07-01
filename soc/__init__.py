@@ -1,3 +1,4 @@
-from .psql_dataset import SocPSQLDataset
+from . import datasets
+from . import models
 
-__all__ = ['SocPSQLDataset']
+__all__ = ['datasets', 'models']

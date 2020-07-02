@@ -1,3 +1,4 @@
+import argparse
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
 from typing import Any
@@ -60,6 +61,19 @@ class SocPSQLDataset(Dataset):
             )
 
         self._set_props(config)
+
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+
+        parser.add_argument('no_db', type=str, default=False)
+        parser.add_argument('psql_username', type=str, default='deepsoc')
+        parser.add_argument('psql_host', type=str, default='localhost')
+        parser.add_argument('psql_port', type=int, default=5432)
+        parser.add_argument('psql_db_name', type=str, default='soc')
+        parser.add_argument('first_index', type=int, default=100)
+
+        return parser
 
     def _set_props(self, config):
         pass

@@ -57,8 +57,8 @@ class TestUtils(unittest.TestCase):
             'dataset': 'SocPSQLSeqSAToSDataset',
             'no_db': True,
             # Model
-            'arch': 'ConvLSTM',
-            'defaul_arch': False,
+            'model': 'ConvLSTM',
+            'defaul_model': False,
             'h_chan_dim': [150, 150],
             'kernel_size': [(3, 3), (3, 3)],
             'strides': [(3, 3), (3, 3)],
@@ -106,8 +106,8 @@ class TestUtils(unittest.TestCase):
             'dataset': 'SocPSQLSeqSAToSDataset',
             'no_db': True,
             # Model
-            'arch': 'Conv3dModel',
-            'defaul_arch': False,
+            'model': 'Conv3dModel',
+            'defaul_model': False,
             'h_chan_dim': 64,
             'kernel_size': (3, 3, 3),
             'strides': (1, 1, 1),
@@ -164,8 +164,8 @@ class TestUtils(unittest.TestCase):
             'no_db': True,
             'first_index': 0,
             # Model
-            'arch': 'resnet18',
-            'defaul_arch': False,
+            'model': 'resnet18',
+            'defaul_model': False,
             'h_chan_dim': 64,
             'kernel_size': (3, 3),
             'strides': (1, 1),

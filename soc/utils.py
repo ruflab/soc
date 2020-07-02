@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import torch
@@ -7,6 +8,14 @@ import random
 import numpy as np
 from typing import Tuple, Dict
 from .models import get_model_class
+
+
+def soc_tuple(s: str):
+    try:
+        t = tuple(map(int, s.split(',')))
+        return t
+    except Exception:
+        raise argparse.ArgumentTypeError("Coordinates must be x,y,z")
 
 
 def build_config(default_config: Dict, cli_config: Dict) -> Dict:
@@ -27,8 +36,8 @@ def build_config(default_config: Dict, cli_config: Dict) -> Dict:
 
             config.update(loaded_config)
 
-    if 'default_arch' in config and config['default_arch'] is True:
-        default_model_config = get_model_class(config['arch']).get_default_conf()
+    if 'default_model' in config and config['default_model'] is True:
+        default_model_config = get_model_class(config['model']).get_default_conf()
         config.update(default_model_config)
 
     config.update(cli_config)

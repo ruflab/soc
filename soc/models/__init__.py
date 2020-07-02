@@ -11,17 +11,17 @@ __all__ = [
 
 
 def make_model(config):
-    if config['arch'] in __all__:
-        return globals()[config['arch']](config)
+    if config['model'] in __all__:
+        return globals()[config['model']](config)
     else:
-        raise Exception('The model name {} does not exist'.format(config['arch']))
+        raise Exception('The model name {} does not exist'.format(config['model']))
 
 
 def get_model_class(config):
-    if config['arch'] in __all__:
-        return globals()[config['arch']]
+    if config['model'] in __all__:
+        return globals()[config['model']]
     else:
-        raise Exception('The model name {} does not exist'.format(config['arch']))
+        raise Exception('The model name {} does not exist'.format(config['model']))
 
 
 def get_models_list():

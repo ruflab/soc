@@ -12,7 +12,7 @@ class TestConv3dModel(unittest.TestCase):
     def test_get_output_dim(self):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
-            'arch': 'Conv3dModel',
+            'model': 'Conv3dModel',
             'data_input_size': (7, 11, 13),
             'data_output_size': (3, 11, 13),
             'num_layers': 2,
@@ -37,7 +37,7 @@ class TestConv3dModel(unittest.TestCase):
     def test_get_output_dim_with_bs(self):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
-            'arch': 'Conv3dModel',
+            'model': 'Conv3dModel',
             'data_input_size': (7, 11, 13),
             'data_output_size': (3, 11, 13),
             'num_layers': 2,
@@ -63,7 +63,7 @@ class TestConv3dModel(unittest.TestCase):
     def test_get_output_dim_no_padding(self):
         input_dim = (17, 7, 11, 13)  # S, C, H, W
         config = {
-            'arch': 'Conv3dModel',
+            'model': 'Conv3dModel',
             'data_input_size': (7, 11, 13),
             'data_output_size': (3, 11, 13),
             'num_layers': 2,

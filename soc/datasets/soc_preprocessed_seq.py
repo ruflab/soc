@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 from torch.utils.data import Dataset
@@ -19,15 +20,26 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         Output: Next state
             Dims: S x C_states x H x W
     """
-
     def __init__(self, config=None):
         super(SocPreprocessedSeqSAToSDataset, self).__init__()
 
-        self.path = os.path.join(cfd, '..', '..', 'data', '50_sas.pt')
+        default_path = os.path.join(cfd, '..', '..', 'data', '50_sas.pt')
+        self.path = config.get('dataset_path', default_path)
         self.data = torch.load(self.path)
 
         self.input_shape = self.data[0][0].shape[1:]
         self.output_shape = self.data[0][1].shape[1:]
+
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+
+        parser.add_argument(
+            '--dataset_path',
+            type=str,
+            default=argparse.SUPPRESS, )
+
+        return parser
 
     def __len__(self) -> int:
         return len(self.data)

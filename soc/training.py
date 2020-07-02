@@ -6,6 +6,8 @@ from torch.utils.data import Dataset, DataLoader
 from torch.optim.optimizer import Optimizer
 from typing import Callable, List, Any, Dict
 from .typing import SocSeqBatch, SocBatch
+from .models import make_model
+from .datasets import make_dataset
 
 CollateFnType = Callable[[List[Any]], Any]
 
@@ -29,16 +31,17 @@ def train_on_dataset(
 
     if collate_fn is None:
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True
+            dataset, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=True
         )
     else:
         dataloader = DataLoader(
             dataset,
             batch_size=batch_size,
             shuffle=True,
-            num_workers=0,
+            num_workers=1,
             collate_fn=collate_fn,
-            drop_last=True
+            drop_last=True,
+            pin_memory=True,
         )
 
     dataset_size = len(dataset)
@@ -125,3 +128,53 @@ def train_on_supervised_forward_batch(
     optimizer.step()
 
     return loss
+
+
+def instantiate_training_params(config):
+    # Data
+    dataset = make_dataset(config)
+    config['data_input_size'] = dataset.get_input_size()
+    config['data_output_size'] = dataset.get_output_size()
+    collate_fn = dataset.get_collate_fn()
+    training_type = dataset.get_training_type()
+
+    # Model
+    model = make_model(config)
+    should_load = 'load' in config and config['load'] is True
+    if should_load and 'model' in config['checkpoints'].keys():
+        model.load_state_dict(config['checkpoints']['model'])
+
+    # Training
+    if config['loss_name'] == 'mse':
+        loss_f = torch.nn.MSELoss()
+    else:
+        raise Exception('Unknown loss function {}'.format(config['loss_name']))
+
+    if config['optimizer'] == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
+    else:
+        raise Exception('Unknown optimizer {}'.format(config['optimizer']))
+    if should_load and 'optimizer' in config['checkpoints'].keys():
+        optimizer.load_state_dict(config['checkpoints']['optimizer'])
+
+    scheduler = None
+    if config['scheduler'] == 'plateau':
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001
+        )
+    if scheduler is not None and should_load and 'scheduler' in config['checkpoints'].keys():
+        scheduler.load_state_dict(config['checkpoints']['scheduler'])
+
+    if config['verbose']:
+        print("Config loaded:\n{}\n".format(config))
+
+    return {
+        'config': config,
+        'dataset': dataset,
+        'model': model,
+        'loss_f': loss_f,
+        'optimizer': optimizer,
+        'scheduler': scheduler,
+        'collate_fn': collate_fn,
+        'training_type': training_type,
+    }

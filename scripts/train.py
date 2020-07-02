@@ -5,7 +5,7 @@ import random
 import time
 from tqdm import tqdm
 from soc import utils
-from soc.training import train_on_dataset
+from soc.training import train_on_dataset, instantiate_training_params
 from soc.models import get_models_list
 from soc.datasets import get_datasets_list
 
@@ -15,7 +15,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def end_batch_callback(i_epoch: int, i_batch: int, n_batchs: int, loss: float):
-    if i_batch % (n_batchs // 4) == 0:
+    if i_batch % max(n_batchs // 100, 1) == 0:
         tqdm.write(
             "Epoch: {}, {}%, loss: {}".format(i_epoch, round(i_batch / n_batchs * 100), loss)
         )
@@ -39,17 +39,17 @@ if __name__ == "__main__":
         'seed': random.randint(0, 100),
         'verbose': True,
         # Data
-        'dataset': 'SocPSQLSeqSAToSDataset',
+        'dataset': 'SocPreprocessedSeqSAToSDataset',
         'history_length': 8,
         'future_length': 1,
         'no_db': False,  # Used for testing
         # Model
         'arch': 'ConvLSTM',
         'defaul_arch': False,
-        'h_chan_dim': [150, 150],
-        'kernel_size': [(3, 3), (3, 3)],
-        'strides': [(3, 3), (3, 3)],
-        'paddings': [(1, 1), (1, 1)],
+        'h_chan_dim': 32,
+        'kernel_size': (3, 3),
+        'strides': (3, 3),
+        'paddings': (1, 1),
         'num_layers': 2,
         'loss_name': 'mse',
         'lr': 1e-3,
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     # Generics
     utils.set_seed(config['seed'])
 
-    training_params = utils.instantiate_training_params(config)
+    training_params = instantiate_training_params(config)
     training_params['callbacks'] = {'end_batch_callback': end_batch_callback}
 
     training_params['model'].to(device)

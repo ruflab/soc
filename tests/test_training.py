@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 from unittest.mock import MagicMock
 from soc import utils
-from soc.training import train_on_dataset
+from soc.training import train_on_dataset, instantiate_training_params
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -73,7 +73,7 @@ class TestUtils(unittest.TestCase):
 
         utils.set_seed(config['seed'])
 
-        training_params = utils.instantiate_training_params(config)
+        training_params = instantiate_training_params(config)
 
         training_params['dataset']._get_states_from_db = MagicMock(
             side_effect=_get_states_from_db_se_f
@@ -123,7 +123,7 @@ class TestUtils(unittest.TestCase):
 
         utils.set_seed(config['seed'])
 
-        training_params = utils.instantiate_training_params(config)
+        training_params = instantiate_training_params(config)
         training_params['dataset']._get_states_from_db = MagicMock(
             side_effect=_get_states_from_db_se_f
         )
@@ -181,7 +181,7 @@ class TestUtils(unittest.TestCase):
 
         utils.set_seed(config['seed'])
 
-        training_params = utils.instantiate_training_params(config)
+        training_params = instantiate_training_params(config)
         training_params['dataset']._get_states_from_db = MagicMock(
             side_effect=_get_states_from_db_se_f
         )

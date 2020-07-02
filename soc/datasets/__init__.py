@@ -1,10 +1,13 @@
 from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset
 from .soc_psql_forward import SocPSQLForwardDataset
+from .soc_preprocessed_seq import SocPreprocessedSeqSAToSDataset
 
 __all__ = [
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',
-    'SocPSQLForwardDataset', ]
+    'SocPSQLForwardDataset',
+    'SocPreprocessedSeqSAToSDataset',
+]
 
 
 def make_dataset(config):

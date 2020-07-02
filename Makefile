@@ -68,3 +68,12 @@ test:
 ci: lint typecheck test
 
 .PHONY: typecheck yapf lint test ci
+
+###
+# Experiments
+###
+
+exp_clean:
+	rm -rf scripts/results/*
+
+.PHONY: exp_clean

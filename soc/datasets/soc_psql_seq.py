@@ -4,7 +4,8 @@ import pandas as pd
 import torch
 from typing import List
 from .soc_psql import SocPSQLDataset
-from . import utils
+from . import utils as ds_utils
+from .. import utils
 from ..typing import SocDatasetItem
 
 
@@ -52,8 +53,8 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         assert len(df_states.index) == len(df_actions.index)
         game_length = len(df_states)
 
-        df_states = utils.preprocess_states(df_states)
-        df_actions = utils.preprocess_actions(df_actions)
+        df_states = ds_utils.preprocess_states(df_states)
+        df_actions = ds_utils.preprocess_actions(df_actions)
 
         state_seq = []
         action_seq = []
@@ -136,7 +137,15 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         return self._state_size
 
     def get_collate_fn(self):
-        return utils.pad_seq_sas
+        return ds_utils.pad_seq_sas
 
     def get_training_type(self):
         return 'supervised_seq'
+
+    def dump_preprocessed_dataset(self, folder: str):
+        utils.check_folder(folder)
+
+        path = "{}/50_sas.pt".format(folder)
+        all_data = [self[i] for i in range(len(self))]
+
+        torch.save(all_data, path)

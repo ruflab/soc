@@ -1,14 +1,9 @@
 import os
-import shutil
 import unittest
 import pandas as pd
-import torch
-import time
 from torch.utils.data import DataLoader
-import numpy as np
 from unittest.mock import MagicMock
 import soc
-from soc import utils
 from soc.datasets import utils as ds_utils
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -46,10 +41,6 @@ class TestUtils(unittest.TestCase):
         cls._get_states_from_db_se_f = _get_states_from_db_se_f
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(os.path.join(fixture_dir, 'test_save_load'))
-
     def test_seq_data_loading_pipeline(self):
         dataset = soc.datasets.SocPSQLSeqSAToSDataset({'no_db': True})
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
@@ -64,28 +55,3 @@ class TestUtils(unittest.TestCase):
         assert x[0].shape == (2, 8, 262, 7, 7)
         assert x[1].shape == (2, 8, 245, 7, 7)
         assert x[2].shape == (2, 8, 245, 7, 7)
-
-    def test_save_load(self):
-        tmp_folder = os.path.join(fixture_dir, 'test_save_load', str(int(time.time() * 1000000)))
-        config = {'a': 2, 'b': 'test', 'results_d': tmp_folder}
-        model = torch.nn.Sequential(torch.nn.Linear(2, 1))
-        optim = torch.optim.SGD(model.parameters(), 1.)
-        for i in range(3):
-            out = model(torch.tensor([1., 1.]))
-            out.backward()
-            optim.step()
-            utils.save(config, model, optim)
-
-        utils.save(config, model, optim)
-        time.sleep(0.1)  # Make sure we take the time to save
-        config2, checkpoints = utils.load(tmp_folder)
-
-        model2 = torch.nn.Sequential(torch.nn.Linear(2, 1))
-        model2.load_state_dict(checkpoints['model'])
-
-        assert config2['a'] == 2
-        assert config2['b'] == 'test'
-        np.testing.assert_array_equal(
-            model2.state_dict()['0.weight'], model.state_dict()['0.weight']
-        )
-        np.testing.assert_array_equal(model2.state_dict()['0.bias'], model.state_dict()['0.bias'])

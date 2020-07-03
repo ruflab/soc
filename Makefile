@@ -63,7 +63,7 @@ yapf:
 	yapf --style tox.ini -r -i soc/. tests/. scripts/.
 
 test:
-	pytest .
+	 PYTHONWARNINGS="ignore" pytest .
 
 ci: lint typecheck test
 

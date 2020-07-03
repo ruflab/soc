@@ -1,11 +1,11 @@
 import os
 import time
-# import shutil
+import shutil
 import unittest
 import pandas as pd
 from unittest.mock import MagicMock
-from soc import utils
-from soc.training import train_on_dataset, instantiate_training_params
+from pytorch_lightning import seed_everything, Trainer
+from soc.training import Runner
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -36,6 +36,9 @@ class TestUtils(unittest.TestCase):
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 1000000)))
 
+    def tearDown(self):
+        return shutil.rmtree(self.folder)
+
     def test_training_socseqsas_convlstm(self):
         states = self.states
         actions = self.actions
@@ -47,43 +50,39 @@ class TestUtils(unittest.TestCase):
             return actions[idx]
 
         config = {
-            # Generics
-            'config': None,
-            'results_d': self.folder,
-            'load': False,
-            'seed': 1,
-            'verbose': False,
-            # Data
-            'dataset': 'SocPSQLSeqSAToSDataset',
-            'no_db': True,
-            # Model
-            'model': 'ConvLSTM',
-            'defaul_model': False,
-            'h_chan_dim': [150, 150],
-            'kernel_size': [(3, 3), (3, 3)],
-            'strides': [(3, 3), (3, 3)],
-            'num_layers': 2,
-            'loss_name': 'mse',
-            'lr': 1e-3,
-            'optimizer': 'adam',
-            'scheduler': '',
-            'n_epochs': 1,
-            'batch_size': 2
+            'generic': {
+                'seed': 1,
+                'verbose': False,
+                'loss_name': 'mse',
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': '',
+                'batch_size': 2,
+                # Data
+                'dataset': 'SocPSQLSeqSAToSDataset',
+                'no_db': True,
+                # Model
+                'model': 'ConvLSTM',
+                'h_chan_dim': [150, 150],
+                'kernel_size': [(3, 3), (3, 3)],
+                'strides': [(3, 3), (3, 3)],
+                'num_layers': 2,
+            },
+            'trainer': {
+                'fast_dev_run': True,
+                'default_root_dir': self.folder, }
         }
 
-        utils.set_seed(config['seed'])
+        seed_everything(config['generic']['seed'])
 
-        training_params = instantiate_training_params(config)
+        runner = Runner(config['generic'])
 
-        training_params['dataset']._get_states_from_db = MagicMock(
-            side_effect=_get_states_from_db_se_f
-        )
-        training_params['dataset']._get_actions_from_db = MagicMock(
-            side_effect=_get_actions_from_db_se_f
-        )
-        training_params['dataset']._get_length = MagicMock(return_value=2)
+        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.dataset._get_length = MagicMock(return_value=2)
 
-        train_on_dataset(**training_params)
+        trainer = Trainer(**config['trainer'], deterministic=True)
+        trainer.fit(runner)
 
     def test_training_socseqsas_conv3dmodel(self):
         states = self.states
@@ -96,43 +95,39 @@ class TestUtils(unittest.TestCase):
             return actions[idx]
 
         config = {
-            # Generics
-            'config': None,
-            'results_d': self.folder,
-            'load': False,
-            'seed': 1,
-            'verbose': False,
-            # Data
-            'dataset': 'SocPSQLSeqSAToSDataset',
-            'no_db': True,
-            # Model
-            'model': 'Conv3dModel',
-            'defaul_model': False,
-            'h_chan_dim': 64,
-            'kernel_size': (3, 3, 3),
-            'strides': (1, 1, 1),
-            'paddings': (1, 1, 1, 1, 2, 0),
-            'num_layers': 2,
-            'loss_name': 'mse',
-            'lr': 1e-3,
-            'optimizer': 'adam',
-            'scheduler': '',
-            'n_epochs': 1,
-            'batch_size': 2
+            'generic': {
+                'seed': 1,
+                'verbose': False,
+                'loss_name': 'mse',
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': '',
+                'batch_size': 2,
+                # Data
+                'dataset': 'SocPSQLSeqSAToSDataset',
+                'no_db': True,
+                # Model
+                'model': 'Conv3dModel',
+                'h_chan_dim': 64,
+                'kernel_size': (3, 3, 3),
+                'strides': (1, 1, 1),
+                'paddings': (1, 1, 1, 1, 2, 0),
+                'num_layers': 2,
+            },
+            'trainer': {
+                'fast_dev_run': True,
+                'default_root_dir': self.folder, }
         }
 
-        utils.set_seed(config['seed'])
+        seed_everything(config['generic']['seed'])
 
-        training_params = instantiate_training_params(config)
-        training_params['dataset']._get_states_from_db = MagicMock(
-            side_effect=_get_states_from_db_se_f
-        )
-        training_params['dataset']._get_actions_from_db = MagicMock(
-            side_effect=_get_actions_from_db_se_f
-        )
-        training_params['dataset']._get_length = MagicMock(return_value=2)
+        runner = Runner(config['generic'])
+        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.dataset._get_length = MagicMock(return_value=2)
 
-        train_on_dataset(**training_params)
+        trainer = Trainer(**config['trainer'], deterministic=True)
+        trainer.fit(runner)
 
     def test_training_socforward_resnet(self):
         states = self.states
@@ -151,44 +146,40 @@ class TestUtils(unittest.TestCase):
             return seq[start_row_id:end_row_id]
 
         config = {
-            # Generics
-            'config': None,
-            'results_d': self.folder,
-            'load': False,
-            'seed': 1,
-            'verbose': False,
-            # Data
-            'dataset': 'SocPSQLForwardDataset',
-            'history_length': 2,
-            'future_length': 1,
-            'no_db': True,
-            'first_index': 0,
-            # Model
-            'model': 'resnet18',
-            'defaul_model': False,
-            'h_chan_dim': 64,
-            'kernel_size': (3, 3),
-            'strides': (1, 1),
-            'paddings': (1, 1),
-            'num_layers': 2,
-            'loss_name': 'mse',
-            'lr': 1e-3,
-            'optimizer': 'adam',
-            'scheduler': '',
-            'n_epochs': 1,
-            'batch_size': 2
+            'generic': {
+                'seed': 1,
+                'verbose': False,
+                'loss_name': 'mse',
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': '',
+                'batch_size': 2,
+                # Data
+                'dataset': 'SocPSQLForwardDataset',
+                'history_length': 2,
+                'future_length': 1,
+                'no_db': True,
+                'first_index': 0,
+                # Model
+                'model': 'resnet18',
+                'h_chan_dim': 64,
+                'kernel_size': (3, 3),
+                'strides': (1, 1),
+                'paddings': (1, 1),
+                'num_layers': 2,
+            },
+            'trainer': {
+                'fast_dev_run': True,
+                'default_root_dir': self.folder, }
         }
 
-        utils.set_seed(config['seed'])
+        seed_everything(config['generic']['seed'])
 
-        training_params = instantiate_training_params(config)
-        training_params['dataset']._get_states_from_db = MagicMock(
-            side_effect=_get_states_from_db_se_f
-        )
-        training_params['dataset']._get_actions_from_db = MagicMock(
-            side_effect=_get_actions_from_db_se_f
-        )
-        training_params['dataset']._get_length = MagicMock(return_value=2)
-        training_params['dataset']._get_nb_steps = MagicMock(return_value=[9, 9])
+        runner = Runner(config['generic'])
+        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.dataset._get_length = MagicMock(return_value=2)
+        runner.dataset._get_nb_steps = MagicMock(return_value=[9, 9])
 
-        train_on_dataset(**training_params)
+        trainer = Trainer(**config['trainer'], deterministic=True)
+        trainer.fit(runner)

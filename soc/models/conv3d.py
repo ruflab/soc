@@ -1,5 +1,7 @@
+import argparse
 import math
 import torch.nn as nn
+from .. import utils
 from typing import List, Tuple
 
 
@@ -51,6 +53,44 @@ class Conv3dModel(nn.Module):
         )
 
         self.m = nn.Sequential(*layers)
+
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+
+        parser.add_argument(
+            '--h_chan_dim',
+            type=int,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of hidden channels per layer'
+        )
+        parser.add_argument(
+            '--kernel_size',
+            type=utils.soc_tuple,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of Kernel size per layer'
+        )
+        parser.add_argument(
+            '--num_layers', type=int, default=argparse.SUPPRESS, help='Number of layers'
+        )
+        parser.add_argument(
+            '--strides',
+            type=utils.soc_tuple,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of Kernel size per layer'
+        )
+        parser.add_argument(
+            '--paddings',
+            type=utils.soc_tuple,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of Kernel size per layer'
+        )
+
+        return parser
 
     def forward(self, input_tensor):
         """

@@ -1,43 +1,14 @@
-import os
 import random
 import argparse
-from pytorch_lightning import seed_everything, Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from soc.training import Runner
-from soc import datasets, models
-
-cfd = os.path.dirname(os.path.realpath(__file__))
-
-
-def main(config):
-    runner = Runner(config['generic'])
-
-    seed_everything(config['generic']['seed'])
-    config['trainer']['deterministic'] = True
-    # config['trainer'][' distributed_backend'] = 'dp'
-
-    if config['trainer']['default_root_dir'] is None:
-        config['trainer']['default_root_dir'] = os.path.join(cfd, 'results')
-    checkpoint_callback = ModelCheckpoint(
-        filepath=config['trainer']['default_root_dir'],
-        save_top_k=0,
-        verbose=True,
-        monitor='train_loss',
-        mode='min',
-        prefix=''
-    )
-    config['trainer']['checkpoint_callback'] = checkpoint_callback
-
-    trainer = Trainer(**config['trainer'])
-    trainer.fit(runner)
-
+from pytorch_lightning import Trainer
+from soc import datasets, models, training
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training configuration')
 
     parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
     parser.add_argument(
-        '--verbose', type=bool, default=argparse.SUPPRESS, help='Should we print many things'
+        '--verbose', type=bool, default=False, help='Should we print many things'
     )
     parser.add_argument(
         '--dataset',
@@ -93,4 +64,4 @@ if __name__ == "__main__":
         'trainer': vars(trainer_parser.parse_known_args()[0])
     }
 
-    main(config)
+    training.train(config)

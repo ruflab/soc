@@ -1,10 +1,13 @@
 import multiprocessing
+import os
 import torch
+import json
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from typing import Callable, List, Any
+from pytorch_lightning.callbacks import ModelCheckpoint
+from typing import Callable, List, Any, Dict
 from .typing import SocSeqBatch, SocBatch
 from .models import make_model
 from .datasets import make_dataset
@@ -115,3 +118,42 @@ def train_on_supervised_forward_batch(
     loss = loss_f(y_preds, y_true)
 
     return loss
+
+
+def train(config: Dict):
+    # Misc part
+    if config['generic']['verbose'] is True:
+        import copy
+        tmp_config = copy.deepcopy(config)
+        if "gpus" in tmp_config['trainer']:
+            del tmp_config['trainer']["gpus"]
+        if "tpu_cores" in tmp_config['trainer']:
+            del tmp_config['trainer']["tpu_cores"]
+        print(json.dumps(tmp_config))
+
+    pl.seed_everything(config['generic']['seed'])
+
+    # Runner part
+    runner = Runner(config['generic'])
+
+    # Trainer part
+    config['trainer']['deterministic'] = True
+    # config['trainer'][' distributed_backend'] = 'dp'
+
+    if config['trainer']['default_root_dir'] is None:
+        cfd = os.path.dirname(os.path.realpath(__file__))
+        default_results_dir = os.path.join(cfd, '..', 'scripts', 'results')
+        config['trainer']['default_root_dir'] = default_results_dir
+
+    checkpoint_callback = ModelCheckpoint(
+        filepath=config['trainer']['default_root_dir'],
+        save_top_k=0,
+        verbose=True,
+        monitor='train_loss',
+        mode='min',
+        prefix=''
+    )
+    config['trainer']['checkpoint_callback'] = checkpoint_callback
+
+    trainer = pl.Trainer(**config['trainer'])
+    trainer.fit(runner)

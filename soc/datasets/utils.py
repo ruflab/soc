@@ -1,47 +1,31 @@
 import torch
 import pandas as pd
-from ..typing import SOCSeqList, SOCSeqTorch
+from torch.nn.utils import rnn as rnn_utils
+from ..typing import SocSeqList, SocSeqBatch
 from .. import java_utils as ju
 
 
-def pad_seq(inputs: SOCSeqList) -> SOCSeqTorch:
+def pad_seq_sas(inputs: SocSeqList) -> SocSeqBatch:
     """
         Pad the different inputs
 
         inputs is a list of (state_seq, actions_seq)
     """
-    batch_states_seq = []
-    batch_actions_seq = []
+    xs_l = []
+    ys_l = []
+    mask_l = []
     for tuple_seq in inputs:
-        states_seq, actions_seq = tuple_seq
+        x, y = tuple_seq
 
-        batch_states_seq.append(torch.tensor(states_seq, dtype=torch.float32))
-        batch_actions_seq.append(torch.tensor(actions_seq, dtype=torch.float32))
+        xs_l.append(x)
+        ys_l.append(y)
+        mask_l.append(torch.ones_like(y))
 
-    batch_states_seq_t = torch.nn.utils.rnn.pad_sequence(batch_states_seq, batch_first=True)
-    batch_actions_seq_t = torch.nn.utils.rnn.pad_sequence(batch_actions_seq, batch_first=True)
+    xs_t = rnn_utils.pad_sequence(xs_l, batch_first=True)
+    ys_t = rnn_utils.pad_sequence(ys_l, batch_first=True)
+    mask_t = rnn_utils.pad_sequence(mask_l, batch_first=True)
 
-    return batch_states_seq_t, batch_actions_seq_t
-
-
-def pad_seq_sas(inputs: SOCSeqList) -> SOCSeqTorch:
-    """
-        Pad the different inputs
-
-        inputs is a list of (state_seq, actions_seq)
-    """
-    inputs_seq = []
-    outputs_seq = []
-    for tuple_seq in inputs:
-        input_seq, output_seq = tuple_seq
-
-        inputs_seq.append(torch.tensor(input_seq, dtype=torch.float32))
-        outputs_seq.append(torch.tensor(output_seq, dtype=torch.float32))
-
-    inputs_seq_t = torch.nn.utils.rnn.pad_sequence(inputs_seq, batch_first=True)
-    outputs_seq_t = torch.nn.utils.rnn.pad_sequence(outputs_seq, batch_first=True)
-
-    return inputs_seq_t, outputs_seq_t
+    return xs_t, ys_t, mask_t
 
 
 def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:

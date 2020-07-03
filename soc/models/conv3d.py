@@ -4,12 +4,20 @@ from typing import List, Tuple
 
 
 class Conv3dModel(nn.Module):
+    """
+        3d convolution modèle
+
+        Notes:
+        To use as a predictive coding, you must ensure to pad the input correctly:
+            ex: for a 3xHxW kernel, pad by 2 before, 0 after the seq.
+                This is achieved with padding (left, right, top, bottom, 2, 0)
+
+    """
     def __init__(self, config):
         super(Conv3dModel, self).__init__()
 
-        # breakpoint()
-        self.data_input_dims = config.get('data_input_dims')
-        self.data_output_dims = config.get('data_output_dims')
+        self.data_input_size = config.get('data_input_size')
+        self.data_output_size = config.get('data_output_size')
         self.num_layers = config.get('num_layers')
         self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim'), self.num_layers)
         self.kernel_size = self._extend_for_multilayer(config.get('kernel_size'), self.num_layers)
@@ -19,24 +27,26 @@ class Conv3dModel(nn.Module):
 
         layers = []
         for i in range(self.num_layers - 1):
+            layers.append(nn.ConstantPad3d(self.paddings[i], 0))
             layers.append(
                 nn.Conv3d(
-                    self.data_input_dims[0] if i == 0 else self.h_chan_dim[i - 1],
+                    self.data_input_size[0] if i == 0 else self.h_chan_dim[i - 1],
                     self.h_chan_dim[i],
                     self.kernel_size[i],
                     stride=self.strides[i],
-                    padding=self.paddings[i]
+                    padding=0
                 )
             )
             layers.append(nn.ReLU(True))
 
+        layers.append(nn.ConstantPad3d(self.paddings[-1], 0))
         layers.append(
             nn.Conv3d(
                 self.h_chan_dim[-1],
-                self.data_output_dims[0],
+                self.data_output_size[0],
                 self.kernel_size[-1],
                 stride=self.strides[-1],
-                padding=self.paddings[-1]
+                padding=0
             )
         )
 
@@ -63,7 +73,7 @@ class Conv3dModel(nn.Module):
 
         output_tensor = out.permute(0, 2, 1, 3, 4)
 
-        return output_tensor
+        return (output_tensor, )
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""
@@ -77,16 +87,24 @@ class Conv3dModel(nn.Module):
             H_in = input_dim[2]
             W_in = input_dim[3]
 
-        C_out = self.data_output_dims[0]
+        C_out = self.data_output_size[0]
         D_out = D_in
         H_out = H_in
         W_out = W_in
         for i in range(self.num_layers):
-            D_out = math.floor((D_out + 2 * self.paddings[i][0] - (self.kernel_size[i][0] - 1) - 1)
+            ith_padding = self.paddings[i]
+            if type(ith_padding) is int:
+                s_pad = h_pad = w_pad = ith_padding
+            else:
+                w_pad = ith_padding[0] + ith_padding[1]
+                h_pad = ith_padding[2] + ith_padding[3]
+                s_pad = ith_padding[4] + ith_padding[5]
+
+            D_out = math.floor((D_out + s_pad - (self.kernel_size[i][0] - 1) - 1)
                                / self.strides[i][0] + 1)
-            H_out = math.floor((H_out + 2 * self.paddings[i][1] - (self.kernel_size[i][1] - 1) - 1)
+            H_out = math.floor((H_out + h_pad - (self.kernel_size[i][1] - 1) - 1)
                                / self.strides[i][1] + 1)
-            W_out = math.floor((W_out + 2 * self.paddings[i][2] - (self.kernel_size[i][2] - 1) - 1)
+            W_out = math.floor((W_out + w_pad - (self.kernel_size[i][2] - 1) - 1)
                                / self.strides[i][2] + 1)
         if len(input_dim) == 5:
             return (input_dim[0], D_out, C_out, H_out, W_out)

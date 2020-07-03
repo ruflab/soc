@@ -3,6 +3,7 @@
 ###
 import torch.nn as nn
 import torch
+from .hexa_conv import HexaConv2d
 
 
 class ConvLSTMCell(nn.Module):
@@ -31,7 +32,7 @@ class ConvLSTMCell(nn.Module):
         self.padding = kernel_size[0] // 2, kernel_size[1] // 2
         self.bias = bias
 
-        self.conv = nn.Conv2d(
+        self.conv = HexaConv2d(
             in_channels=self.input_dim + self.h_chan_dim,
             out_channels=4 * self.h_chan_dim,
             kernel_size=self.kernel_size,
@@ -93,8 +94,8 @@ class ConvLSTM(nn.Module):
     def __init__(self, config):
         super(ConvLSTM, self).__init__()
 
-        data_input_dims = config.get('data_input_dims')
-        data_output_dims = config.get('data_output_dims')
+        data_input_size = config.get('data_input_size')
+        data_output_size = config.get('data_output_size')
         h_chan_dim = config.get('h_chan_dim')
         kernel_size = config.get('kernel_size')
         num_layers = config.get('num_layers')
@@ -110,8 +111,8 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(h_chan_dim) == num_layers:
             raise ValueError('Inconsistent list length.')
 
-        self.data_input_dims = data_input_dims
-        self.data_output_dims = data_output_dims
+        self.data_input_size = data_input_size
+        self.data_output_size = data_output_size
         self.h_chan_dim = h_chan_dim
         self.kernel_size = kernel_size
         self.num_layers = num_layers
@@ -121,7 +122,7 @@ class ConvLSTM(nn.Module):
 
         cell_list = []
         for i in range(0, self.num_layers):
-            cur_in_chan_dim = self.data_input_dims[0] if i == 0 else self.h_chan_dim[i - 1]
+            cur_in_chan_dim = self.data_input_size[0] if i == 0 else self.h_chan_dim[i - 1]
 
             cell_list.append(
                 ConvLSTMCell(
@@ -134,9 +135,9 @@ class ConvLSTM(nn.Module):
 
         self.cell_list = nn.ModuleList(cell_list)
 
-        self.head = nn.Conv2d(
+        self.head = HexaConv2d(
             in_channels=self.h_chan_dim[-1],
-            out_channels=self.data_output_dims[0],
+            out_channels=self.data_output_size[0],
             kernel_size=self.kernel_size[-1],
             padding=(kernel_size[-1][0] // 2, kernel_size[-1][1] // 2),
             bias=self.bias
@@ -162,11 +163,7 @@ class ConvLSTM(nn.Module):
 
         b, s, _, height, width = input_tensor.size()
 
-        # Implement stateful ConvLSTM
-        if hidden_state is not None:
-            raise NotImplementedError()
-        else:
-            # Since the init is done in forward. Can send image size here
+        if hidden_state is None:
             hidden_state = self._init_hidden(batch_size=b, image_size=(height, width))
 
         layer_output_list = []

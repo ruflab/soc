@@ -21,12 +21,12 @@ class TestUtils(unittest.TestCase):
     df_actions: pd.DataFrame
 
     obs_files = [
-        os.path.join(fixture_dir, 'obsgamestates_100.csv'),
-        os.path.join(fixture_dir, 'obsgamestates_101.csv'),
+        os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
+        os.path.join(fixture_dir, 'small_obsgamestates_101.csv'),
     ]
     actions_files = [
-        os.path.join(fixture_dir, 'gameactions_100.csv'),
-        os.path.join(fixture_dir, 'gameactions_101.csv'),
+        os.path.join(fixture_dir, 'small_gameactions_100.csv'),
+        os.path.join(fixture_dir, 'small_gameactions_101.csv'),
     ]
 
     _get_states_from_db_se_f = None
@@ -50,19 +50,20 @@ class TestUtils(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(os.path.join(fixture_dir, 'test_save_load'))
 
-    def test_data_loading_pipeline(self):
-        dataset = soc.datasets.SocPSQLSeqDataset(no_db=True)
+    def test_seq_data_loading_pipeline(self):
+        dataset = soc.datasets.SocPSQLSeqSAToSDataset({'no_db': True})
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
         dataset._get_length = MagicMock(return_value=2)
 
-        dataloader = DataLoader(dataset, batch_size=2, collate_fn=ds_utils.pad_seq)
+        dataloader = DataLoader(dataset, batch_size=2, collate_fn=ds_utils.pad_seq_sas)
 
         x = next(iter(dataloader))
 
-        assert len(x) == 2
-        assert x[0].shape == (2, 297, 245, 7, 7)
-        assert x[1].shape == (2, 297, 17, 7, 7)
+        assert len(x) == 3
+        assert x[0].shape == (2, 8, 262, 7, 7)
+        assert x[1].shape == (2, 8, 245, 7, 7)
+        assert x[2].shape == (2, 8, 245, 7, 7)
 
     def test_save_load(self):
         tmp_folder = os.path.join(fixture_dir, 'test_save_load', str(int(time.time() * 1000000)))

@@ -1,6 +1,7 @@
 import os
 import unittest
 import pandas as pd
+import numpy as np
 from unittest.mock import MagicMock
 from soc import datasets
 
@@ -27,35 +28,32 @@ class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
         states = [pd.read_csv(file) for file in cls.obs_files]
         actions = [pd.read_csv(file) for file in cls.actions_files]
 
-        def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
-            return states[idx]
+        def _get_states_from_db_se_f(
+                self, table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = states[table_id]
+            return seq[start_row_id:end_row_id]
 
-        def _get_actions_from_db_se_f(self, idx: int) -> pd.DataFrame:
-            return actions[idx]
+        def _get_actions_from_db_se_f(
+                self, table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = actions[table_id]
+            return seq[start_row_id:end_row_id]
 
         cls._get_states_from_db_se_f = _get_states_from_db_se_f
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_dataset_index(self):
-        dataset = datasets.SocPSQLSeqSAToSDataset({'no_db': True})
-
+        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
+        dataset = datasets.SocPSQLForwardDataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-
-        data_df = self._get_states_from_db_se_f(0)
-        s = len(data_df)
+        dataset._get_nb_steps = MagicMock(return_value=[9, 9])
 
         input_size = dataset.get_input_size()
         output_size = dataset.get_output_size()
 
-        out = dataset[0]
+        inputs, outputs = dataset[0]
 
-        in_data = out[0]
-        out_data = out[1]
-
-        s_in = in_data.shape[0]
-        s_out = out_data.shape[0]
-
-        assert s_in == s_out
-        assert in_data.shape == (s - 1, input_size[0], input_size[1], input_size[2])
-        assert out_data.shape == (s - 1, output_size[0], output_size[1], output_size[2])
+        np.testing.assert_array_equal(inputs.shape, input_size)
+        np.testing.assert_array_equal(outputs.shape, output_size)

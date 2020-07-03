@@ -1,17 +1,15 @@
 from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset
+from .soc_psql_forward import SocPSQLForwardDataset
 
 __all__ = [
     'SocPSQLSeqDataset',
-    'SocPSQLSeqSAToSDataset', ]
+    'SocPSQLSeqSAToSDataset',
+    'SocPSQLForwardDataset', ]
 
 
 def make_dataset(config):
     if config['dataset'] in __all__:
-        if 'no_db' in config:
-            no_db = config['no_db']
-        else:
-            no_db = False
-        return globals()[config['dataset']](no_db=no_db)
+        return globals()[config['dataset']](config)
     else:
         raise Exception('The dataset name {} does not exist'.format(config['dataset']))
 

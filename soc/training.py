@@ -4,7 +4,8 @@ from tqdm import tqdm
 from torch.nn import Module
 from torch.utils.data import Dataset, DataLoader
 from torch.optim.optimizer import Optimizer
-from typing import Callable, List, Any, Tuple, Dict
+from typing import Callable, List, Any, Dict
+from .typing import SocSeqBatch, SocBatch
 
 CollateFnType = Callable[[List[Any]], Any]
 
@@ -55,8 +56,10 @@ def train_on_dataset(
             if 'start_batch_callback' in callbacks:
                 callbacks['start_batch_callback'](i_epoch, i_batch, n_batchs)
 
-            if training_type == 'supervised':
-                loss = train_on_supervised_batch(batch, model, loss_f, optimizer)
+            if training_type == 'supervised_seq':
+                loss = train_on_supervised_seq_batch(batch, model, loss_f, optimizer)
+            elif training_type == 'supervised_forward':
+                loss = train_on_supervised_forward_batch(batch, model, loss_f, optimizer)
             else:
                 raise Exception(
                     "No training process exist for this training type: {}".format(training_type)
@@ -75,8 +78,8 @@ def train_on_dataset(
     return model
 
 
-def train_on_supervised_batch(
-        batch: Tuple, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
+def train_on_supervised_seq_batch(
+        batch: SocSeqBatch, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
 ) -> torch.Tensor:
     """
         This function apply an batch update to the model.
@@ -85,18 +88,37 @@ def train_on_supervised_batch(
     """
     x = batch[0]
     y_true = batch[1]
+    mask = batch[2]
 
     # We assume the model outputs a tuple where the first element
     # is the actual predictions
     outputs = model(x)
-    y_preds = outputs[0]
-
-    mask = y_true != 0
-    y = mask * y_preds
+    y_preds_raw = outputs[0]
+    y_preds = y_preds_raw * mask
 
     bs, seq_len, C, H, W = y_true.shape
 
-    loss = loss_f(y.reshape(bs * seq_len, C, W, H), y_true.reshape(bs * seq_len, C, W, H))
+    loss = loss_f(y_preds.reshape(bs * seq_len, C, W, H), y_true.reshape(bs * seq_len, C, W, H))
+
+    model.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    return loss
+
+
+def train_on_supervised_forward_batch(
+        batch: SocBatch, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
+) -> torch.Tensor:
+    """
+        This function apply an batch update to the model.
+    """
+    x = batch[0]
+    y_true = batch[1]
+
+    y_preds = model(x)
+
+    loss = loss_f(y_preds, y_true)
 
     model.zero_grad()
     loss.backward()

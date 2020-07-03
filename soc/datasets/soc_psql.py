@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
-import pandas as pd
-from typing import Any, Callable
+from typing import Any
+from ..typing import SocConfig, SocCollateFn
 
 
 class SocPSQLDataset(Dataset):
@@ -38,41 +38,36 @@ class SocPSQLDataset(Dataset):
     _state_size = [245, 7, 7]
     _action_size = [17, 7, 7]
 
-    def __init__(
-            self,
-            no_db: bool = False,
-            psql_username: str = 'deepsoc',
-            psql_host: str = 'localhost',
-            psql_port: int = 5432,
-            psql_db_name: str = 'soc'
-    ) -> None:
+    def __init__(self, config: SocConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
-        self._length = -1
-        self._first_index = 100  # Due to the java implementation
+        self.no_db = config.get('no_db', False)
+        self.psql_username = config.get('psql_username', 'deepsoc')
+        self.psql_host = config.get('psql_host', 'localhost')
+        self.psql_port = config.get('psql_port', 5432)
+        self.psql_db_name = config.get('psql_db_name', 'soc')
 
-        if no_db:
+        self._length = -1
+        self._first_index = config.get('first_index', 100)  # Due to the java implementation
+
+        if self.no_db:
             self.engine = None
         else:
             self.engine = create_engine(
                 'postgresql://{}@{}:{}/{}'.format(
-                    psql_username, psql_host, psql_port, psql_db_name
+                    self.psql_username, self.psql_host, self.psql_port, self.psql_db_name
                 )
             )
+
+        self._set_props(config)
+
+    def _set_props(self, config):
+        pass
 
     def __len__(self) -> int:
         raise NotImplementedError
 
     def __getitem__(self, idx: int) -> Any:
-        raise NotImplementedError
-
-    def _get_states_from_db(self, idx: int) -> pd.DataFrame:
-        raise NotImplementedError
-
-    def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
-        raise NotImplementedError
-
-    def _get_length(self) -> int:
         raise NotImplementedError
 
     def get_input_size(self) -> Any:
@@ -81,5 +76,5 @@ class SocPSQLDataset(Dataset):
     def get_output_size(self) -> Any:
         raise NotImplementedError
 
-    def get_collate_fn(self) -> Callable:
+    def get_collate_fn(self) -> SocCollateFn:
         raise NotImplementedError

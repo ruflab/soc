@@ -48,17 +48,7 @@ else
 	@echo ">>> Please install conda first: brew cask install anaconda"
 endif
 
-zip:
-	python setup.py sdist --format zip
-
-wheel:
-	python setup.py bdist_wheel
-
-clean:
-	rm -rf build
-	rm -rf dist
-
-.PHONY: install export_env zip
+.PHONY: install export_env
 
 ###
 # CI
@@ -87,3 +77,19 @@ exp_clean:
 	rm -rf scripts/results/*
 
 .PHONY: exp_clean
+
+
+###
+# Deploy
+###
+zip:
+	python setup.py sdist --format zip
+
+wheel:
+	python setup.py bdist_wheel
+
+clean:
+	rm -rf build
+	rm -rf dist
+
+.PHONY: zip wheel clean

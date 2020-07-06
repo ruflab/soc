@@ -1,15 +1,21 @@
 import random
 import argparse
+import json
 from pytorch_lightning import Trainer
 from soc import datasets, models, training
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training configuration')
 
-    parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
     parser.add_argument(
-        '--verbose', type=bool, default=False, help='Should we print many things'
+        '--config',
+        '-c',
+        type=str,
+        default=None,
+        help='A config to load (override all cli parameters)'
     )
+    parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
+    parser.add_argument('--verbose', type=bool, default=False, help='Should we print many things')
     parser.add_argument(
         '--dataset',
         '-d',
@@ -48,20 +54,23 @@ if __name__ == "__main__":
 
     temp_args, _ = parser.parse_known_args()
     temp_config = vars(temp_args)
+    if temp_config['config'] is not None:
+        with open(temp_config['config'], 'r') as f:
+            config = json.load(f)
+    else:
+        model_class = models.get_model_class(temp_config)
+        parser = model_class.add_argparse_args(parser)
 
-    model_class = models.get_model_class(temp_config)
-    parser = model_class.add_argparse_args(parser)
+        dataset_class = datasets.get_dataset_class(temp_config)
+        parser = dataset_class.add_argparse_args(parser)
 
-    dataset_class = datasets.get_dataset_class(temp_config)
-    parser = dataset_class.add_argparse_args(parser)
-
-    # Ro resume training, use resume_from_checkpoint arg
-    trainer_parser = Trainer.add_argparse_args(
-        argparse.ArgumentParser(description='Training configuration')
-    )
-    config = {
-        'generic': vars(parser.parse_known_args()[0]),
-        'trainer': vars(trainer_parser.parse_known_args()[0])
-    }
+        # To resume training, use resume_from_checkpoint arg
+        trainer_parser = Trainer.add_argparse_args(
+            argparse.ArgumentParser(description='Training configuration')
+        )
+        config = {
+            'generic': vars(parser.parse_known_args()[0]),
+            'trainer': vars(trainer_parser.parse_known_args()[0])
+        }
 
     training.train(config)

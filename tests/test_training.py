@@ -77,9 +77,9 @@ class TestUtils(unittest.TestCase):
 
         runner = Runner(config['generic'])
 
-        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.dataset._get_length = MagicMock(return_value=2)
+        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.train_dataset._get_length = MagicMock(return_value=2)
 
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)
@@ -122,9 +122,9 @@ class TestUtils(unittest.TestCase):
         seed_everything(config['generic']['seed'])
 
         runner = Runner(config['generic'])
-        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.dataset._get_length = MagicMock(return_value=2)
+        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.train_dataset._get_length = MagicMock(return_value=2)
 
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)
@@ -176,10 +176,10 @@ class TestUtils(unittest.TestCase):
         seed_everything(config['generic']['seed'])
 
         runner = Runner(config['generic'])
-        runner.dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.dataset._get_length = MagicMock(return_value=2)
-        runner.dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+        runner.train_dataset._get_length = MagicMock(return_value=2)
+        runner.train_dataset._get_nb_steps = MagicMock(return_value=[9, 9])
 
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)

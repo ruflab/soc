@@ -4,7 +4,7 @@ import torch
 import json
 from torch.nn import Module
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from typing import Callable, List, Any, Dict
@@ -20,17 +20,50 @@ class Runner(pl.LightningModule):
         super(Runner, self).__init__()
         self.hparams = config
 
-        # Data
-        self.dataset = make_dataset(config)
-        self.hparams['data_input_size'] = self.dataset.get_input_size()
-        self.hparams['data_output_size'] = self.dataset.get_output_size()
+    def prepare_data(self):
+        # Download data here if needed
+        pass
+
+    def setup(self, stage):
+        dataset = make_dataset(self.hparams)
+        ds_len = len(dataset)
+        train_len = min(round(0.9 * ds_len), ds_len - 1)
+        val_len = ds_len - train_len
+        soc_train, soc_val = random_split(dataset, [train_len, val_len])
+        self.train_dataset = soc_train
+        self.val_dataset = soc_val
+        self.training_type = dataset.get_training_type()
+        self.collate_fn = dataset.get_collate_fn()
+        self.hparams['data_input_size'] = dataset.get_input_size()
+        self.hparams['data_output_size'] = dataset.get_output_size()
 
         self.model = make_model(self.hparams)
 
         if self.hparams['loss_name'] == 'mse':
             self.loss_f = F.mse_loss
         else:
-            raise Exception('Unknown loss function {}'.format(config['loss_name']))
+            raise Exception('Unknown loss function {}'.format(self.hparams['loss_name']))
+
+    def train_dataloader(self):
+        dataloader = DataLoader(
+            self.train_dataset,
+            batch_size=self.hparams['batch_size'],
+            shuffle=True,
+            num_workers=multiprocessing.cpu_count(),
+            collate_fn=self.collate_fn,
+        )
+
+        return dataloader
+
+    def val_dataloader(self):
+        dataloader = DataLoader(
+            self.val_dataset,
+            batch_size=self.hparams['batch_size'],
+            num_workers=multiprocessing.cpu_count(),
+            collate_fn=self.collate_fn,
+        )
+
+        return dataloader
 
     def configure_optimizers(self):
         if self.hparams['optimizer'] == 'adam':
@@ -51,32 +84,34 @@ class Runner(pl.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_nb):
-        training_type = self.dataset.get_training_type()
-        if training_type == 'supervised_seq':
+        if self.training_type == 'supervised_seq':
             loss = train_on_supervised_seq_batch(batch, self.model, self.loss_f)
-        elif training_type == 'supervised_forward':
+        elif self.training_type == 'supervised_forward':
             loss = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
         else:
             raise Exception(
-                "No training process exist for this training type: {}".format(training_type)
+                "No training process exist for this training type: {}".format(self.training_type)
             )
 
         tensorboard_logs = {'train_loss': loss}
         return {'loss': loss, 'log': tensorboard_logs}
 
-    def train_dataloader(self):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        dataloader = DataLoader(
-            self.dataset,
-            batch_size=self.hparams['batch_size'],
-            shuffle=True,
-            num_workers=multiprocessing.cpu_count() - 1,
-            collate_fn=self.dataset.get_collate_fn(),
-            drop_last=True,
-            pin_memory=device != "cpu"
-        )
+    def validation_step(self, batch, batch_idx):
+        if self.training_type == 'supervised_seq':
+            loss = train_on_supervised_seq_batch(batch, self.model, self.loss_f)
+        elif self.training_type == 'supervised_forward':
+            loss = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
+        else:
+            raise Exception(
+                "No training process exist for this training type: {}".format(self.training_type)
+            )
 
-        return dataloader
+        return {'val_loss': loss}
+
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        tensorboard_logs = {'val_loss': avg_loss}
+        return {'val_loss': avg_loss, 'log': tensorboard_logs}
 
 
 def train_on_supervised_seq_batch(
@@ -140,7 +175,7 @@ def train(config: Dict):
     config['trainer']['deterministic'] = True
     # config['trainer'][' distributed_backend'] = 'dp'
 
-    if config['trainer']['default_root_dir'] is None:
+    if 'default_root_dir' not in config['trainer'] or config['trainer']['default_root_dir'] is None:
         cfd = os.path.dirname(os.path.realpath(__file__))
         default_results_dir = os.path.join(cfd, '..', 'scripts', 'results')
         config['trainer']['default_root_dir'] = default_results_dir

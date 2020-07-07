@@ -1,8 +1,9 @@
 import argparse
+from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
-from typing import List
+from typing import List, Callable
 from . import utils as ds_utils
 from ..typing import SocDatasetItem
 
@@ -20,7 +21,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         Output: Next state
             Dims: S x C_states x H x W
     """
-    def __init__(self, config=None):
+    def __init__(self, config={}):
         super(SocPreprocessedSeqSAToSDataset, self).__init__()
 
         default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
@@ -31,7 +32,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         self.output_shape = self.data[0][1].shape[1:]
 
     @classmethod
-    def add_argparse_args(cls, parent_parser):
+    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
 
         parser.add_argument(
@@ -49,22 +50,22 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List:
+    def get_input_size(self) -> List[int]:
         """
             Return the input dimension
         """
 
         return self.input_shape
 
-    def get_output_size(self) -> List:
+    def get_output_size(self) -> List[int]:
         """
             Return the output dimension
         """
 
         return self.output_shape
 
-    def get_collate_fn(self):
+    def get_collate_fn(self) -> Callable:
         return ds_utils.pad_seq_sas
 
-    def get_training_type(self):
+    def get_training_type(self) -> str:
         return 'supervised_seq'

@@ -1,9 +1,10 @@
 import argparse
+from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
 from typing import List
-from ..typing import SocDatasetItem
+from ..typing import SocDatasetItem, SocConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 
@@ -20,12 +21,12 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
             Dims: S x (C_states + C_actions) x H x W
     """
 
-    _inc_seq_steps: List = []
+    _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
-    _length = -1
+    _length: int = -1
 
-    def __init__(self, config=None):
+    def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
         default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
@@ -53,8 +54,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.output_shape[0] *= self.future_length
 
     @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
 
         parser.add_argument(
             '--dataset_path',
@@ -68,7 +69,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def __len__(self) -> int:
         return self._get_length()
 
-    def _get_length(self):
+    def _get_length(self) -> int:
         if self._length == -1:
             total_steps = 0
             nb_games = len(self.seq_data)
@@ -89,7 +90,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
             else:
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
-    def _get_nb_steps(self) -> List:
+    def _get_nb_steps(self) -> List[int]:
         nb_games = len(self.seq_data)
         nb_steps = []
         for i in range(nb_games):
@@ -123,22 +124,22 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         return self.seq_data[table_id][start_row_id:end_row_id]
 
-    def get_input_size(self) -> List:
+    def get_input_size(self) -> List[int]:
         """
             Return the input dimension
         """
 
         return self.input_shape
 
-    def get_output_size(self) -> List:
+    def get_output_size(self) -> List[int]:
         """
             Return the output dimension
         """
 
         return self.output_shape
 
-    def get_collate_fn(self):
+    def get_collate_fn(self) -> None:
         return None
 
-    def get_training_type(self):
+    def get_training_type(self) -> str:
         return 'supervised_forward'

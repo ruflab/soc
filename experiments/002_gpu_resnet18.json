@@ -1,0 +1,22 @@
+{
+    "generic": {
+        "seed": 1,
+        "verbose": true,
+        "dataset": "SocPreprocessedForwardSAToSADataset",
+        "history_length": 16,
+        "future_length": 4,
+        "model": "resnet18",
+        "loss_name": "mse",
+        "lr": 0.001,
+        "optimizer": "adam",
+        "scheduler": null,
+        "batch_size": 256
+    },
+    "trainer": {
+        "logger": true,
+        "print_nan_grads": true,
+        "deterministic": true,
+        "terminate_on_nan": true,
+        "gpus": 1
+    }
+}

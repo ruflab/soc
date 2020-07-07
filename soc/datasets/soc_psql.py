@@ -1,4 +1,5 @@
 import argparse
+from argparse import ArgumentParser
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
 from typing import Any
@@ -63,7 +64,7 @@ class SocPSQLDataset(Dataset):
         self._set_props(config)
 
     @classmethod
-    def add_argparse_args(cls, parent_parser):
+    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
 
         parser.add_argument('no_db', type=str, default=False)
@@ -75,7 +76,7 @@ class SocPSQLDataset(Dataset):
 
         return parser
 
-    def _set_props(self, config):
+    def _set_props(self, config: SocConfig):
         pass
 
     def __len__(self) -> int:

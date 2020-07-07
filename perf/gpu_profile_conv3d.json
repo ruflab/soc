@@ -1,0 +1,26 @@
+{
+    "generic": {
+        "seed": 1,
+        "verbose": true,
+        "dataset": "SocPreprocessedSeqSAToSDataset",
+        "model": "Conv3dModel",
+        "h_chan_dim": 10,
+        "num_layers": 2,
+        "bias": false,
+        "loss_name": "mse",
+        "lr": 0.001,
+        "optimizer": "adam",
+        "scheduler": null,
+        "batch_size": 8
+    },
+    "trainer": {
+        "logger": true,
+        "max_epochs": 3,
+        "print_nan_grads": true,
+        "profiler": true,
+        "benchmark": true,
+        "deterministic": true,
+        "terminate_on_nan": true,
+        "gpus": 1
+    }
+}

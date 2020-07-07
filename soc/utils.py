@@ -1,12 +1,11 @@
 import argparse
 import os
-import re
 import torch
 from typing import Dict
 from .models import get_model_class
 
 
-def soc_tuple(s: str):
+def soc_tuple(s: str) -> tuple:
     try:
         t = tuple(map(int, s.split(',')))
         return t
@@ -51,11 +50,3 @@ def check_folder(folder: str):
         os.makedirs(folder)
     elif not os.path.isdir(folder):
         raise Exception('The path provided ({}) exist and is not a folder, aborting'.format(folder))
-
-
-def get_latest_checkpoint(folder: str) -> str:
-    files = sorted([f for f in os.listdir(folder) if re.match('ckpt_', f)])
-    if len(files) > 0:
-        return os.path.join(folder, files[-1])
-
-    return ''

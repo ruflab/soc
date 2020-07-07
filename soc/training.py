@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from typing import Callable, List, Any, Dict
-from .typing import SocSeqBatch, SocBatch
+from .typing import SocSeqBatch, SocBatch, SocConfig
 from .models import make_model
 from .datasets import make_dataset
 
@@ -16,7 +16,7 @@ CollateFnType = Callable[[List[Any]], Any]
 
 
 class Runner(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config: SocConfig):
         super(Runner, self).__init__()
         self.hparams = config
 
@@ -141,7 +141,12 @@ def train_on_supervised_seq_batch(
 
     bs, seq_len, C, H, W = y_true.shape
 
-    loss = loss_f(y_preds.reshape(bs * seq_len, C, W, H), y_true.reshape(bs * seq_len, C, W, H))
+    y_preds_reshaped = y_preds.reshape(bs * seq_len, C, W, H)
+    y_true_reshaped = y_true.reshape(bs * seq_len, C, W, H)
+
+    losses_dict = compute_losses_on_state_seq(loss_f, y_preds_reshaped, y_true_reshaped)
+    losses = list(losses_dict.values())
+    loss = torch.mean(torch.stack(losses))
 
     return loss
 
@@ -162,7 +167,7 @@ def train_on_supervised_forward_batch(
     return loss
 
 
-def train(config: Dict):
+def train(config: SocConfig):
     # Misc part
     if config['generic']['verbose'] is True:
         import copy
@@ -199,3 +204,20 @@ def train(config: Dict):
 
     trainer = pl.Trainer(**config['trainer'])
     trainer.fit(runner)
+
+
+def compute_losses_on_state_seq(
+        loss_f: Callable, y_preds_seq_t: torch.Tensor, y_true_seq_t: torch.Tensor
+) -> Dict[str, torch.Tensor]:
+    loss_properties = loss_f(y_preds_seq_t[:, 0:9], y_true_seq_t[:, 0:9])
+
+    loss_pieces = loss_f(y_preds_seq_t[:, 9:81], y_true_seq_t[:, 9:81])
+
+    loss_public_infos = loss_f(y_preds_seq_t[:, 81:], y_true_seq_t[:, 81:])
+    losses = {
+        'loss_properties': loss_properties,
+        'loss_pieces': loss_pieces,
+        'loss_public_infos': loss_public_infos,
+    }
+
+    return losses

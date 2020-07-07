@@ -4,8 +4,8 @@
         "verbose": true,
         "dataset": "SocPreprocessedSeqSAToSDataset",
         "model": "Conv3dModel",
-        "h_chan_dim": 10,
-        "num_layers": 2,
+        "h_chan_dim": 128,
+        "num_layers": 3,
         "bias": false,
         "loss_name": "mse",
         "lr": 0.001,
@@ -22,5 +22,8 @@
         "deterministic": true,
         "terminate_on_nan": true,
         "gpus": 1
+    },
+    "other": {
+        "save_top_k": 0
     }
 }

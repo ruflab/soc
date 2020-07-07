@@ -21,5 +21,8 @@
         "deterministic": true,
         "terminate_on_nan": true,
         "gpus": 1
+    },
+    "other": {
+        "save_top_k": 0
     }
 }

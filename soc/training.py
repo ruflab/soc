@@ -1,12 +1,13 @@
 import multiprocessing
 import os
 import torch
-import json
+import pprint
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import NeptuneLogger
 from typing import Callable, List, Any, Dict
 from .typing import SocSeqBatch, SocBatch, SocConfig
 from .models import make_model
@@ -167,45 +168,6 @@ def train_on_supervised_forward_batch(
     return loss
 
 
-def train(config: SocConfig):
-    # Misc part
-    if config['generic']['verbose'] is True:
-        import copy
-        tmp_config = copy.deepcopy(config)
-        if "gpus" in tmp_config['trainer']:
-            del tmp_config['trainer']["gpus"]
-        if "tpu_cores" in tmp_config['trainer']:
-            del tmp_config['trainer']["tpu_cores"]
-        print(json.dumps(tmp_config))
-
-    pl.seed_everything(config['generic']['seed'])
-
-    # Runner part
-    runner = Runner(config['generic'])
-
-    # Trainer part
-    config['trainer']['deterministic'] = True
-    # config['trainer'][' distributed_backend'] = 'dp'
-
-    if 'default_root_dir' not in config['trainer'] or config['trainer']['default_root_dir'] is None:
-        cfd = os.path.dirname(os.path.realpath(__file__))
-        default_results_dir = os.path.join(cfd, '..', 'scripts', 'results')
-        config['trainer']['default_root_dir'] = default_results_dir
-
-    checkpoint_callback = ModelCheckpoint(
-        filepath=config['trainer']['default_root_dir'],
-        save_top_k=0,
-        verbose=True,
-        monitor='train_loss',
-        mode='min',
-        prefix=''
-    )
-    config['trainer']['checkpoint_callback'] = checkpoint_callback
-
-    trainer = pl.Trainer(**config['trainer'])
-    trainer.fit(runner)
-
-
 def compute_losses_on_state_seq(
         loss_f: Callable, y_preds_seq_t: torch.Tensor, y_true_seq_t: torch.Tensor
 ) -> Dict[str, torch.Tensor]:
@@ -221,3 +183,53 @@ def compute_losses_on_state_seq(
     }
 
     return losses
+
+
+def train(config: SocConfig):
+    # Misc part
+    if config['generic']['verbose'] is True:
+        import copy
+        tmp_config = copy.deepcopy(config)
+        if "gpus" in tmp_config['trainer']:
+            del tmp_config['trainer']["gpus"]
+        if "tpu_cores" in tmp_config['trainer']:
+            del tmp_config['trainer']["tpu_cores"]
+        pprint.pprint(tmp_config)
+
+    pl.seed_everything(config['generic']['seed'])
+
+    # Runner part
+    runner = Runner(config['generic'])
+
+    # Trainer part
+    config['trainer']['deterministic'] = True
+    # config['trainer'][' distributed_backend'] = 'dp'
+
+    if 'default_root_dir' not in config['trainer'] or config['trainer']['default_root_dir'] is None:
+        cfd = os.path.dirname(os.path.realpath(__file__))
+        default_results_dir = os.path.join(cfd, '..', 'scripts', 'results')
+        config['trainer']['default_root_dir'] = default_results_dir
+
+    save_top_k = 1
+    if 'other' in config:
+        if 'save_top_k' in config['other']:
+            save_top_k = config['other']['save_top_k']
+    checkpoint_callback = ModelCheckpoint(
+        filepath=config['trainer']['default_root_dir'],
+        verbose=True,
+        save_top_k=save_top_k,
+        monitor='val_loss',
+        mode='min',
+    )
+    config['trainer']['checkpoint_callback'] = checkpoint_callback
+
+    if 'logger' in config['trainer']:
+        if config['trainer']['logger'] == 'neptune':
+            config['trainer']['logger'] = NeptuneLogger(
+                api_key=os.environ['NEPTUNE_API_TOKEN'],
+                project_name=os.environ['NEPTUNE_PROJECT_NAME'],
+                params=config['generic'],
+            )
+
+    trainer = pl.Trainer(**config['trainer'])
+    trainer.fit(runner)

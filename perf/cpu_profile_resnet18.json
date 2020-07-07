@@ -20,5 +20,8 @@
         "benchmark": true,
         "deterministic": true,
         "terminate_on_nan": true
+    },
+    "other": {
+        "save_top_k": 0
     }
 }

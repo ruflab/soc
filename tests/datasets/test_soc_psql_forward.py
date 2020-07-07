@@ -45,7 +45,7 @@ class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
 
     def test_dataset_index(self):
         config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
-        dataset = datasets.SocPSQLForwardDataset(config)
+        dataset = datasets.SocPSQLForwardSAToSADataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
         dataset._get_nb_steps = MagicMock(return_value=[9, 9])

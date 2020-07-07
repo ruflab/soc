@@ -1,6 +1,6 @@
 {
     "generic": {
-        "seed": 44,
+        "seed": 1,
         "verbose": true,
         "dataset": "SocPreprocessedSeqSAToSDataset",
         "model": "Conv3dModel",

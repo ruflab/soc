@@ -145,7 +145,7 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def dump_preprocessed_dataset(self, folder: str):
         utils.check_folder(folder)
 
-        path = "{}/50_sas.pt".format(folder)
+        path = "{}/50_seq_sas.pt".format(folder)
         all_data = [self[i] for i in range(len(self))]
 
         torch.save(all_data, path)

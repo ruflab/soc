@@ -173,7 +173,7 @@ class TestUtils(unittest.TestCase):
                 'scheduler': '',
                 'batch_size': 2,
                 # Data
-                'dataset': 'SocPSQLForwardDataset',
+                'dataset': 'SocPSQLForwardSAToSADataset',
                 'history_length': 2,
                 'future_length': 1,
                 'no_db': True,

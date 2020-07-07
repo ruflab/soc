@@ -23,7 +23,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
     def __init__(self, config=None):
         super(SocPreprocessedSeqSAToSDataset, self).__init__()
 
-        default_path = os.path.join(cfd, '..', '..', 'data', '50_sas.pt')
+        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
         self.path = config.get('dataset_path', default_path)
         self.data = torch.load(self.path)
 

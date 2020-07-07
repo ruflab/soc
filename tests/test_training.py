@@ -6,6 +6,7 @@ import pandas as pd
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
 from soc.training import Runner
+from soc.datasets import make_dataset
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -49,6 +50,15 @@ class TestUtils(unittest.TestCase):
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
             return actions[idx]
 
+        class TestRunner(Runner):
+            def setup_dataset(self):
+                dataset = make_dataset(self.hparams)
+                dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+                dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+                dataset._get_length = MagicMock(return_value=2)
+
+                return dataset
+
         config = {
             'generic': {
                 'seed': 1,
@@ -74,13 +84,7 @@ class TestUtils(unittest.TestCase):
         }
 
         seed_everything(config['generic']['seed'])
-
-        runner = Runner(config['generic'])
-
-        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.train_dataset._get_length = MagicMock(return_value=2)
-
+        runner = TestRunner(config['generic'])
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)
 
@@ -93,6 +97,15 @@ class TestUtils(unittest.TestCase):
 
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
             return actions[idx]
+
+        class TestRunner(Runner):
+            def setup_dataset(self):
+                dataset = make_dataset(self.hparams)
+                dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+                dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+                dataset._get_length = MagicMock(return_value=2)
+
+                return dataset
 
         config = {
             'generic': {
@@ -120,12 +133,7 @@ class TestUtils(unittest.TestCase):
         }
 
         seed_everything(config['generic']['seed'])
-
-        runner = Runner(config['generic'])
-        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.train_dataset._get_length = MagicMock(return_value=2)
-
+        runner = TestRunner(config['generic'])
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)
 
@@ -144,6 +152,16 @@ class TestUtils(unittest.TestCase):
         ) -> pd.DataFrame:
             seq = actions[table_id]
             return seq[start_row_id:end_row_id]
+
+        class TestRunner(Runner):
+            def setup_dataset(self):
+                dataset = make_dataset(self.hparams)
+                dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+                dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+                dataset._get_length = MagicMock(return_value=2)
+                dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+
+                return dataset
 
         config = {
             'generic': {
@@ -174,12 +192,6 @@ class TestUtils(unittest.TestCase):
         }
 
         seed_everything(config['generic']['seed'])
-
-        runner = Runner(config['generic'])
-        runner.train_dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-        runner.train_dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-        runner.train_dataset._get_length = MagicMock(return_value=2)
-        runner.train_dataset._get_nb_steps = MagicMock(return_value=[9, 9])
-
+        runner = TestRunner(config['generic'])
         trainer = Trainer(**config['trainer'], deterministic=True)
         trainer.fit(runner)

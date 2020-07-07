@@ -20,12 +20,18 @@ class Runner(pl.LightningModule):
         super(Runner, self).__init__()
         self.hparams = config
 
+        if self.hparams['loss_name'] == 'mse':
+            self.loss_f = F.mse_loss
+        else:
+            raise Exception('Unknown loss function {}'.format(self.hparams['loss_name']))
+
     def prepare_data(self):
         # Download data here if needed
         pass
 
     def setup(self, stage):
-        dataset = make_dataset(self.hparams)
+        dataset = self.setup_dataset()
+
         ds_len = len(dataset)
         train_len = min(round(0.9 * ds_len), ds_len - 1)
         val_len = ds_len - train_len
@@ -39,10 +45,11 @@ class Runner(pl.LightningModule):
 
         self.model = make_model(self.hparams)
 
-        if self.hparams['loss_name'] == 'mse':
-            self.loss_f = F.mse_loss
-        else:
-            raise Exception('Unknown loss function {}'.format(self.hparams['loss_name']))
+    def setup_dataset(self):
+        """This function purpose is mainly to be overrided for tests"""
+        dataset = make_dataset(self.hparams)
+
+        return dataset
 
     def train_dataloader(self):
         dataloader = DataLoader(

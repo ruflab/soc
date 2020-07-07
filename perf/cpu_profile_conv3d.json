@@ -16,7 +16,6 @@
     "trainer": {
         "logger": true,
         "max_epochs": 3,
-        "print_nan_grads": true,
         "profiler": true,
         "benchmark": true,
         "deterministic": true,

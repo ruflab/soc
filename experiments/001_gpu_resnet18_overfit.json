@@ -14,10 +14,12 @@
     },
     "trainer": {
         "logger": true,
-        "print_nan_grads": true,
         "deterministic": true,
         "terminate_on_nan": true,
         "gpus": 1,
-        "overfit_batches": 32
+        "overfit_batches": 2
+    },
+    "other": {
+        "save_top_k": 0
     }
 }

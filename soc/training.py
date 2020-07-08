@@ -1,85 +1,83 @@
-import math
+import multiprocessing
 import torch
-from tqdm import tqdm
 from torch.nn import Module
-from torch.utils.data import Dataset, DataLoader
-from torch.optim.optimizer import Optimizer
-from typing import Callable, List, Any, Dict
+from torch.nn import functional as F
+from torch.utils.data import DataLoader
+import pytorch_lightning as pl
+from typing import Callable, List, Any
 from .typing import SocSeqBatch, SocBatch
+from .models import make_model
+from .datasets import make_dataset
 
 CollateFnType = Callable[[List[Any]], Any]
 
 
-def train_on_dataset(
-        config: Dict,
-        dataset: Dataset,
-        model: Module,
-        loss_f: Callable,
-        optimizer: Optimizer,
-        scheduler: object = None,
-        collate_fn: CollateFnType = None,
-        training_type: str = 'supervised',
-        callbacks: dict = {},
-) -> Module:
-    if config['verbose']:
-        print('Launching training')
+class Runner(pl.LightningModule):
+    def __init__(self, config):
+        super(Runner, self).__init__()
+        self.hparams = config
 
-    batch_size = config['batch_size']
-    n_epochs = config['n_epochs']
+        # Data
+        self.dataset = make_dataset(config)
+        self.hparams['data_input_size'] = self.dataset.get_input_size()
+        self.hparams['data_output_size'] = self.dataset.get_output_size()
 
-    if collate_fn is None:
+        self.model = make_model(self.hparams)
+
+        if self.hparams['loss_name'] == 'mse':
+            self.loss_f = F.mse_loss
+        else:
+            raise Exception('Unknown loss function {}'.format(config['loss_name']))
+
+    def configure_optimizers(self):
+        if self.hparams['optimizer'] == 'adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams['lr'])
+        else:
+            raise Exception('Unknown optimizer {}'.format(self.hparams['optimizer']))
+
+        if self.hparams['scheduler'] == 'plateau':
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001
+            )
+
+            return optimizer, scheduler
+
+        return optimizer
+
+    def forward(self, x):
+        return self.model(x)
+
+    def training_step(self, batch, batch_nb):
+        training_type = self.dataset.get_training_type()
+        if training_type == 'supervised_seq':
+            loss = train_on_supervised_seq_batch(batch, self.model, self.loss_f)
+        elif training_type == 'supervised_forward':
+            loss = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
+        else:
+            raise Exception(
+                "No training process exist for this training type: {}".format(training_type)
+            )
+
+        tensorboard_logs = {'train_loss': loss}
+        return {'loss': loss, 'log': tensorboard_logs}
+
+    def train_dataloader(self):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True
-        )
-    else:
-        dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
+            self.dataset,
+            batch_size=self.hparams['batch_size'],
             shuffle=True,
-            num_workers=0,
-            collate_fn=collate_fn,
-            drop_last=True
+            num_workers=multiprocessing.cpu_count() - 1,
+            collate_fn=self.dataset.get_collate_fn(),
+            drop_last=True,
+            pin_memory=device != "cpu"
         )
 
-    dataset_size = len(dataset)
-    n_batchs = math.floor(dataset_size / batch_size)
-
-    if 'start_training_callback' in callbacks:
-        callbacks['start_training_callback']()
-
-    for i_epoch in tqdm(range(n_epochs)):
-        if 'start_epoch_callback' in callbacks:
-            callbacks['start_epoch_callback'](i_epoch)
-
-        for i_batch, batch in enumerate(dataloader):
-
-            if 'start_batch_callback' in callbacks:
-                callbacks['start_batch_callback'](i_epoch, i_batch, n_batchs)
-
-            if training_type == 'supervised_seq':
-                loss = train_on_supervised_seq_batch(batch, model, loss_f, optimizer)
-            elif training_type == 'supervised_forward':
-                loss = train_on_supervised_forward_batch(batch, model, loss_f, optimizer)
-            else:
-                raise Exception(
-                    "No training process exist for this training type: {}".format(training_type)
-                )
-
-            if 'end_batch_callback' in callbacks:
-                callbacks['end_batch_callback'](i_epoch, i_batch, n_batchs, loss)
-
-        # Validation and scheduler step should appear here
-        if 'end_epoch_callback' in callbacks:
-            callbacks['end_epoch_callback'](i_epoch)
-
-    if 'end_training_callback' in callbacks:
-        callbacks['end_training_callback']()
-
-    return model
+        return dataloader
 
 
 def train_on_supervised_seq_batch(
-        batch: SocSeqBatch, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
+        batch: SocSeqBatch, model: Module, loss_f: Callable
 ) -> torch.Tensor:
     """
         This function apply an batch update to the model.
@@ -100,15 +98,11 @@ def train_on_supervised_seq_batch(
 
     loss = loss_f(y_preds.reshape(bs * seq_len, C, W, H), y_true.reshape(bs * seq_len, C, W, H))
 
-    model.zero_grad()
-    loss.backward()
-    optimizer.step()
-
     return loss
 
 
 def train_on_supervised_forward_batch(
-        batch: SocBatch, model: Module, loss_f: Callable, optimizer: Optimizer, scheduler=None
+        batch: SocBatch, model: Module, loss_f: Callable
 ) -> torch.Tensor:
     """
         This function apply an batch update to the model.
@@ -119,9 +113,5 @@ def train_on_supervised_forward_batch(
     y_preds = model(x)
 
     loss = loss_f(y_preds, y_true)
-
-    model.zero_grad()
-    loss.backward()
-    optimizer.step()
 
     return loss

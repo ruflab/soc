@@ -1,9 +1,11 @@
 ###
 # Taken from https://raw.githubusercontent.com/ndrplz/ConvLSTM_pytorch/master/convlstm.py
 ###
+import argparse
 import torch.nn as nn
 import torch
 from .hexa_conv import HexaConv2d
+from .. import utils
 
 
 class ConvLSTMCell(nn.Module):
@@ -94,11 +96,12 @@ class ConvLSTM(nn.Module):
     def __init__(self, config):
         super(ConvLSTM, self).__init__()
 
-        data_input_size = config.get('data_input_size')
-        data_output_size = config.get('data_output_size')
-        h_chan_dim = config.get('h_chan_dim')
-        kernel_size = config.get('kernel_size')
-        num_layers = config.get('num_layers')
+        data_input_size = config['data_input_size']
+        data_output_size = config['data_output_size']
+
+        h_chan_dim = config.get('h_chan_dim', 32)
+        kernel_size = config.get('kernel_size', (3, 3))
+        num_layers = config.get('num_layers', 2)
         batch_first = config.get('batch_first', True)
         bias = config.get('bias', True)
         return_all_layers = config.get('return_all_layers', False)
@@ -142,6 +145,33 @@ class ConvLSTM(nn.Module):
             padding=(kernel_size[-1][0] // 2, kernel_size[-1][1] // 2),
             bias=self.bias
         )
+
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+
+        parser.add_argument(
+            '--h_chan_dim',
+            type=int,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of hidden channels per layer'
+        )
+        parser.add_argument(
+            '--kernel_size',
+            type=utils.soc_tuple,
+            nargs='+',
+            default=argparse.SUPPRESS,
+            help='List of Kernel size per layer'
+        )
+        parser.add_argument(
+            '--num_layers', type=int, default=argparse.SUPPRESS, help='Number of layers'
+        )
+        parser.add_argument('--batch_first', type=bool, default=argparse.SUPPRESS)
+        parser.add_argument('--bias', type=bool, default=argparse.SUPPRESS)
+        parser.add_argument('--return_all_layers', type=bool, default=argparse.SUPPRESS)
+
+        return parser
 
     def forward(self, input_tensor, hidden_state=None):
         """
@@ -217,13 +247,3 @@ class ConvLSTM(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
-
-    @staticmethod
-    def get_default_conf():
-        return {
-            'h_chan_dim': [128, 128],
-            'kernel_size': [(3, 3), (3, 3)],
-            'num_layers': 2,
-            'bias': True,
-            'return_all_layers': False,
-        }

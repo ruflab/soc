@@ -33,6 +33,15 @@ class SocPSQLForwardDataset(SocPSQLDataset):
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = super(SocPSQLForwardDataset, cls).add_argparse_args(parent_parser)
+
+        parser.add_argument('history_length', type=int, default=8)
+        parser.add_argument('future_length', type=int, default=1)
+
+        return parser
+
     def __len__(self) -> int:
         return self._get_length()
 

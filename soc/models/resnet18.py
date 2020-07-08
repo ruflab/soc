@@ -1,6 +1,7 @@
 ###
 # Taken from https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 ###
+import argparse
 import torch.nn as nn
 from .hexa_conv import HexaConv2d
 
@@ -237,6 +238,12 @@ class ResNet(nn.Module):
             )
 
         return nn.Sequential(*layers)
+
+    @classmethod
+    def add_argparse_args(cls, parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+
+        return parser
 
     def _forward_impl(self, x):
         # See note [TorchScript super()]

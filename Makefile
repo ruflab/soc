@@ -63,8 +63,17 @@ yapf:
 	yapf --style tox.ini -r -i soc/. tests/. scripts/.
 
 test:
-	pytest .
+	 PYTHONWARNINGS="ignore" pytest .
 
 ci: lint typecheck test
 
 .PHONY: typecheck yapf lint test ci
+
+###
+# Experiments
+###
+
+exp_clean:
+	rm -rf scripts/results/*
+
+.PHONY: exp_clean

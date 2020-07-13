@@ -1,0 +1,6 @@
+# Include the README
+include *.md
+
+include experiments/*.json
+
+include perf/*.json

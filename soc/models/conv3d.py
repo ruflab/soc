@@ -2,6 +2,7 @@ import argparse
 import math
 import torch.nn as nn
 from .. import utils
+from .hexa_conv import HexaConv3d
 from typing import List, Tuple
 
 
@@ -18,20 +19,26 @@ class Conv3dModel(nn.Module):
     def __init__(self, config):
         super(Conv3dModel, self).__init__()
 
-        self.data_input_size = config.get('data_input_size')
-        self.data_output_size = config.get('data_output_size')
-        self.num_layers = config.get('num_layers')
-        self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim'), self.num_layers)
-        self.kernel_size = self._extend_for_multilayer(config.get('kernel_size'), self.num_layers)
-        self.strides = self._extend_for_multilayer(config.get('strides'), self.num_layers)
-        self.paddings = self._extend_for_multilayer(config.get('paddings'), self.num_layers)
+        self.data_input_size = config['data_input_size']
+        self.data_output_size = config['data_output_size']
+        self.num_layers = config.get('num_layers', 2)
+        self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim', 32), self.num_layers)
+        self.kernel_size = self._extend_for_multilayer(
+            config.get('kernel_size', (3, 3, 3)), self.num_layers
+        )
+        self.strides = self._extend_for_multilayer(
+            config.get('strides', (1, 1, 1)), self.num_layers
+        )
+        self.paddings = self._extend_for_multilayer(
+            config.get('paddings', (1, 1, 1, 1, 2, 0)), self.num_layers
+        )
         assert len(self.kernel_size) == self.num_layers
 
         layers = []
         for i in range(self.num_layers - 1):
             layers.append(nn.ConstantPad3d(self.paddings[i], 0))
             layers.append(
-                nn.Conv3d(
+                HexaConv3d(
                     self.data_input_size[0] if i == 0 else self.h_chan_dim[i - 1],
                     self.h_chan_dim[i],
                     self.kernel_size[i],
@@ -43,7 +50,7 @@ class Conv3dModel(nn.Module):
 
         layers.append(nn.ConstantPad3d(self.paddings[-1], 0))
         layers.append(
-            nn.Conv3d(
+            HexaConv3d(
                 self.h_chan_dim[-1],
                 self.data_output_size[0],
                 self.kernel_size[-1],
@@ -156,17 +163,3 @@ class Conv3dModel(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
-
-    @staticmethod
-    def get_default_conf():
-        # The first two properties are actually data dependant
-
-        return {
-            # 'in_chan_dim': 1,
-            # 'output_dim': 1,
-            'h_chan_dim': 64,
-            'kernel_size': (3, 3, 3),
-            'strides': (1, 1, 1),
-            'paddings': (1, 1, 1),
-            'num_layers': 2,
-        }

@@ -65,6 +65,7 @@ def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
                                                    .apply(ju.mapping_1d_2d)
     df_states['numberlayout'] = df_states['numberlayout'].apply(ju.parse_layout) \
                                                          .apply(ju.mapping_1d_2d)
+
     df_states['robberhex'] = df_states['robberhex'].apply(ju.get_1d_id_from_hex) \
                                                    .apply(ju.get_2d_id) \
                                                    .apply(ju.get_one_hot_plan)

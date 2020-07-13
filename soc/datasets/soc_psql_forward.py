@@ -4,11 +4,12 @@ import pandas as pd
 import torch
 from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
-from . import utils
+from . import utils as ds_utils
+from .. import utils
 from ..typing import SocDatasetItem, SocConfig
 
 
-class SocPSQLForwardDataset(SocPSQLDataset):
+class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     """
         Defines a Settlers of Catan postgresql dataset for forward models.
         One datapoint is a tuple (past, future)
@@ -35,7 +36,7 @@ class SocPSQLForwardDataset(SocPSQLDataset):
 
     @classmethod
     def add_argparse_args(cls, parent_parser):
-        parser = super(SocPSQLForwardDataset, cls).add_argparse_args(parent_parser)
+        parser = super(SocPSQLForwardSAToSADataset, cls).add_argparse_args(parent_parser)
 
         parser.add_argument('history_length', type=int, default=8)
         parser.add_argument('future_length', type=int, default=1)
@@ -57,42 +58,6 @@ class SocPSQLForwardDataset(SocPSQLDataset):
             self._length = total_steps - nb_games * self.seq_len_per_datum
 
         return self._length
-
-    def __getitem__(self, idx: int) -> SocDatasetItem:
-        """
-            Return one datapoint from the dataset
-
-            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
-
-        """
-        df_states, df_actions = self._get_data_from_db(idx)
-        assert len(df_states.index) == len(df_actions.index)
-
-        df_states = utils.preprocess_states(df_states)
-        df_actions = utils.preprocess_actions(df_actions)
-
-        to_concat = []
-        for i in range(len(df_states)):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
-
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
-            current_action_np = current_action_df['type']
-
-            to_concat.append(current_state_np)
-            to_concat.append(current_action_np)
-
-        history = to_concat[:self.history_length * 2]
-        future = to_concat[self.history_length * 2:]
-
-        history_np = np.concatenate(history, axis=0)
-        future_np = np.concatenate(future, axis=0)
-
-        history_t = torch.tensor(history_np, dtype=torch.float32)
-        future_t = torch.tensor(future_np, dtype=torch.float32)
-
-        return history_t, future_t
 
     def _set_stats(self):
         nb_steps = self._get_nb_steps()
@@ -117,6 +82,42 @@ class SocPSQLForwardDataset(SocPSQLDataset):
         nb_steps = list(map(lambda x: x[0], data))
 
         return nb_steps
+
+    def __getitem__(self, idx: int) -> SocDatasetItem:
+        """
+            Return one datapoint from the dataset
+
+            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
+
+        """
+        df_states, df_actions = self._get_data_from_db(idx)
+        assert len(df_states.index) == len(df_actions.index)
+
+        df_states = ds_utils.preprocess_states(df_states)
+        df_actions = ds_utils.preprocess_actions(df_actions)
+
+        to_concat = []
+        for i in range(len(df_states)):
+            current_state_df = df_states.iloc[i]
+            current_action_df = df_actions.iloc[i]
+
+            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
+                                              axis=0)
+            current_action_np = current_action_df['type']
+
+            to_concat.append(current_state_np)
+            to_concat.append(current_action_np)
+
+        history_l = to_concat[:self.history_length * 2]
+        future_l = to_concat[self.history_length * 2:]
+
+        history_np = np.concatenate(history_l, axis=0)
+        future_np = np.concatenate(future_l, axis=0)
+
+        history_t = torch.tensor(history_np, dtype=torch.float32)
+        future_t = torch.tensor(future_np, dtype=torch.float32)
+
+        return history_t, future_t
 
     def _get_data_from_db(self, idx: int) -> Tuple:
         if len(self._inc_seq_steps) == 0:
@@ -189,3 +190,11 @@ class SocPSQLForwardDataset(SocPSQLDataset):
 
     def get_training_type(self):
         return 'supervised_forward'
+
+    def dump_preprocessed_dataset(self, folder: str):
+        utils.check_folder(folder)
+
+        path = "{}/50_forward_sasa.pt".format(folder)
+        all_data = [self[i] for i in range(len(self))]
+
+        torch.save(all_data, path)

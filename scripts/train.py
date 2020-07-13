@@ -1,44 +1,21 @@
-import os
 import random
 import argparse
-from pytorch_lightning import seed_everything, Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from soc.training import Runner
-from soc import datasets, models
-
-cfd = os.path.dirname(os.path.realpath(__file__))
-
-
-def main(config):
-    runner = Runner(config['generic'])
-
-    seed_everything(config['generic']['seed'])
-    config['trainer']['deterministic'] = True
-    # config['trainer'][' distributed_backend'] = 'dp'
-
-    if config['trainer']['default_root_dir'] is None:
-        config['trainer']['default_root_dir'] = os.path.join(cfd, 'results')
-    checkpoint_callback = ModelCheckpoint(
-        filepath=config['trainer']['default_root_dir'],
-        save_top_k=0,
-        verbose=True,
-        monitor='train_loss',
-        mode='min',
-        prefix=''
-    )
-    config['trainer']['checkpoint_callback'] = checkpoint_callback
-
-    trainer = Trainer(**config['trainer'])
-    trainer.fit(runner)
-
+import json
+from pytorch_lightning import Trainer
+from soc import datasets, models, training
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training configuration')
 
-    parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
     parser.add_argument(
-        '--verbose', type=bool, default=argparse.SUPPRESS, help='Should we print many things'
+        '--config',
+        '-c',
+        type=str,
+        default=None,
+        help='A config to load (override all cli parameters)'
     )
+    parser.add_argument('--seed', '-s', type=int, default=random.randint(0, 100), help='The seed')
+    parser.add_argument('--verbose', type=bool, default=False, help='Should we print many things')
     parser.add_argument(
         '--dataset',
         '-d',
@@ -77,20 +54,23 @@ if __name__ == "__main__":
 
     temp_args, _ = parser.parse_known_args()
     temp_config = vars(temp_args)
+    if temp_config['config'] is not None:
+        with open(temp_config['config'], 'r') as f:
+            config = json.load(f)
+    else:
+        model_class = models.get_model_class(temp_config)
+        parser = model_class.add_argparse_args(parser)
 
-    model_class = models.get_model_class(temp_config)
-    parser = model_class.add_argparse_args(parser)
+        dataset_class = datasets.get_dataset_class(temp_config)
+        parser = dataset_class.add_argparse_args(parser)
 
-    dataset_class = datasets.get_dataset_class(temp_config)
-    parser = dataset_class.add_argparse_args(parser)
+        # To resume training, use resume_from_checkpoint arg
+        trainer_parser = Trainer.add_argparse_args(
+            argparse.ArgumentParser(description='Training configuration')
+        )
+        config = {
+            'generic': vars(parser.parse_known_args()[0]),
+            'trainer': vars(trainer_parser.parse_known_args()[0])
+        }
 
-    # Ro resume training, use resume_from_checkpoint arg
-    trainer_parser = Trainer.add_argparse_args(
-        argparse.ArgumentParser(description='Training configuration')
-    )
-    config = {
-        'generic': vars(parser.parse_known_args()[0]),
-        'trainer': vars(trainer_parser.parse_known_args()[0])
-    }
-
-    main(config)
+    training.train(config)

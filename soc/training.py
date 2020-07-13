@@ -209,7 +209,9 @@ def val_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
     }
     if y_preds.shape[1] == 245 + 17:
         acc_act = (y_preds_int[:, 245:] == y_true[:, 245:]).type(loss.dtype).mean()  # type: ignore
+        acc_act_one_mean = (y_preds_int[:, 245:] == 1).mean()
         data['acc_action'] = acc_act
+        data['acc_act_one_mean'] = acc_act_one_mean
 
     return data
 
@@ -260,26 +262,33 @@ def val_on_supervised_forward_batch(batch: SocBatch, model: Module,
         equal_tensor = (t1[:, start_i:end_i] == t2[:, start_i:end_i])
         return equal_tensor.type(dtype).mean()  # type: ignore
 
+    ones = torch.ones(y_preds_int.shape, device=y_preds_int.device)
     if y_preds.shape[1] % 262 == 0:
         timestep = y_preds.shape[1] // 262
         acc_map = 0
         acc_props = 0
         acc_pieces = 0
+        acc_pieces_one_mean = 0
         acc_infos = 0
         acc_act = 0
+        acc_act_one_mean = 0
         for i in range(timestep):
             start_i = i * 262
             acc_map += mean_indices(y_preds_int, y_true, start_i + 0, start_i + 2)
             acc_props += mean_indices(y_preds_int, y_true, start_i + 2, start_i + 9)
             acc_pieces += mean_indices(y_preds_int, y_true, start_i + 9, start_i + 81)
+            acc_pieces_one_mean += mean_indices(y_preds_int, ones, start_i + 9, start_i + 81)
             acc_infos += mean_indices(y_preds_int, y_true, start_i + 81, start_i + 245)
             acc_act += mean_indices(y_preds_int, y_true, start_i + 245, start_i + 262)
+            acc_act_one_mean += mean_indices(y_preds_int, ones, start_i + 245, start_i + 262)
 
         data['acc_map'] = acc_map / timestep
         data['acc_properties'] = acc_props / timestep
         data['acc_pieces'] = acc_pieces / timestep
+        data['acc_pieces_one_mean'] = acc_pieces_one_mean / timestep
         data['acc_public_infos'] = acc_infos / timestep
         data['acc_action'] = acc_act / timestep
+        data['acc_act_one_mean'] = acc_act_one_mean / timestep
     else:
         timestep = y_preds.shape[1] // 245
         acc_map = 0

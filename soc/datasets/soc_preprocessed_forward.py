@@ -15,16 +15,17 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         Input: Concatenation of state and actions representation
         in Sequence.
-            Dims: S x (C_states + C_actions) x H x W
+            Dims: [S * (C_states + C_actions), H, W]
 
         Output: Next state
-            Dims: S x (C_states + C_actions) x H x W
+            Dims: [S * (C_states + C_actions), H, W]
     """
 
+    _length: int = -1
+    _n_actions: int = 17
     _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
-    _length: int = -1
 
     def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
@@ -48,6 +49,9 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
+        self._set_props(config)
+
+    def _set_props(self, config: SocConfig):
         self.input_shape = list(self.seq_data[0].shape[1:])
         self.input_shape[0] *= self.history_length
         self.output_shape = list(self.seq_data[0].shape[1:])
@@ -143,3 +147,37 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     def get_training_type(self) -> str:
         return 'supervised_forward'
+
+
+# class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSADataset):
+#     """
+#         Returns a completely formatted dataset:
+
+#         Input: Concatenation of state and actions representation
+#         in Sequence.
+#             Dims: [S * C_states + C_actions), H, W]
+
+#         Output: Tuple of next state and next actions
+#             Dims: ( [S * C_states, H, W], [S * C_actions] )
+#     """
+#     def _set_props(self, config: SocConfig):
+#         self.input_shape = list(self.seq_data[0].shape[1:])
+#         self.input_shape[0] *= self.history_length
+
+#         output_shape_1 = list(self.seq_data[0].shape[1:])
+#         output_shape_1[0] -= self._n_actions
+#         output_shape_1[0] *= self.future_length
+#         self.output_shape = (output_shape_1[0], [self._n_actions * self.future_length, 1])
+
+#     def __getitem__(self, idx: int) -> SocDatasetItem:
+#         x_t = self._get_data(idx)
+
+#         _, _, H, W = x_t.shape
+#         history_t = x_t[:self.history_length]
+#         future_t = x_t[self.history_length:]
+#         future_states_t = future_t[:, :-self._n_actions]
+#         future_actions_t = future_t[:, -self._n_actions:, 0, 0]
+
+#         return (
+#             history_t.view(-1, H, W), (future_states_t.view(-1, H, W), future_actions_t.view(-1))
+#         )

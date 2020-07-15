@@ -30,8 +30,8 @@ def compare_by_idx(
     return equal_tensor.type(dtype).mean()  # type: ignore
 
 
-def get_stats(metadata: SocDataMetadata, x: torch.Tensor,
-              y: Union[torch.Tensor, Num]) -> Dict[str, torch.Tensor]:
+def get_stats(metadata: SocDataMetadata, x: torch.Tensor, y: Union[torch.Tensor,
+                                                                   Num]) -> Dict[str, torch.Tensor]:
     dtype = x.dtype
     stats_dict = {}
     for label, idx_list in metadata.items():

@@ -194,6 +194,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
             'map': [],
+            'robber': [],
             'properties': [],
             'pieces': [],
             'infos': [],
@@ -202,7 +203,8 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         for i in range(self.future_length):
             start_i = i * (self._state_size[0] + self._action_size[0])
             metadata['map'].append([start_i + 0, start_i + 2])
-            metadata['properties'].append([start_i + 2, start_i + 9])
+            metadata['robber'].append([start_i + 2, start_i + 3])
+            metadata['properties'].append([start_i + 3, start_i + 9])
             metadata['pieces'].append([start_i + 9, start_i + 81])
             metadata['infos'].append([start_i + 81, start_i + 245])
             metadata['action'].append([start_i + 245, start_i + 262])

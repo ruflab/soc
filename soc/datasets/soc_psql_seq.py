@@ -145,7 +145,8 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def get_output_metadata(self) -> SocDataMetadata:
         return {
             'map': [[0, 2]],
-            'properties': [[2, 9]],
+            'robber': [[2, 3]],
+            'properties': [[3, 9]],
             'pieces': [[9, 81]],
             'infos': [[81, 245]],
         }

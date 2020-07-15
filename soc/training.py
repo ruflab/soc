@@ -109,7 +109,9 @@ class Runner(pl.LightningModule):
         elif self.training_type == 'supervised_forward':
             loss = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
         elif self.training_type == 'resnet18policy':
-            loss = train_on_resnet18policy_batch(batch, self.model, self.mse_loss_f, self.ce_loss_f)
+            loss = train_on_resnet18policy_batch(
+                batch, self.model, self.mse_loss_f, self.ce_loss_f, self.metadata
+            )
         else:
             raise Exception(
                 "No training process exist for this training type: {}".format(self.training_type)
@@ -145,7 +147,7 @@ class Runner(pl.LightningModule):
             logs[k] = _mean(outputs, k)
 
         final_dict = {
-            'val_loss': logs['val_loss'], 'val_accuracy': logs['val_accuracy'], 'log': logs
+            'val_accuracy': logs['val_accuracy'], 'log': logs
         }
 
         return final_dict
@@ -213,7 +215,6 @@ def val_on_supervised_seq_batch(
     acc = (y_preds_int == y_true).type(dtype).mean()  # type: ignore
     val_dict = val.get_stats(metadata, y_preds_int_reshaped, y_true_reshaped)
     val_dict.update({
-        'val_loss': loss,
         'val_accuracy': acc,
     })
 
@@ -269,7 +270,6 @@ def val_on_supervised_forward_batch(
     val_dict.update(val.get_stats(one_meta, y_preds_int, 1))
 
     val_dict.update({
-        'val_loss': loss,
         'val_accuracy': acc,
     })
 
@@ -277,7 +277,11 @@ def val_on_supervised_forward_batch(
 
 
 def train_on_resnet18policy_batch(
-    batch: SocBatchMultipleOut, model: Module, state_loss_f: Callable, action_loss_f: Callable
+    batch: SocBatchMultipleOut,
+    model: Module,
+    state_loss_f: Callable,
+    action_loss_f: Callable,
+    metadata: SocDataMetadata = {},
 ) -> torch.Tensor:
     """
         This function apply an batch update to the model.
@@ -291,20 +295,37 @@ def train_on_resnet18policy_batch(
     x = batch[0]
     y_spatial_state_true, y_state_true, y_action_true = batch[1]
 
-    y_spatial_state_preds, y_state_preds, y_action_logits = model(x)
+    y_spatial_s_logits, y_state_logits, y_action_logits = model(x)
 
-    bs, S, C_a = y_action_true.shape
-    loss_mask = torch.zeros_like(y_spatial_state_true, device=y_spatial_state_true.device)
-    loss_mask[y_spatial_state_true > 0] = 1
-    loss_mask[:, torch.randperm(loss_mask.shape[1])[:30]] = 1
-    spatial_state_loss = state_loss_f(loss_mask * y_spatial_state_preds, y_spatial_state_true)
-    y_state_true_reshaped = y_state_true.view(bs, -1)
-    state_loss = state_loss_f(y_state_preds, y_state_true_reshaped)
-
+    bs, C, H, W = x.shape
+    _, _, C_s = y_state_true.shape
+    _, _, C_a = y_action_true.shape
+    y_s_true_reshaped = y_state_true.view(-1, C_s)
     y_a_true_reshaped = torch.argmax(y_action_true.view(-1, C_a), dim=1)
+    # loss_mask = torch.zeros_like(y_spatial_state_true, device=y_spatial_state_true.device)
+    # loss_mask[y_spatial_state_true > 0] = 1
+    # loss_mask[:, torch.randperm(loss_mask.shape[1])[:30]] = 1
+
+    spatial_state_loss = torch.tensor(0., device=x.device)
+    seq_len = torch.tensor(len(metadata['map']), device=x.device)
+    for start_i, end_i in metadata['map']:
+        spatial_state_loss += state_loss_f(
+            y_spatial_s_logits[:, start_i:end_i], y_spatial_state_true[:, start_i:end_i]
+        ) / seq_len
+    for start_i, end_i in metadata['robber']:
+        spatial_state_loss += F.cross_entropy(
+            y_spatial_s_logits[:, start_i].reshape(bs, -1),
+            torch.argmax(y_spatial_state_true[:, start_i].reshape(bs, -1), dim=1)
+        ) / seq_len
+    for start_i, end_i in metadata['pieces']:
+        # Pieces corresponds to a binary predictions
+        spatial_state_loss += F.binary_cross_entropy_with_logits(
+            y_spatial_s_logits[:, start_i:end_i], y_spatial_state_true[:, start_i:end_i]
+        ) / seq_len
+    state_loss = state_loss_f(y_state_logits, y_s_true_reshaped)
     action_loss = action_loss_f(y_action_logits, y_a_true_reshaped)
 
-    return (spatial_state_loss + state_loss + action_loss) / 3
+    return spatial_state_loss + state_loss + action_loss
 
 
 def val_on_resnet18policy_batch(
@@ -319,38 +340,42 @@ def val_on_resnet18policy_batch(
     x = batch[0]
     y_spatial_state_true, y_state_true, y_action_true = batch[1]
 
-    y_spatial_state_preds, y_state_preds, y_action_logits = model(x)
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_s_spatial_preds_int = torch.round(y_spatial_state_preds)
-    y_s_preds_int = torch.round(y_state_preds)
+    y_spatial_s_logits, y_state_logits, y_action_logits = model(x)
 
-    bs, S, C_a = y_action_true.shape
-    y_state_true_reshaped = y_state_true.view(bs, -1)
+    bs, C, H, W = x.shape
+    dtype = x.dtype
+    _, _, C_s = y_state_true.shape
+    _, _, C_a = y_action_true.shape
+    y_s_true_reshaped = y_state_true.view(-1, C_s)
     y_a_true_reshaped = torch.argmax(y_action_true.view(-1, C_a), dim=1)
 
-    spatial_state_loss = state_loss_f(y_spatial_state_preds, y_spatial_state_true)
-    state_loss = state_loss_f(y_state_preds, y_state_true_reshaped)
-    action_loss = action_loss_f(y_action_logits, y_a_true_reshaped)
-    loss = (spatial_state_loss + state_loss + action_loss) / 3
+    # Actions and state are represented as ints
+    # We can compute a simple decision boundary by using the round function
+    y_spatial_s_preds = torch.zeros_like(y_spatial_s_logits)
+    for start_i, end_i in metadata['map']:
+        y_spatial_s_preds[:, start_i:end_i] = torch.round(y_spatial_s_logits[:, start_i:end_i])
+    for start_i, end_i in metadata['robber']:
+        rob_pred_idx = torch.argmax(y_spatial_s_logits[:, start_i].view(bs, -1), dim=1)
+        y_spatial_s_preds[:, start_i, rob_pred_idx // 7, rob_pred_idx % 7] = 1
+    for start_i, end_i in metadata['pieces']:
+        # Pieces corresponds to a binary predictions
+        y_spatial_s_preds[:, start_i:end_i] = torch.round(
+            torch.sigmoid(y_spatial_s_logits[:, start_i:end_i])
+        )
+    y_s_preds_int = torch.round(y_state_logits)
+    action_preds_int = torch.argmax(y_action_logits, dim=-1)
 
-    dtype = loss.dtype
-    y_s_spatial_eq = (y_s_spatial_preds_int == y_spatial_state_true)
-    action_preds = torch.argmax(y_action_logits, dim=-1)
+    y_s_spatial_eq = (y_spatial_s_preds == y_spatial_state_true)
     spatial_state_acc = y_s_spatial_eq.type(dtype).mean()  # type: ignore
-    state_acc = (y_s_preds_int == y_state_true_reshaped).type(dtype).mean()  # type: ignore
-    action_acc = (action_preds == y_a_true_reshaped).type(dtype).mean()  # type: ignore
+    state_acc = (y_s_preds_int == y_s_true_reshaped).type(dtype).mean()  # type: ignore
+    action_acc = (action_preds_int == y_a_true_reshaped).type(dtype).mean()  # type: ignore
     acc = (spatial_state_acc + state_acc + action_acc) / 3
 
-    val_dict = val.get_stats(metadata, y_s_spatial_preds_int, y_spatial_state_true)
+    val_dict = val.get_stats(metadata, y_spatial_s_preds, y_spatial_state_true)
     one_meta = {'pieces_one_mean': metadata['pieces']}
-    val_dict.update(val.get_stats(one_meta, y_s_spatial_preds_int, 1))
+    val_dict.update(val.get_stats(one_meta, y_spatial_s_preds, 1))
 
     val_dict.update({
-        'val_loss': loss,
-        'val_spatial_state_loss': spatial_state_loss,
-        'val_state_loss': state_loss,
-        'val_action_loss': action_loss,
         'val_accuracy': acc,
         'val_spatial_state_accuracy': spatial_state_acc,
         'val_state_accuracy': state_acc,
@@ -417,7 +442,7 @@ def train(config: SocConfig) -> Runner:
         verbose=True,
         save_top_k=save_top_k,
         save_last=True,
-        monitor='val_loss',
+        monitor='val_accuracy',
         mode='min',
     )
     config['trainer']['checkpoint_callback'] = checkpoint_callback

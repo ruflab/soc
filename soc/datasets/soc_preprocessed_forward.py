@@ -25,7 +25,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     _length: int = -1
     _n_states: int = 245
-    _n_spatial_states: int = 3 + 4 * 18
+    _n_spatial_states: int = 2 + 1 + 4 * 18
     _n_spatial_states_wo_map: int = 1 + 4 * 18
     _n_actions: int = 17
     _inc_seq_steps: List[int] = []
@@ -40,10 +40,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.path = config.get('dataset_path', default_path)
         data = torch.load(self.path)
         self.seq_data = []
-        n_action_channels = data[0][0].shape[1] - data[0][1].shape[1]
         for x_t, y_t in data:
-            # create a None action
-            last_a = torch.zeros([1, n_action_channels, x_t.shape[-2], x_t.shape[-1]])
+            # We reconstruct the full sequence
+            # TODO: save the dataset with the actual last action.
+            last_a = torch.zeros([1, self._n_actions, x_t.shape[-2], x_t.shape[-1]])
             last_sa = torch.cat([y_t[-1:], last_a], dim=1)
             new_x_t = torch.cat([x_t, last_sa], dim=0)
             self.seq_data.append(new_x_t)
@@ -158,6 +158,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
             'map': [],
+            'robber': [],
             'properties': [],
             'pieces': [],
             'infos': [],
@@ -166,7 +167,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         for i in range(self.future_length):
             start_i = i * (self._n_states + self._n_actions)
             metadata['map'].append([start_i + 0, start_i + 2])
-            metadata['properties'].append([start_i + 2, start_i + 9])
+            metadata['robber'].append([start_i + 2, start_i + 3])
+            metadata['properties'].append([start_i + 3, start_i + 9])
             metadata['pieces'].append([start_i + 9, start_i + 81])
             metadata['infos'].append([start_i + 81, start_i + 245])
             metadata['action'].append([start_i + 245, start_i + 262])
@@ -223,11 +225,13 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
             'map': [],
+            'robber': [],
             'pieces': [],
         }
         for i in range(self.future_length):
             start_i = i * self._n_spatial_states
             metadata['map'].append([start_i + 0, start_i + 2])
-            metadata['pieces'].append([start_i + 2, start_i + self._n_spatial_states])
+            metadata['robber'].append([start_i + 2, start_i + 3])
+            metadata['pieces'].append([start_i + 3, start_i + self._n_spatial_states])
 
         return metadata

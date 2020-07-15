@@ -144,15 +144,16 @@ class ResNet18Policy(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        y_spatial_state = self.spatial_state_head(x)  # bs x n_core_planes x H x W
+        y_spatial_state_logits = self.spatial_state_head(x)
 
         bs = x.shape[0]
         y_linear = x.view(bs, -1)
-        y_state = self.linear_state_head(y_linear)
+        y_state_logits = self.linear_state_head(y_linear)
+        y_state_logits_reshaped = y_state_logits.reshape(bs * self.state_output_size[0], -1)
         y_action_logits = self.policy_head(y_linear)
         y_action_logits_reshaped = y_action_logits.reshape(bs * self.action_output_size[0], -1)
 
-        return y_spatial_state, y_state, y_action_logits_reshaped
+        return y_spatial_state_logits, y_state_logits_reshaped, y_action_logits_reshaped
 
     def forward(self, x):
         return self._forward_impl(x)

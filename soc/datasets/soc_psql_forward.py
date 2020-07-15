@@ -6,7 +6,7 @@ from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from .. import utils
-from ..typing import SocDatasetItem, SocConfig
+from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 
 
 class SocPSQLForwardSAToSADataset(SocPSQLDataset):
@@ -140,7 +140,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         return states, actions
 
     def _get_states_from_db(
-            self, table_id: int, start_row_id: int, end_row_id: int
+        self, table_id: int, start_row_id: int, end_row_id: int
     ) -> pd.DataFrame:
         query = """
             SELECT *
@@ -153,7 +153,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         return df_states
 
     def _get_actions_from_db(
-            self, table_id: int, start_row_id: int, end_row_id: int
+        self, table_id: int, start_row_id: int, end_row_id: int
     ) -> pd.DataFrame:
         query = """
             SELECT *
@@ -190,6 +190,24 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
     def get_training_type(self):
         return 'supervised_forward'
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'map': [],
+            'properties': [],
+            'pieces': [],
+            'infos': [],
+            'action': [],
+        }
+        for i in range(self.future_length):
+            start_i = i * (self._state_size[0] + self._action_size[0])
+            metadata['map'].append([start_i + 0, start_i + 2])
+            metadata['properties'].append([start_i + 2, start_i + 9])
+            metadata['pieces'].append([start_i + 9, start_i + 81])
+            metadata['infos'].append([start_i + 81, start_i + 245])
+            metadata['action'].append([start_i + 245, start_i + 262])
+
+        return metadata
 
     def dump_preprocessed_dataset(self, folder: str):
         utils.check_folder(folder)

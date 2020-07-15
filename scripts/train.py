@@ -38,19 +38,22 @@ if __name__ == "__main__":
         '--opt',
         type=str,
         default='adam',
-        help='Optimizer name', )
+        help='Optimizer name',
+    )
     parser.add_argument(
         '--scheduler',
         '--sch',
         type=str,
         default=None,
-        help='Scheduler name', )
+        help='Scheduler name',
+    )
     parser.add_argument(
         '--batch_size',
         '--bs',
         type=int,
         default=8,
-        help='Batch size', )
+        help='Batch size',
+    )
 
     temp_args, _ = parser.parse_known_args()
     temp_config = vars(temp_args)

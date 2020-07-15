@@ -63,24 +63,26 @@ class TestUtils(unittest.TestCase):
             'generic': {
                 'seed': 1,
                 'verbose': False,
-                'loss_name': 'mse',
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': '',
-                'batch_size': 2,
-                # Data
                 'dataset': 'SocPSQLSeqSAToSDataset',
-                'no_db': True,
-                # Model
                 'model': 'ConvLSTM',
                 'h_chan_dim': [150, 150],
                 'kernel_size': [(3, 3), (3, 3)],
                 'strides': [(3, 3), (3, 3)],
                 'num_layers': 2,
+                'loss_name': 'mse',
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': '',
+                'batch_size': 2,  # Data
+                'no_db': True,  # Model
             },
             'trainer': {
                 'fast_dev_run': True,
-                'default_root_dir': self.folder, }
+                'default_root_dir': self.folder,
+            },
+            "other": {
+                "save_top_k": 0
+            }
         }
 
         seed_everything(config['generic']['seed'])
@@ -115,11 +117,9 @@ class TestUtils(unittest.TestCase):
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': '',
-                'batch_size': 2,
-                # Data
+                'batch_size': 2,  # Data
                 'dataset': 'SocPSQLSeqSAToSDataset',
-                'no_db': True,
-                # Model
+                'no_db': True,  # Model
                 'model': 'Conv3dModel',
                 'h_chan_dim': 64,
                 'kernel_size': (3, 3, 3),
@@ -129,7 +129,11 @@ class TestUtils(unittest.TestCase):
             },
             'trainer': {
                 'fast_dev_run': True,
-                'default_root_dir': self.folder, }
+                'default_root_dir': self.folder,
+            },
+            "other": {
+                "save_top_k": 0
+            }
         }
 
         seed_everything(config['generic']['seed'])
@@ -142,13 +146,13 @@ class TestUtils(unittest.TestCase):
         actions = self.actions
 
         def _get_states_from_db_se_f(
-                table_id: int, start_row_id: int, end_row_id: int
+            table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
             seq = states[table_id]
             return seq[start_row_id:end_row_id]
 
         def _get_actions_from_db_se_f(
-                table_id: int, start_row_id: int, end_row_id: int
+            table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
             seq = actions[table_id]
             return seq[start_row_id:end_row_id]
@@ -167,28 +171,86 @@ class TestUtils(unittest.TestCase):
             'generic': {
                 'seed': 1,
                 'verbose': False,
-                'loss_name': 'mse',
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': '',
-                'batch_size': 2,
-                # Data
                 'dataset': 'SocPSQLForwardSAToSADataset',
-                'history_length': 2,
-                'future_length': 1,
-                'no_db': True,
-                'first_index': 0,
-                # Model
+                'history_length': 3,
+                'future_length': 2,
                 'model': 'resnet18',
                 'h_chan_dim': 64,
                 'kernel_size': (3, 3),
                 'strides': (1, 1),
                 'paddings': (1, 1),
                 'num_layers': 2,
+                'loss_name': 'mse',
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': None,
+                'batch_size': 2,  # Data
+                'no_db': True,
+                'first_index': 0,  # Model
             },
             'trainer': {
                 'fast_dev_run': True,
-                'default_root_dir': self.folder, }
+                'default_root_dir': self.folder,
+            },
+            "other": {
+                "save_top_k": 0
+            }
+        }
+
+        seed_everything(config['generic']['seed'])
+        runner = TestRunner(config['generic'])
+        trainer = Trainer(**config['trainer'], deterministic=True)
+        trainer.fit(runner)
+
+    def test_training_socforward_resnet_policy(self):
+        states = self.states
+        actions = self.actions
+
+        def _get_states_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = states[table_id]
+            return seq[start_row_id:end_row_id]
+
+        def _get_actions_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = actions[table_id]
+            return seq[start_row_id:end_row_id]
+
+        class TestRunner(Runner):
+            def setup_dataset(self):
+                dataset = make_dataset(self.hparams)
+                dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+                dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+                dataset._get_length = MagicMock(return_value=2)
+                dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+
+                return dataset
+
+        config = {
+            'generic': {
+                'seed': 1,
+                'verbose': False,
+                'dataset': 'SocPreprocessedForwardSAToSAPolicyDataset',
+                'history_length': 3,
+                'future_length': 2,
+                "model": "ResNet18Policy",
+                "loss_name": "resnet18policy_loss",
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': None,
+                'batch_size': 2,  # Data
+                'no_db': True,
+                'first_index': 0,  # Model
+            },
+            'trainer': {
+                'fast_dev_run': True,
+                'default_root_dir': self.folder,
+            },
+            "other": {
+                "save_top_k": 0
+            }
         }
 
         seed_everything(config['generic']['seed'])

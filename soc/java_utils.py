@@ -83,14 +83,16 @@ _lands_building_rel_pos = {
     0x21: 2,
     0x10: 3,
     -0x01: 4,
-    -0x10: 5, }
+    -0x10: 5,
+}
 _lands_road_rel_pos = {
     0x01: 0,
     0x11: 1,
     0x10: 2,
     -0x01: 3,
     -0x11: 4,
-    -0x10: 5, }
+    -0x10: 5,
+}
 
 
 def parse_layout(raw_data: str) -> IntVector:
@@ -106,7 +108,6 @@ def parse_layout(raw_data: str) -> IntVector:
 
 def mapping_1d_2d(data: IntVector) -> np.ndarray:
     assert len(data) == 37
-
     data_2d = np.array([
         data[:4] + [-1] * 3,
         data[4:9] + [-1] * 2,
@@ -235,29 +236,31 @@ def parse_pieces(pieces: str) -> np.ndarray:
 def parse_player_infos(p_infos: str) -> np.ndarray:
     """
         Parse the JAVA representation for players
-
+        4 arrays of 41 datum
         It is a list of int ordered as:
-            - player's ID (from the db, int)
-            - public vp (int)
-            - total vp (int)
-            - largest army (LA, bool)
-            - longest road (LR, bool)
-            - total number of development cards in hand (int)
-            - number of dev cards which represent a vp (int)
+            - 0, player's ID (from the db, int)
+            - 1, public vp (int)
+            - 2, total vp (int)
+            - 3, largest army (LA, bool)
+            - 4, longest road (LR, bool)
+            - 5, total number of development cards in hand (int)
+            - 6, number of dev cards which represent a vp (int)
 
-            - an array[5] of all the unplayed dev cards
-            - an array[5] of all the newly bought dev cards
-            - number of played knights
+            - 7:11, all the unplayed dev cards
+            - 12:16, all the newly bought dev cards
+            - 17, how many knight (moving robber) cards played by this player
 
-            - an array[6]: number of each resource (clay, ore, sheep, wheat, wood, unknown)
+            - 18:23, number of each resource (clay, ore, sheep, wheat, wood, unknown)
 
-            - an array[5] of which resource types the player is touching
-            - an array[6] of which port types the player is touching
-            - an array[3] of all the pieces the player can still build.
+            - 24:28, which resource types the player is touching
+            - 19:34, which port types the player is touching
+            - 35, roads left to build
+            - 36, settlements left to build
+            - 37, cities left to build
 
-            - number of road building cards this player has played
-            - number of discovery cards this player has played
-            - number of monopoly cards this player has played
+            - 38, how many road building cards played by this player
+            - 39, how many monopoly cards played by this player
+            - 40, how many discovery cards played by this player
 
         All booleans (LA, LR, touching stuff are represented in 1 for true or 0 for false).
     """

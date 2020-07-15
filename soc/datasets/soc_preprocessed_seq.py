@@ -38,7 +38,8 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         parser.add_argument(
             '--dataset_path',
             type=str,
-            default=argparse.SUPPRESS, )
+            default=argparse.SUPPRESS,
+        )
 
         return parser
 
@@ -69,3 +70,11 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
     def get_training_type(self) -> str:
         return 'supervised_seq'
+
+    def get_output_metadata(self):
+        return {
+            'map': [0, 2],
+            'properties': [2, 9],
+            'pieces': [9, 81],
+            'infos': [81, 245],
+        }

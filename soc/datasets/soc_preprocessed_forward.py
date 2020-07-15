@@ -3,10 +3,12 @@ from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
-from typing import List
-from ..typing import SocDatasetItem, SocConfig
+from typing import List, Tuple, Union
+from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 
 cfd = os.path.dirname(os.path.realpath(__file__))
+
+SOCShape = Union[Tuple[List[int], ...], List[int]]
 
 
 class SocPreprocessedForwardSAToSADataset(Dataset):
@@ -22,10 +24,14 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     """
 
     _length: int = -1
+    _n_states: int = 245
+    _n_spatial_states: int = 3 + 4 * 18
+    _n_spatial_states_wo_map: int = 1 + 4 * 18
     _n_actions: int = 17
     _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
+    output_shape: SOCShape
 
     def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
@@ -64,7 +70,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         parser.add_argument(
             '--dataset_path',
             type=str,
-            default=argparse.SUPPRESS, )
+            default=argparse.SUPPRESS,
+        )
         parser.add_argument('history_length', type=int, default=8)
         parser.add_argument('future_length', type=int, default=1)
 
@@ -128,14 +135,14 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         return self.seq_data[table_id][start_row_id:end_row_id]
 
-    def get_input_size(self) -> List[int]:
+    def get_input_size(self) -> SOCShape:
         """
             Return the input dimension
         """
 
         return self.input_shape
 
-    def get_output_size(self) -> List[int]:
+    def get_output_size(self) -> SOCShape:
         """
             Return the output dimension
         """
@@ -148,36 +155,79 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_training_type(self) -> str:
         return 'supervised_forward'
 
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'map': [],
+            'properties': [],
+            'pieces': [],
+            'infos': [],
+            'action': [],
+        }
+        for i in range(self.future_length):
+            start_i = i * (self._n_states + self._n_actions)
+            metadata['map'].append([start_i + 0, start_i + 2])
+            metadata['properties'].append([start_i + 2, start_i + 9])
+            metadata['pieces'].append([start_i + 9, start_i + 81])
+            metadata['infos'].append([start_i + 81, start_i + 245])
+            metadata['action'].append([start_i + 245, start_i + 262])
 
-# class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSADataset):
-#     """
-#         Returns a completely formatted dataset:
+        return metadata
 
-#         Input: Concatenation of state and actions representation
-#         in Sequence.
-#             Dims: [S * C_states + C_actions), H, W]
 
-#         Output: Tuple of next state and next actions
-#             Dims: ( [S * C_states, H, W], [S * C_actions] )
-#     """
-#     def _set_props(self, config: SocConfig):
-#         self.input_shape = list(self.seq_data[0].shape[1:])
-#         self.input_shape[0] *= self.history_length
+class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSADataset):
+    """
+        Returns a completely formatted dataset:
 
-#         output_shape_1 = list(self.seq_data[0].shape[1:])
-#         output_shape_1[0] -= self._n_actions
-#         output_shape_1[0] *= self.future_length
-#         self.output_shape = (output_shape_1[0], [self._n_actions * self.future_length, 1])
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S * C_states + C_actions), H, W]
 
-#     def __getitem__(self, idx: int) -> SocDatasetItem:
-#         x_t = self._get_data(idx)
+        Output: Tuple of next state and next actions
+            Dims: ( [S * C_states, H, W], [S,  C_actions] )
+    """
+    def _set_props(self, config: SocConfig):
+        C, H, W = self.seq_data[0].shape[1:]
+        self.input_shape = [C * self.history_length, H, W]
 
-#         _, _, H, W = x_t.shape
-#         history_t = x_t[:self.history_length]
-#         future_t = x_t[self.history_length:]
-#         future_states_t = future_t[:, :-self._n_actions]
-#         future_actions_t = future_t[:, -self._n_actions:, 0, 0]
+        output_shape_spatial = [self._n_spatial_states * self.future_length, int(H), int(W)]
+        output_shape = [self.future_length, self._n_states - self._n_spatial_states]
+        output_shape_actions = [self.future_length, self._n_actions]
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
-#         return (
-#             history_t.view(-1, H, W), (future_states_t.view(-1, H, W), future_actions_t.view(-1))
-#         )
+    def __getitem__(self, idx: int):
+        x_t = self._get_data(idx)
+        _, _, H, W = x_t.shape
+
+        history_t = x_t[:self.history_length].view(-1, H, W)
+
+        future_t = x_t[self.history_length:]
+        future_states_t = future_t[:, :-self._n_actions]
+        future_actions_t = future_t[:, -self._n_actions:, 0, 0]
+        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
+                                            dim=1).reshape(-1, H, W)
+        future_states_t = torch.cat([future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]],
+                                    dim=1)
+
+        return (history_t, (future_spatial_states_t, future_states_t, future_actions_t))
+
+    def get_output_size(self) -> SOCShape:
+        """
+            Return the output dimension
+        """
+
+        return self.output_shape
+
+    def get_training_type(self) -> str:
+        return 'resnet18policy'
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'map': [],
+            'pieces': [],
+        }
+        for i in range(self.future_length):
+            start_i = i * self._n_spatial_states
+            metadata['map'].append([start_i + 0, start_i + 2])
+            metadata['pieces'].append([start_i + 2, start_i + self._n_spatial_states])
+
+        return metadata

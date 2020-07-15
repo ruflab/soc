@@ -2,13 +2,15 @@ from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSDataset
 from .soc_preprocessed_forward import SocPreprocessedForwardSAToSADataset
+from .soc_preprocessed_forward import SocPreprocessedForwardSAToSAPolicyDataset
 
 __all__ = [
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',
     'SocPSQLForwardSAToSADataset',
     'SocPreprocessedSeqSAToSDataset',
-    'SocPreprocessedForwardSAToSADataset'
+    'SocPreprocessedForwardSAToSADataset',
+    'SocPreprocessedForwardSAToSAPolicyDataset',
 ]
 
 

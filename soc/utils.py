@@ -1,7 +1,7 @@
 import argparse
 import os
 import torch
-from typing import Dict
+from typing import Dict, List
 from .models import get_model_class
 
 
@@ -50,3 +50,28 @@ def check_folder(folder: str):
         os.makedirs(folder)
     elif not os.path.isdir(folder):
         raise Exception('The path provided ({}) exist and is not a folder, aborting'.format(folder))
+
+
+def separate_channels(t: torch.Tensor) -> List[torch.Tensor]:
+    if len(t.shape) == 3:
+        t_map = t[0:2]
+        t_props = t[2:9]
+        t_pieces = t[9:81]
+        t_infos = t[81:245]
+        if t.shape[0] == 262:
+            t_actions = t[245:262]
+            return [t_map, t_props, t_pieces, t_infos, t_actions]
+        else:
+            return [t_map, t_props, t_pieces, t_infos]
+    elif len(t.shape) == 4:
+        t_map = t[:, 0:2]
+        t_props = t[:, 2:9]
+        t_pieces = t[:, 9:81]
+        t_infos = t[:, 81:245]
+        if t.shape[0] == 262:
+            t_actions = t[:, 245:262]
+            return [t_map, t_props, t_pieces, t_infos, t_actions]
+        else:
+            return [t_map, t_props, t_pieces, t_infos]
+    else:
+        raise Exception('Shape {} is not handled'.format(t.shape))

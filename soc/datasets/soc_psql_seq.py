@@ -6,7 +6,7 @@ from typing import List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from .. import utils
-from ..typing import SocDatasetItem
+from ..typing import SocDatasetItem, SocDataMetadata
 
 
 class SocPSQLSeqDataset(SocPSQLDataset):
@@ -141,6 +141,14 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
     def get_training_type(self):
         return 'supervised_seq'
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        return {
+            'map': [[0, 2]],
+            'properties': [[2, 9]],
+            'pieces': [[9, 81]],
+            'infos': [[81, 245]],
+        }
 
     def dump_preprocessed_dataset(self, folder: str):
         utils.check_folder(folder)

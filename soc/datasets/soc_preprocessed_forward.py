@@ -36,16 +36,12 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
+        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sasa.pt')
         self.path = config.get('dataset_path', default_path)
         data = torch.load(self.path)
         self.seq_data = []
         for x_t, y_t in data:
-            # We reconstruct the full sequence
-            # TODO: save the dataset with the actual last action.
-            last_a = torch.zeros([1, self._n_actions, x_t.shape[-2], x_t.shape[-1]])
-            last_sa = torch.cat([y_t[-1:], last_a], dim=1)
-            new_x_t = torch.cat([x_t, last_sa], dim=0)
+            new_x_t = torch.cat([x_t, y_t[-1:]], dim=0)
             self.seq_data.append(new_x_t)
 
         assert 'history_length' in config

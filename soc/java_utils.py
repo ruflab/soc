@@ -108,6 +108,7 @@ def parse_layout(raw_data: str) -> IntVector:
 
 def mapping_1d_2d(data: IntVector) -> np.ndarray:
     assert len(data) == 37
+
     data_2d = np.array([
         data[:4] + [-1] * 3,
         data[4:9] + [-1] * 2,

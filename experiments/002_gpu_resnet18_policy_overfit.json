@@ -10,7 +10,8 @@
         "lr": 0.0005,
         "optimizer": "adam",
         "scheduler": null,
-        "batch_size": 32
+        "batch_size": 32,
+        "shuffle_dataset": false
     },
     "trainer": {
         "logger": true,

@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import numpy as np
 from torch.nn.utils import rnn as rnn_utils
 from ..typing import SocSeqList, SocSeqBatch
 from .. import java_utils as ju
@@ -62,9 +63,11 @@ def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
     del df_states['id']
 
     df_states['hexlayout'] = df_states['hexlayout'].apply(ju.parse_layout) \
-                                                   .apply(ju.mapping_1d_2d)
+                                                   .apply(ju.mapping_1d_2d) \
+                                                   .apply(normalize_hexlayout)
     df_states['numberlayout'] = df_states['numberlayout'].apply(ju.parse_layout) \
-                                                         .apply(ju.mapping_1d_2d)
+                                                         .apply(ju.mapping_1d_2d) \
+                                                         .apply(normalize_numberlayout)
 
     df_states['robberhex'] = df_states['robberhex'].apply(ju.get_1d_id_from_hex) \
                                                    .apply(ju.get_2d_id) \
@@ -94,3 +97,36 @@ def preprocess_actions(df_actions: pd.DataFrame) -> pd.DataFrame:
     df_actions['type'] = df_actions['type'].apply(ju.parse_actions)
 
     return df_actions
+
+
+def normalize_hexlayout(data: np.ndarray) -> np.ndarray:
+    # We add 1 to replace the -1 values with zeros and avoid any other 0 in the data
+    data += 1
+    # We make sure all the values are between 1 and 256 so that
+    # All log values are between 0 and 256
+    data = np.log(data + 1) / np.log(255 + 1 + 1)
+
+    return data
+
+
+def unnormalize_hexlayout(data: np.ndarray) -> np.ndarray:
+    data = np.exp(data * np.log(255 + 1 + 1)) - 1
+    data -= 1
+
+    return data
+
+
+def normalize_numberlayout(data: np.ndarray) -> np.ndarray:
+    # We replace -1 with 0 to avoid sending any signals to the model
+    data[data == -1] = 0
+    # # We make sure all the values are between 0 and 1
+    data = data / 12
+
+    return data
+
+
+def unnormalize_numberlayout(data: np.ndarray) -> np.ndarray:
+    data = data * 12
+    data[data == 0] = -1
+
+    return data

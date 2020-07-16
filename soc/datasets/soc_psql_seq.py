@@ -158,3 +158,67 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         all_data = [self[i] for i in range(len(self))]
 
         torch.save(all_data, path)
+
+
+class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S, (C_states + C_actions), H, W]
+
+        Output: Next state
+            Dims: [S, (C_states + C_actions), H, W]
+    """
+    def __getitem__(self, idx: int) -> SocDatasetItem:
+        data = super(SocPSQLSeqSAToSADataset, self).__getitem__(idx)
+
+        state_seq_t = data[0]  # SxFsxHxW
+        action_seq_t = data[1]  # SxFaxHxW
+        cat_seq = torch.cat([state_seq_t, action_seq_t], dim=1)
+
+        x_t = cat_seq[:-1]
+        y_t = cat_seq[1:]
+
+        return x_t, y_t
+
+    def get_input_size(self) -> List:
+        """
+            Return the input dimension
+        """
+        size = self._state_size.copy()
+        size[0] += self._action_size[0]
+
+        return size
+
+    def get_output_size(self) -> List:
+        """
+            Return the output dimension
+        """
+
+        return self._state_size
+
+    def get_collate_fn(self):
+        return ds_utils.pad_seq_sas
+
+    def get_training_type(self):
+        return 'supervised_seq'
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        return {
+            'map': [[0, 2]],
+            'robber': [[2, 3]],
+            'properties': [[3, 9]],
+            'pieces': [[9, 81]],
+            'infos': [[81, 245]],
+            'actions': [[245, 262]],
+        }
+
+    def dump_preprocessed_dataset(self, folder: str):
+        utils.check_folder(folder)
+
+        path = "{}/50_seq_sasa.pt".format(folder)
+        all_data = [self[i] for i in range(len(self))]
+
+        torch.save(all_data, path)

@@ -56,16 +56,36 @@ class ResNet18Policy(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=1, dilate=False)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=1, dilate=False)
         self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
-        self.spatial_state_head = HexaConv2d(
-            self.n_core_planes,
-            self.n_spatial_planes,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            bias=False
+        self.spatial_state_head = nn.Sequential(
+            nn.Conv2d(
+                self.n_core_planes,
+                self.n_spatial_planes * 2,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                self.n_spatial_planes * 2,
+                self.n_spatial_planes,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False
+            )
         )
-        self.linear_state_head = nn.Linear(self.n_core_outputs, self.n_states)
-        self.policy_head = nn.Linear(self.n_core_outputs, self.n_actions)
+        self.linear_state_head = nn.Sequential(
+            nn.Linear(self.n_core_outputs, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.n_states)
+        )
+
+        self.policy_head = nn.Sequential(
+            nn.Linear(self.n_core_outputs, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.n_actions),
+        )
 
         for m in self.modules():
             if isinstance(m, HexaConv2d):

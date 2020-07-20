@@ -9,6 +9,6 @@ SocSeqBatch = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 # SocSeqBatch = Tuple[PackedSequence, PackedSequence]
 SocSeqList = List[SocDatasetItem]
 SocCollateFn = Callable[[SocSeqList], SocBatch]
-SocDataMetadata = Dict[str, List[List[int]]]
+SocDataMetadata = Dict[str, List[int]]
 
 SocConfig = Dict[str, Any]

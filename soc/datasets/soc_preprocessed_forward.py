@@ -17,10 +17,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         Input: Concatenation of state and actions representation
         in Sequence.
-            Dims: [S * (C_states + C_actions), H, W]
+            Dims: [S, (C_states + C_actions), H, W]
 
         Output: Next state
-            Dims: [S * (C_states + C_actions), H, W]
+            Dims: [S, (C_states + C_actions), H, W]
     """
 
     _length: int = -1
@@ -31,6 +31,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
+    input_shape: SOCShape
     output_shape: SOCShape
 
     def __init__(self, config: SocConfig):
@@ -54,10 +55,9 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self._set_props(config)
 
     def _set_props(self, config: SocConfig):
-        self.input_shape = list(self.seq_data[0].shape[1:])
-        self.input_shape[0] *= self.history_length
-        self.output_shape = list(self.seq_data[0].shape[1:])
-        self.output_shape[0] *= self.future_length
+        S, C, H, W = self.seq_data[0].shape
+        self.input_shape = [self.history_length, C, H, W]
+        self.output_shape = [self.future_length, C, H, W]
 
     @classmethod
     def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
@@ -112,7 +112,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         history_t = x_t[:self.history_length]
         future_t = x_t[self.history_length:]
 
-        return history_t.view(-1, H, W), future_t.view(-1, H, W)
+        return history_t, future_t
 
     def _get_data(self, idx: int) -> torch.Tensor:
         if len(self._inc_seq_steps) == 0:
@@ -153,21 +153,13 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'map': [],
-            'robber': [],
-            'properties': [],
-            'pieces': [],
-            'infos': [],
-            'action': [],
+            'map': [0, 2],
+            'robber': [2, 3],
+            'properties': [3, 9],
+            'pieces': [9, 81],
+            'infos': [81, 245],
+            'action': [245, 262],
         }
-        for i in range(self.future_length):
-            start_i = i * (self._n_states + self._n_actions)
-            metadata['map'].append([start_i + 0, start_i + 2])
-            metadata['robber'].append([start_i + 2, start_i + 3])
-            metadata['properties'].append([start_i + 3, start_i + 9])
-            metadata['pieces'].append([start_i + 9, start_i + 81])
-            metadata['infos'].append([start_i + 81, start_i + 245])
-            metadata['action'].append([start_i + 245, start_i + 262])
 
         return metadata
 
@@ -178,56 +170,44 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
 
         Input: Concatenation of state and actions representation
         in Sequence.
-            Dims: [S * C_states + C_actions), H, W]
+            Dims: [S_h, (C_states + C_actions), H, W]
 
         Output: Tuple of next state and next actions
-            Dims: ( [S * C_states, H, W], [S,  C_actions] )
+            Dims: ( [S_f, C_ss, H, W], [S_f,  C_ls], [S_f,  C_actions] )
     """
     def _set_props(self, config: SocConfig):
-        C, H, W = self.seq_data[0].shape[1:]
-        self.input_shape = [C * self.history_length, H, W]
+        _, C, H, W = self.seq_data[0].shape
+        self.input_shape = [self.history_length, C, H, W]
 
-        output_shape_spatial = [self._n_spatial_states * self.future_length, int(H), int(W)]
+        output_shape_spatial = [self.future_length, self._n_spatial_states, H, W]
         output_shape = [self.future_length, self._n_states - self._n_spatial_states]
         output_shape_actions = [self.future_length, self._n_actions]
         self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
     def __getitem__(self, idx: int):
-        x_t = self._get_data(idx)
-        _, _, H, W = x_t.shape
+        history_t, future_t = super(
+            SocPreprocessedForwardSAToSAPolicyDataset, self
+        ).__getitem__(idx)
+        _, _, H, W = history_t.shape
 
-        history_t = x_t[:self.history_length].view(-1, H, W)
-
-        future_t = x_t[self.history_length:]
-        future_states_t = future_t[:, :-self._n_actions]
-        future_actions_t = future_t[:, -self._n_actions:, 0, 0]
+        future_states_t = future_t[:, :-self._n_actions]  # [S, C_s, H, W]
+        future_actions_t = future_t[:, -self._n_actions:, 0, 0]  # [S, C_a]
         future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
-                                            dim=1).reshape(-1, H, W)
-        future_states_t = torch.cat([future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]],
-                                    dim=1)
+                                            dim=1)  # [S, C_ss, H, W]
+        future_lin_states_t = torch.cat(
+            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
+        )  # [S, C_ls]
 
-        return (history_t, (future_spatial_states_t, future_states_t, future_actions_t))
-
-    def get_output_size(self) -> SOCShape:
-        """
-            Return the output dimension
-        """
-
-        return self.output_shape
+        return (history_t, (future_spatial_states_t, future_lin_states_t, future_actions_t))
 
     def get_training_type(self) -> str:
         return 'resnet18policy'
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'map': [],
-            'robber': [],
-            'pieces': [],
+            'map': [0, 2],
+            'robber': [2, 3],
+            'pieces': [3, self._n_spatial_states],
         }
-        for i in range(self.future_length):
-            start_i = i * self._n_spatial_states
-            metadata['map'].append([start_i + 0, start_i + 2])
-            metadata['robber'].append([start_i + 2, start_i + 3])
-            metadata['pieces'].append([start_i + 3, start_i + self._n_spatial_states])
 
         return metadata

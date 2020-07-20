@@ -23,17 +23,20 @@ class ResNet18Policy(nn.Module):
         self._norm_layer = norm_layer
 
         data_input_size = config['data_input_size']
-        self.inplanes = data_input_size[0]
+        self.inplanes = data_input_size[0] * data_input_size[1]
 
-        self.spatial_state_output_size = config['data_output_size'][0]
-        self.state_output_size = config['data_output_size'][1]
-        self.action_output_size = config['data_output_size'][2]
         self.n_core_planes = 32
-        self.n_core_outputs = self.n_core_planes * self.spatial_state_output_size[
-            1] * self.spatial_state_output_size[2]
-        self.n_spatial_planes = self.spatial_state_output_size[0]
-        self.n_states = self.state_output_size[0] * self.state_output_size[1]
-        self.n_actions = self.action_output_size[0] * self.action_output_size[1]
+        self.n_core_outputs = self.n_core_planes * data_input_size[2] * data_input_size[3]
+
+        data_output_size = config['data_output_size']
+        self.spatial_state_output_size = data_output_size[0]
+        self.state_output_size = data_output_size[1]
+        self.action_output_size = data_output_size[2]
+        future_seq_len = self.spatial_state_output_size[0]
+
+        self.n_spatial_planes = future_seq_len * self.spatial_state_output_size[1]
+        self.n_states = future_seq_len * self.state_output_size[1]
+        self.n_actions = future_seq_len * self.action_output_size[1]
 
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -76,9 +79,7 @@ class ResNet18Policy(nn.Module):
             )
         )
         self.linear_state_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs, 512),
-            nn.ReLU(),
-            nn.Linear(512, self.n_states)
+            nn.Linear(self.n_core_outputs, 512), nn.ReLU(), nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
@@ -154,6 +155,8 @@ class ResNet18Policy(nn.Module):
         return parser
 
     def _forward_impl(self, x):
+        bs, S, C, H, W = x.shape
+        x = x.view(bs, S * C, H, W)
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -164,16 +167,18 @@ class ResNet18Policy(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
+        x_linear = x.view(bs, -1)
+
         y_spatial_state_logits = self.spatial_state_head(x)
+        y_spatial_state_logits_seq = y_spatial_state_logits.reshape(
+            [bs, ] + self.spatial_state_output_size
+        )
+        y_state_logits = self.linear_state_head(x_linear)
+        y_state_logits_seq = y_state_logits.reshape([bs, ] + self.state_output_size)
+        y_action_logits = self.policy_head(x_linear)
+        y_action_logits_seq = y_action_logits.reshape([bs, ] + self.action_output_size)
 
-        bs = x.shape[0]
-        y_linear = x.view(bs, -1)
-        y_state_logits = self.linear_state_head(y_linear)
-        y_state_logits_reshaped = y_state_logits.reshape(bs * self.state_output_size[0], -1)
-        y_action_logits = self.policy_head(y_linear)
-        y_action_logits_reshaped = y_action_logits.reshape(bs * self.action_output_size[0], -1)
-
-        return y_spatial_state_logits, y_state_logits_reshaped, y_action_logits_reshaped
+        return y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq
 
     def forward(self, x):
         return self._forward_impl(x)

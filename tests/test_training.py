@@ -223,8 +223,8 @@ class TestUtils(unittest.TestCase):
                 dataset = make_dataset(self.hparams)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-                dataset._get_length = MagicMock(return_value=2)
-                dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+                dataset._get_length = MagicMock(return_value=4)
+                dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
 
                 return dataset
 
@@ -240,11 +240,12 @@ class TestUtils(unittest.TestCase):
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': None,
-                'batch_size': 2,  # Data
+                'batch_size': 3,  # Data
                 'no_db': True,
                 'first_index': 0,  # Model
             },
             'trainer': {
+                'overfit_batches': 3,  # To have 3 data in the validation loop
                 'fast_dev_run': True,
                 'default_root_dir': self.folder,
             },

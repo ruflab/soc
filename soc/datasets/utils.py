@@ -2,8 +2,12 @@ import torch
 import pandas as pd
 import numpy as np
 from torch.nn.utils import rnn as rnn_utils
+from typing import TypeVar
 from ..typing import SocSeqList, SocSeqBatch
 from .. import java_utils as ju
+
+
+DataTensor = TypeVar('DataTensor', np.ndarray, torch.Tensor)
 
 
 def pad_seq_sas(inputs: SocSeqList) -> SocSeqBatch:
@@ -99,34 +103,64 @@ def preprocess_actions(df_actions: pd.DataFrame) -> pd.DataFrame:
     return df_actions
 
 
-def normalize_hexlayout(data: np.ndarray) -> np.ndarray:
-    # We add 1 to replace the -1 values with zeros and avoid any other 0 in the data
-    data += 1
-    # We make sure all the values are between 1 and 256 so that
-    # All log values are between 0 and 256
-    data = np.log(data + 1) / np.log(255 + 1 + 1)
+def normalize_hexlayout(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone().type(torch.float32)  # type:ignore
+        # We add 1 to replace the -1 values with zeros and avoid any other 0 in the data
+        data += 1
+        # We make sure all the values are between 1 and 256 so that
+        # All log values are between 0 and 256
+        val = torch.tensor(255 + 1 + 1, dtype=data.dtype)
+        data = torch.log(data + 1) / torch.log(val)
+    else:
+        data = data.copy()
+        data += 1
+        data = np.log(data + 1) / np.log(255 + 1 + 1)
 
     return data
 
 
-def unnormalize_hexlayout(data: np.ndarray) -> np.ndarray:
-    data = np.exp(data * np.log(255 + 1 + 1)) - 1
+def unnormalize_hexlayout(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone()
+        val = torch.tensor(255 + 1 + 1, dtype=data.dtype)
+        data = torch.exp(data * torch.log(val)) - 1
+        data = torch.round(data).type(torch.int64)  # type:ignore
+    else:
+        data = data.copy()
+        data = np.exp(data * np.log(255 + 1 + 1)) - 1
+        data = np.round(data).astype(np.int64)
+
     data -= 1
 
     return data
 
 
-def normalize_numberlayout(data: np.ndarray) -> np.ndarray:
-    # We replace -1 with 0 to avoid sending any signals to the model
-    data[data == -1] = 0
-    # # We make sure all the values are between 0 and 1
-    data = data / 12
+def normalize_numberlayout(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone().type(torch.float32)  # type:ignore
+        # We replace -1 with 0 to avoid sending any signals to the model
+        data[data == -1] = 0
+        # # We make sure all the values are between 0 and 1
+        data = data / 12
+    else:
+        data = data.copy()
+        data[data == -1] = 0
+        data = data / 12
 
     return data
 
 
-def unnormalize_numberlayout(data: np.ndarray) -> np.ndarray:
-    data = data * 12
-    data[data == 0] = -1
+def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone()
+        data = data * 12
+        data[data == 0] = -1
+        data = torch.round(data).type(torch.int64)  # type:ignore
+    else:
+        data = data.copy()
+        data = data * 12
+        data[data == 0] = -1
+        data = np.round(data).astype(np.int64)
 
     return data

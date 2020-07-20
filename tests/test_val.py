@@ -39,19 +39,19 @@ class TestVal(unittest.TestCase):
     # def tearDown(self):
     #     return shutil.rmtree(self.folder)
 
-    def test_mean_by_idx(self):
-        a = torch.ones([3, 4, 5])
-        a[:, :, 3] = 2
-        a[:, 1] = -1
-        a[0] = 0
+    def test_compare_by_idx(self):
+        a = torch.ones([1, 3, 4, 5])
+        a[0, :, :, 3] = 2
+        a[0, :, 1] = -1
+        a[0, 0] = 0
 
-        b = torch.ones([3, 4, 5])
-        b[:, :, 3] = 3
-        b[:, 1] = -1
-        b[0] = 0
+        b = torch.ones([1, 3, 4, 5])
+        b[0, :, :, 3] = 3
+        b[0, :, 1] = -1
+        b[0, 0] = 0
 
         try:
-            x = val.mean_by_idx(a, a, 1, 1, torch.float32)
+            x = val.compare_by_idx(a, a, 1, 1, torch.float32)
             assert False
         except Exception:
             pass
@@ -66,17 +66,17 @@ class TestVal(unittest.TestCase):
         assert x == 10 / 60
 
     def test_get_stats(self):
-        metadata = {'1': [[0, 1]], '2': [[1, None]]}
+        metadata = {'1': [0, 1], '2': [1, None]}
 
-        a = torch.ones([3, 4, 5])
-        a[:, :, 3] = 2
-        a[:, 1] = -1
-        a[0] = 0
+        a = torch.ones([1, 3, 4, 5])
+        a[0, :, :, 3] = 2
+        a[0, :, 1] = -1
+        a[0, 0] = 0
 
-        b = torch.ones([3, 4, 5])
-        b[:, :, 3] = 3
-        b[:, 1] = -1
-        b[0] = 0
+        b = torch.ones([1, 3, 4, 5])
+        b[0, :, :, 3] = 3
+        b[0, :, 1] = -1
+        b[0, 0] = 0
 
         stats_dict = val.get_stats(metadata, a, b)
         true_dict = {'acc_1': 13 / 15, 'acc_2': 41 / 45}

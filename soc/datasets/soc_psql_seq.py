@@ -144,11 +144,11 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         return {
-            'map': [[0, 2]],
-            'robber': [[2, 3]],
-            'properties': [[3, 9]],
-            'pieces': [[9, 81]],
-            'infos': [[81, 245]],
+            'map': [0, 2],
+            'robber': [2, 3],
+            'properties': [3, 9],
+            'pieces': [9, 81],
+            'infos': [81, 245],
         }
 
     def dump_preprocessed_dataset(self, folder: str):
@@ -207,12 +207,12 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         return {
-            'map': [[0, 2]],
-            'robber': [[2, 3]],
-            'properties': [[3, 9]],
-            'pieces': [[9, 81]],
-            'infos': [[81, 245]],
-            'actions': [[245, 262]],
+            'map': [0, 2],
+            'robber': [2, 3],
+            'properties': [3, 9],
+            'pieces': [9, 81],
+            'infos': [81, 245],
+            'actions': [245, 262],
         }
 
     def dump_preprocessed_dataset(self, folder: str):

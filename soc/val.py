@@ -103,7 +103,7 @@ def pieces_acc(
     pieces_preds = torch.round(torch.sigmoid(t1_logits_seq[:, :, start_i:end_i]))
     pieces_true = t2_true_seq[:, :, start_i:end_i]
 
-    acc_eq = (torch.round(pieces_preds) == pieces_true)
+    acc_eq = (pieces_preds == pieces_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
 
     return acc
@@ -118,8 +118,8 @@ def gamestate_acc(
     S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    gamestate_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
-    gamestate_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
+    gamestate_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
+    gamestate_true_pos = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
     acc_eq = (gamestate_pred_idx == gamestate_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -136,8 +136,10 @@ def diceresult_acc(
     S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    diceresult_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
-    diceresult_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
+    diceresult_pred_idx = torch.argmax(
+        t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1
+    )
+    diceresult_true_pos = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
     acc_eq = (diceresult_pred_idx == diceresult_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -154,8 +156,12 @@ def startingplayer_acc(
     S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    startingplayer_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
-    startingplayer_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
+    startingplayer_pred_idx = torch.argmax(
+        t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1
+    )
+    startingplayer_true_pos = torch.argmax(
+        t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1
+    )
 
     acc_eq = (startingplayer_pred_idx == startingplayer_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -172,8 +178,12 @@ def currentplayer_acc(
     S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    currentplayer_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
-    currentplayer_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
+    currentplayer_pred_idx = torch.argmax(
+        t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1
+    )
+    currentplayer_true_pos = torch.argmax(
+        t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1
+    )
 
     acc_eq = (currentplayer_pred_idx == currentplayer_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -188,8 +198,8 @@ def devcardsleft_acc(
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    devcardsleft_preds = torch.round(t1_logits_seq[:, :, start_i])
-    devcardsleft_true = t2_true_seq[:, :, start_i]
+    devcardsleft_preds = ds_utils.unnormalize_devcardsleft(t1_logits_seq[:, :, start_i:end_i])
+    devcardsleft_true = ds_utils.unnormalize_devcardsleft(t2_true_seq[:, :, start_i:end_i])
 
     acc_eq = (devcardsleft_preds == devcardsleft_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -238,8 +248,8 @@ def actions_acc(
     S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    actions_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
-    actions_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
+    actions_pred_idx = torch.argmax(t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
+    actions_true_pos = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
     acc_eq = (actions_pred_idx == actions_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -254,7 +264,7 @@ def compute_accs(
 ) -> Dict[str, torch.Tensor]:
     accs = {}
     for k, v in metadata.items():
-        accs[k] = acc_mapping[k](v, t1_logits_seq, t2_true_seq)  # type: ignore
+        accs[k + '_acc'] = acc_mapping[k](v, t1_logits_seq, t2_true_seq)  # type: ignore
 
     return accs
 

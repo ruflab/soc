@@ -2,12 +2,11 @@
     "generic": {
         "seed": 1,
         "verbose": true,
-        "dataset": "SocPreprocessedForwardSAToSADataset",
+        "dataset": "SocPreprocessedForwardSAToSAPolicyDataset",
         "history_length": 16,
         "future_length": 4,
-        "model": "resnet18",
-        "loss_name": "mse",
-        "lr": 0.001,
+        "model": "ResNet18Policy",
+        "lr": 0.0005,
         "optimizer": "adam",
         "scheduler": null,
         "batch_size": 256

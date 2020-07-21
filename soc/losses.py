@@ -4,6 +4,21 @@ from typing import List, Dict
 from .typing import SocDataMetadata
 
 
+def mse_loss(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    map_logits = t1_logits_seq[:, :, start_i:end_i]
+    map_true = t2_true_seq[:, :, start_i:end_i]
+
+    loss = F.mse_loss(map_logits, map_true)
+
+    return loss
+
+
 def map_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
@@ -198,7 +213,10 @@ def compute_losses(
 ) -> Dict[str, torch.Tensor]:
     losses = {}
     for k, v in metadata.items():
-        losses[k] = loss_mapping[k](v, t1_logits_seq, t2_true_seq)  # type: ignore
+        if k[:4] == 'mse_':
+            losses[k + '_loss'] = mse_loss(v, t1_logits_seq, t2_true_seq)  # type: ignore
+        else:
+            losses[k + '_loss'] = loss_mapping[k](v, t1_logits_seq, t2_true_seq)  # type: ignore
 
     return losses
 

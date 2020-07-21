@@ -6,7 +6,6 @@
         "history_length": 16,
         "future_length": 4,
         "model": "resnet18",
-        "loss_name": "mse",
         "lr": 0.0005,
         "optimizer": "adam",
         "scheduler": null,

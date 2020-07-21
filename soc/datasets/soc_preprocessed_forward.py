@@ -154,18 +154,18 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-            'actions': [284, 301],
+            'mse_hexlayout': [0, 1],
+            'mse_numberlayout': [1, 2],
+            'mse_robberhex': [2, 3],
+            'mse_piecesonboard': [3, 75],
+            'mse_gamestate': [75, 99],
+            'mse_diceresult': [99, 111],
+            'mse_startingplayer': [111, 115],
+            'mse_currentplayer': [115, 118],
+            'mse_devcardsleft': [118, 119],
+            'mse_playeddevcard': [119, 120],
+            'mse_players': [120, 284],
+            'mse_actions': [284, 301],
         }
 
         return metadata

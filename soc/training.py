@@ -31,14 +31,6 @@ class Runner(pl.LightningModule):
         super(Runner, self).__init__()
         self.hparams = config
 
-        if self.hparams['loss_name'] == 'mse':
-            self.loss_f = F.mse_loss
-        elif self.hparams['loss_name'] == 'resnet18policy_loss':
-            self.mse_loss_f = F.mse_loss
-            self.ce_loss_f = F.cross_entropy
-        else:
-            raise Exception('Unknown loss function {}'.format(self.hparams['loss_name']))
-
     def prepare_data(self):
         # Download data here if needed
         pass
@@ -111,9 +103,9 @@ class Runner(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         if self.training_type == 'supervised_seq':
-            train_dict = train_on_supervised_seq_batch(batch, self.model, self.loss_f)
+            train_dict = train_on_supervised_seq_batch(batch, self.model, self.metadata)
         elif self.training_type == 'supervised_forward':
-            train_dict = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
+            train_dict = train_on_supervised_forward_batch(batch, self.model, self.metadata)
         elif self.training_type == 'resnet18policy':
             train_dict = train_on_resnet18policy_batch(batch, self.model, self.metadata)
         else:
@@ -127,15 +119,11 @@ class Runner(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         if self.training_type == 'supervised_seq':
-            val_dict = val_on_supervised_seq_batch(batch, self.model, self.loss_f, self.metadata)
+            val_dict = val_on_supervised_seq_batch(batch, self.model, self.metadata)
         elif self.training_type == 'supervised_forward':
-            val_dict = val_on_supervised_forward_batch(
-                batch, self.model, self.loss_f, self.metadata
-            )
+            val_dict = val_on_supervised_forward_batch(batch, self.model, self.metadata)
         elif self.training_type == 'resnet18policy':
-            val_dict = val_on_resnet18policy_batch(
-                batch, self.model, self.mse_loss_f, self.ce_loss_f, self.metadata
-            )
+            val_dict = val_on_resnet18policy_batch(batch, self.model, self.metadata)
         else:
             raise Exception(
                 "No training process exist for this training type: {}".format(self.training_type)
@@ -156,8 +144,11 @@ class Runner(pl.LightningModule):
         return final_dict
 
 
-def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
-                                  loss_f: Callable) -> Dict[str, torch.Tensor]:
+def train_on_supervised_seq_batch(
+    batch: SocSeqBatch,
+    model: Module,
+    metadata: SocDataMetadata
+) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -173,16 +164,15 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
     # We assume the model outputs a tuple where the first element
     # is the actual predictions
     outputs = model(x)
-    y_preds_raw = outputs[0]
-    y_preds = y_preds_raw * mask
+    y_logits_raw = outputs[0]
+    y_logits = y_logits_raw * mask
 
-    bs, S, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * S, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * S, C, W, H)
+    train_dict = compute_losses(metadata, y_logits, y_true)
 
-    loss = loss_f(y_preds_reshaped, y_true_reshaped)
-
-    train_dict = {'train_loss': loss}
+    loss = torch.tensor(0., device=y_logits.device)
+    for k, l in train_dict.items():
+        loss += l
+    train_dict['train_loss'] = loss
 
     return train_dict
 
@@ -190,8 +180,7 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
 def val_on_supervised_seq_batch(
     batch: SocSeqBatch,
     model: Module,
-    loss_f: Callable,
-    metadata: SocDataMetadata = {},
+    metadata: SocDataMetadata,
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
@@ -202,31 +191,31 @@ def val_on_supervised_seq_batch(
     # We assume the model outputs a tuple where the first element
     # is the actual predictions
     outputs = model(x)
-    y_preds_raw = outputs[0]
-    y_preds = y_preds_raw * mask
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_preds_int = torch.round(y_preds)
+    y_logits_raw = outputs[0]
+    y_logits = y_logits_raw * mask
 
-    bs, S, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * S, C, W, H)
-    y_preds_int_reshaped = y_preds_int.reshape(bs * S, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * S, C, W, H)
+    val_dict = compute_accs(metadata, y_logits, y_true)
 
-    loss = loss_f(y_preds_reshaped, y_true_reshaped)
+    one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
+    if 'actions' in metadata.keys():
+        one_meta['actions_one_mean'] = metadata['actions']
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_logits)), 1))
 
-    dtype = loss.dtype
-    acc = (y_preds_int == y_true).type(dtype).mean()  # type: ignore
-    val_dict = val.get_stats(metadata, y_preds_int_reshaped, y_true_reshaped)
-    val_dict.update({
-        'val_accuracy': acc,
-    })
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
+
+    val_dict['val_accuracy'] = val_acc
 
     return val_dict
 
 
-def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
-                                      loss_f: Callable) -> Dict[str, torch.Tensor]:
+def train_on_supervised_forward_batch(
+    batch: SocBatch,
+    model: Module,
+    metadata: SocDataMetadata
+) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -238,11 +227,14 @@ def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
     x = batch[0]
     y_true = batch[1]
 
-    y_preds = model(x)
+    y_logits = model(x)
 
-    loss = loss_f(y_preds, y_true)
+    train_dict = compute_losses(metadata, y_logits, y_true)
 
-    train_dict = {'train_loss': loss}
+    loss = torch.tensor(0., device=y_logits.device)
+    for k, l in train_dict.items():
+        loss += l
+    train_dict['train_loss'] = loss
 
     return train_dict
 
@@ -250,33 +242,28 @@ def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
 def val_on_supervised_forward_batch(
     batch: SocBatch,
     model: Module,
-    loss_f: Callable,
-    metadata: SocDataMetadata = {},
+    metadata: SocDataMetadata,
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
     x = batch[0]
     y_true = batch[1]
 
-    y_preds = model(x)
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_preds_int = torch.round(y_preds)
+    y_logits = model(x)
 
-    loss = loss_f(y_preds, y_true)
-
-    dtype = loss.dtype
-    acc = (y_preds_int == y_true).type(dtype).mean()  # type: ignore
-    val_dict = val.get_stats(metadata, y_preds_int, y_true)
+    val_dict = compute_accs(metadata, y_logits, y_true)
 
     one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
     if 'actions' in metadata.keys():
         one_meta['actions_one_mean'] = metadata['actions']
-    val_dict.update(val.get_stats(one_meta, y_preds_int, 1))
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_logits)), 1))
 
-    val_dict.update({
-        'val_accuracy': acc,
-    })
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
+
+    val_dict['val_accuracy'] = val_acc
 
     return val_dict
 
@@ -321,8 +308,6 @@ def train_on_resnet18policy_batch(
 def val_on_resnet18policy_batch(
     batch: SocBatchMultipleOut,
     model: Module,
-    state_loss_f: Callable,
-    action_loss_f: Callable,
     metadata: List[SocDataMetadata],
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""

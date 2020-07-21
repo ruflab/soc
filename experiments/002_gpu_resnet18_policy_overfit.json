@@ -6,7 +6,6 @@
         "history_length": 16,
         "future_length": 4,
         "model": "ResNet18Policy",
-        "loss_name": "resnet18policy_loss",
         "lr": 0.0005,
         "optimizer": "adam",
         "scheduler": null,

@@ -82,8 +82,9 @@ def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
 
     df_states['gamestate'] = df_states['gamestate'].apply(ju.parse_game_phases)
 
-    df_states['devcardsleft'] = df_states['devcardsleft'].apply(ju.get_replicated_plan)
-    # breakpoint()
+    df_states['devcardsleft'] = df_states['devcardsleft'].apply(ju.get_replicated_plan) \
+                                                         .apply(normalize_devcardsleft)
+
     df_states['diceresult'] = df_states['diceresult'].apply(ju.parse_dice_result)
 
     df_states['startingplayer'] = df_states['startingplayer'].apply(ju.parse_starting_player)
@@ -146,11 +147,11 @@ def normalize_numberlayout(data: DataTensor) -> DataTensor:
         # We replace -1 with 0 to avoid sending any signals to the model
         data[data == -1] = 0
         # # We make sure all the values are between 0 and 1
-        data = data / 12
+        data = data / 12.
     else:
         data = data.copy()
         data[data == -1] = 0
-        data = data / 12
+        data = data / 12.
 
     return data
 
@@ -165,6 +166,28 @@ def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
         data = data.copy()
         data = data * 12
         data[data == 0] = -1
+        data = np.round(data).astype(np.int64)
+
+    return data
+
+
+def normalize_devcardsleft(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone().type(torch.float32)  # type:ignore
+        data = data / 25.
+    else:
+        data = data.copy()
+        data = data / 25.
+
+    return data
+
+
+def unnormalize_devcardsleft(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data * 25.
+        data = torch.round(data).type(torch.int64)  # type:ignore
+    else:
+        data = data.copy()
         data = np.round(data).astype(np.int64)
 
     return data

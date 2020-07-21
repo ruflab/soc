@@ -35,7 +35,7 @@ class TestUtils(unittest.TestCase):
         cls.actions = [pd.read_csv(file) for file in cls.actions_files]
 
     def setUp(self):
-        self.folder = os.path.join(fixture_dir, str(int(time.time() * 1000000)))
+        self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
 
     def tearDown(self):
         return shutil.rmtree(self.folder)
@@ -69,7 +69,6 @@ class TestUtils(unittest.TestCase):
                 'kernel_size': [(3, 3), (3, 3)],
                 'strides': [(3, 3), (3, 3)],
                 'num_layers': 2,
-                'loss_name': 'mse',
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': '',
@@ -79,6 +78,7 @@ class TestUtils(unittest.TestCase):
             'trainer': {
                 'fast_dev_run': True,
                 'default_root_dir': self.folder,
+                'logger': False,
             },
             "other": {
                 "save_top_k": 0
@@ -113,7 +113,6 @@ class TestUtils(unittest.TestCase):
             'generic': {
                 'seed': 1,
                 'verbose': False,
-                'loss_name': 'mse',
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': '',
@@ -130,6 +129,7 @@ class TestUtils(unittest.TestCase):
             'trainer': {
                 'fast_dev_run': True,
                 'default_root_dir': self.folder,
+                'logger': False,
             },
             "other": {
                 "save_top_k": 0
@@ -180,7 +180,6 @@ class TestUtils(unittest.TestCase):
                 'strides': (1, 1),
                 'paddings': (1, 1),
                 'num_layers': 2,
-                'loss_name': 'mse',
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': None,
@@ -191,6 +190,7 @@ class TestUtils(unittest.TestCase):
             'trainer': {
                 'fast_dev_run': True,
                 'default_root_dir': self.folder,
+                'logger': False,
             },
             "other": {
                 "save_top_k": 0
@@ -236,7 +236,6 @@ class TestUtils(unittest.TestCase):
                 'history_length': 3,
                 'future_length': 2,
                 "model": "ResNet18Policy",
-                "loss_name": "resnet18policy_loss",
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': None,
@@ -248,6 +247,7 @@ class TestUtils(unittest.TestCase):
                 'overfit_batches': 3,  # To have 3 data in the validation loop
                 'fast_dev_run': True,
                 'default_root_dir': self.folder,
+                'logger': False,
             },
             "other": {
                 "save_top_k": 0

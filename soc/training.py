@@ -395,7 +395,7 @@ def train(config: SocConfig) -> Runner:
         save_top_k=save_top_k,
         save_last=True,
         monitor='val_accuracy',
-        mode='min',
+        mode='max',
     )
     config['trainer']['checkpoint_callback'] = checkpoint_callback
 

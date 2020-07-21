@@ -5,6 +5,7 @@ import torch
 from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
+from . import soc_data
 from .. import utils
 from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 
@@ -101,8 +102,9 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             current_state_df = df_states.iloc[i]
             current_action_df = df_actions.iloc[i]
 
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
+            current_state_np = np.concatenate(
+                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+            )  # yapf: ignore
             current_action_np = current_action_df['type']
 
             to_concat.append(current_state_np)
@@ -111,8 +113,8 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         history_l = to_concat[:self.history_length * 2]
         future_l = to_concat[self.history_length * 2:]
 
-        history_np = np.concatenate(history_l, axis=0)
-        future_np = np.concatenate(future_l, axis=0)
+        history_np = np.concatenate(history_l, axis=0).reshape(self.get_input_size())
+        future_np = np.concatenate(future_l, axis=0).reshape(self.get_output_size())
 
         history_t = torch.tensor(history_np, dtype=torch.float32)
         future_t = torch.tensor(future_np, dtype=torch.float32)
@@ -169,21 +171,20 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         """
             Return the input dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
-        size[0] *= self.history_length
 
-        return size
+        return [
+            self.history_length,
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_output_size(self) -> List:
         """
             Return the output dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
-        size[0] *= self.future_length
-
-        return size
+        return [
+            self.future_length,
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return None
@@ -193,12 +194,18 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'map': [0, 2],
-            'robber': [2, 3],
-            'properties': [3, 9],
-            'pieces': [9, 81],
-            'infos': [81, 245],
-            'action': [245, 262],
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+            'actions': [284, 301],
         }
 
         return metadata

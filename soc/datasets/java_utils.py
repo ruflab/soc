@@ -1,6 +1,7 @@
 import re
 import numpy as np
 from typing import List, Tuple, Dict
+from . import soc_data
 
 # Types
 IntVector = List[int]
@@ -247,8 +248,8 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
             - 5, total number of development cards in hand (int)
             - 6, number of dev cards which represent a vp (int)
 
-            - 7:11, all the unplayed dev cards
-            - 12:16, all the newly bought dev cards
+            - 7:11, all the unplayed dev cards (int)
+            - 12:16, all the newly bought dev cards (int)
             - 17, how many knight (moving robber) cards played by this player
 
             - 18:23, number of each resource (clay, ore, sheep, wheat, wood, unknown)
@@ -281,30 +282,41 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
     return np.concatenate(all_player_infos, axis=0)
 
 
-_ACTIONS = {
-    'TRADE': 1.0,
-    'ENDTURN': 2.0,
-    'ROLL': 3.0,
-    'BUILD': 4.0,
-    'BUILDROAD': 4.1,
-    'BUILDSETT': 4.2,
-    'BUILDCITY': 4.3,
-    'MOVEROBBER': 5.0,
-    'CHOOSEPLAYER': 6.0,
-    'DISCARD': 7.0,
-    'BUYDEVCARD': 8.0,
-    'PLAYDEVCARD': 9.0,
-    'PLAYKNIGHT': 9.1,
-    'PLAYMONO': 9.2,
-    'PLAYDISC': 9.3,
-    'PLAYROAD': 9.4,
-    'WIN': 10.0,
-}
+def parse_game_phases(game_phase: int):
+    game_phase_plan = np.zeros([len(soc_data.GAME_PHASES), 7, 7])
+    idx = list(soc_data.GAME_PHASES.values()).index(game_phase)
+
+    game_phase_plan[idx, :, :] = 1
+
+    return game_phase_plan
+
+
+def parse_current_player(current_player: int):
+    player_plan = np.zeros([4, 7, 7])
+    player_plan[current_player, :, :] = 1
+
+    return player_plan
+
+
+def parse_starting_player(starting_player: int):
+    player_plan = np.zeros([4, 7, 7])
+    player_plan[starting_player, :, :] = 1
+
+    return player_plan
+
+
+def parse_dice_result(dice_result: int):
+    actions_plan = np.zeros([len(soc_data.DICE_RESULTS), 7, 7])
+    idx = list(soc_data.DICE_RESULTS.values()).index(dice_result)
+
+    actions_plan[idx, :, :] = 1
+
+    return actions_plan
 
 
 def parse_actions(action: float):
-    actions_plan = np.zeros([len(_ACTIONS), 7, 7])
-    idx = list(_ACTIONS.values()).index(action)
+    actions_plan = np.zeros([len(soc_data.ACTIONS), 7, 7])
+    idx = list(soc_data.ACTIONS.values()).index(action)
 
     actions_plan[idx, :, :] = 1
 

@@ -149,10 +149,10 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        data_input_size = config['data_input_size']
-        data_output_size = config['data_output_size']
-        self.inplanes = data_input_size[0]
-        self.outplanes = data_output_size[0]
+        self.data_input_size = config['data_input_size']
+        self.data_output_size = config['data_output_size']
+        self.inplanes = self.data_input_size[0] * self.data_input_size[1]
+        self.outplanes = self.data_output_size[0] * self.data_output_size[1]
 
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -246,6 +246,9 @@ class ResNet(nn.Module):
         return parser
 
     def _forward_impl(self, x):
+        bs, S, C, H, W = x.shape
+        x = x.view(bs, S * C, H, W)
+
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -257,6 +260,8 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.conv_out(x)
+
+        x = x.view(bs, self.data_output_size[0], self.data_output_size[1], H, W)
 
         return x
 

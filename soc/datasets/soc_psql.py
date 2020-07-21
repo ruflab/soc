@@ -23,23 +23,6 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    _obs_columns = [
-        'hexlayout',
-        'numberlayout',
-        'robberhex',
-        'gamestate',
-        'devcardsleft',
-        'diceresult',
-        'startingplayer',
-        'currentplayer',
-        'playeddevcard',
-        'piecesonboard',
-        'players',
-    ]
-
-    _state_size = [245, 7, 7]
-    _action_size = [17, 7, 7]
-
     def __init__(self, config: SocConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 

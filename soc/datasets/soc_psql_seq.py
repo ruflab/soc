@@ -5,6 +5,7 @@ import torch
 from typing import List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
+from . import soc_data
 from .. import utils
 from ..typing import SocDatasetItem, SocDataMetadata
 
@@ -62,8 +63,9 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             current_state_df = df_states.iloc[i]
             current_action_df = df_actions.iloc[i]
 
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
+            current_state_np = np.concatenate(
+                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+            )  # yapf: ignore
             current_action_np = current_action_df['type']
 
             state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
@@ -120,21 +122,23 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List:
+    def get_input_size(self) -> List[int]:
         """
             Return the input dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
 
-        return size
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
-    def get_output_size(self) -> List:
+    def get_output_size(self) -> List[int]:
         """
             Return the output dimension
         """
 
-        return self._state_size
+        return [
+            soc_data.STATE_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
@@ -144,11 +148,17 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         return {
-            'map': [0, 2],
-            'robber': [2, 3],
-            'properties': [3, 9],
-            'pieces': [9, 81],
-            'infos': [81, 245],
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
         }
 
     def dump_preprocessed_dataset(self, folder: str):
@@ -183,21 +193,22 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List:
+    def get_input_size(self) -> List[int]:
         """
             Return the input dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
-
-        return size
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_output_size(self) -> List:
         """
             Return the output dimension
         """
 
-        return self._state_size
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
@@ -206,14 +217,22 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         return 'supervised_seq'
 
     def get_output_metadata(self) -> SocDataMetadata:
-        return {
-            'map': [0, 2],
-            'robber': [2, 3],
-            'properties': [3, 9],
-            'pieces': [9, 81],
-            'infos': [81, 245],
-            'actions': [245, 262],
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+            'actions': [284, 301],
         }
+
+        return metadata
 
     def dump_preprocessed_dataset(self, folder: str):
         utils.check_folder(folder)

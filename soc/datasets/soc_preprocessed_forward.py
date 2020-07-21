@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from typing import List, Tuple, Union
 from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 
@@ -153,12 +154,18 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'map': [0, 2],
-            'robber': [2, 3],
-            'properties': [3, 9],
-            'pieces': [9, 81],
-            'infos': [81, 245],
-            'action': [245, 262],
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+            'actions': [284, 301],
         }
 
         return metadata
@@ -176,12 +183,15 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
             Dims: ( [S_f, C_ss, H, W], [S_f,  C_ls], [S_f,  C_actions] )
     """
     def _set_props(self, config: SocConfig):
-        _, C, H, W = self.seq_data[0].shape
-        self.input_shape = [self.history_length, C, H, W]
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
 
-        output_shape_spatial = [self.future_length, self._n_spatial_states, H, W]
-        output_shape = [self.future_length, self._n_states - self._n_spatial_states]
-        output_shape_actions = [self.future_length, self._n_actions]
+        output_shape_spatial = [
+            self.future_length, soc_data.SPATIAL_STATE_SIZE
+        ] + soc_data.BOARD_SIZE
+        output_shape = [self.future_length, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
         self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
     def __getitem__(self, idx: int):
@@ -198,16 +208,31 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
             [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
         )  # [S, C_ls]
 
-        return (history_t, (future_spatial_states_t, future_lin_states_t, future_actions_t))
+        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
 
     def get_training_type(self) -> str:
         return 'resnet18policy'
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'map': [0, 2],
-            'robber': [2, 3],
-            'pieces': [3, self._n_spatial_states],
+    def get_output_metadata(self):
+        spatial_metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
         }
 
-        return metadata
+        linear_metadata: SocDataMetadata = {
+            'gamestate': [0, 24],
+            'diceresult': [24, 37],
+            'startingplayer': [37, 41],
+            'currentplayer': [41, 45],
+            'devcardsleft': [45, 46],
+            'playeddevcard': [46, 47],
+            'players': [47, 211],
+        }
+
+        actions_metadata: SocDataMetadata = {
+            'actions': [0, soc_data.ACTION_SIZE],
+        }
+
+        return (spatial_metadata, linear_metadata, actions_metadata)

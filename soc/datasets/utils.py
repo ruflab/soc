@@ -4,8 +4,7 @@ import numpy as np
 from torch.nn.utils import rnn as rnn_utils
 from typing import TypeVar
 from ..typing import SocSeqList, SocSeqBatch
-from .. import java_utils as ju
-
+from . import java_utils as ju
 
 DataTensor = TypeVar('DataTensor', np.ndarray, torch.Tensor)
 
@@ -81,11 +80,16 @@ def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
 
     df_states['players'] = df_states['players'].apply(ju.parse_player_infos)
 
-    df_states['gamestate'] = df_states['gamestate'].apply(ju.get_replicated_plan)
+    df_states['gamestate'] = df_states['gamestate'].apply(ju.parse_game_phases)
+
     df_states['devcardsleft'] = df_states['devcardsleft'].apply(ju.get_replicated_plan)
-    df_states['diceresult'] = df_states['diceresult'].apply(ju.get_replicated_plan)
-    df_states['startingplayer'] = df_states['startingplayer'].apply(ju.get_replicated_plan)
-    df_states['currentplayer'] = df_states['currentplayer'].apply(ju.get_replicated_plan)
+    # breakpoint()
+    df_states['diceresult'] = df_states['diceresult'].apply(ju.parse_dice_result)
+
+    df_states['startingplayer'] = df_states['startingplayer'].apply(ju.parse_starting_player)
+
+    df_states['currentplayer'] = df_states['currentplayer'].apply(ju.parse_current_player)
+
     df_states['playeddevcard'] = df_states['playeddevcard'].apply(ju.get_replicated_plan)
 
     return df_states

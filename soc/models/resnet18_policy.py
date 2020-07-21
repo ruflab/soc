@@ -170,13 +170,17 @@ class ResNet18Policy(nn.Module):
         x_linear = x.view(bs, -1)
 
         y_spatial_state_logits = self.spatial_state_head(x)
-        y_spatial_state_logits_seq = y_spatial_state_logits.reshape(
-            [bs, ] + self.spatial_state_output_size
-        )
+        y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
+            bs,
+        ] + self.spatial_state_output_size)
         y_state_logits = self.linear_state_head(x_linear)
-        y_state_logits_seq = y_state_logits.reshape([bs, ] + self.state_output_size)
+        y_state_logits_seq = y_state_logits.reshape([
+            bs,
+        ] + self.state_output_size)
         y_action_logits = self.policy_head(x_linear)
-        y_action_logits_seq = y_action_logits.reshape([bs, ] + self.action_output_size)
+        y_action_logits_seq = y_action_logits.reshape([
+            bs,
+        ] + self.action_output_size)
 
         return y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq
 

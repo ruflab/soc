@@ -1,6 +1,8 @@
 import torch
 # from torch.nn.utils.rnn import PackedSequence
-from typing import List, Tuple, Dict, Callable, Any
+from typing import List, Tuple, Dict, Callable, Any, Union
+
+_TensorOrTensors = Union[torch.Tensor, List[torch.Tensor]]
 
 SocDatasetItem = Tuple[torch.Tensor, torch.Tensor]
 SocBatch = Tuple[torch.Tensor, torch.Tensor]

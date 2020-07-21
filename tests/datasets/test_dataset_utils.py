@@ -6,7 +6,7 @@ import torch
 from unittest.mock import MagicMock
 from soc import datasets
 from soc.datasets import utils as ds_utils
-from soc import java_utils as ju
+from soc.datasets import java_utils as ju
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, '..', 'fixtures')

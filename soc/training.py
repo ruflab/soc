@@ -2,18 +2,19 @@ import multiprocessing
 import os
 import torch
 import pprint
-from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
+from torch.nn import Module
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
 from typing import Callable, List, Any, Dict
 from .typing import SocSeqBatch, SocBatch, SocConfig, SocBatchMultipleOut, SocDataMetadata
 from .models import make_model
 from .datasets import make_dataset
-from .datasets import utils as ds_utils
 from . import val
+from .losses import compute_losses
+from .val import compute_accs
 
 CollateFnType = Callable[[List[Any]], Any]
 
@@ -114,9 +115,7 @@ class Runner(pl.LightningModule):
         elif self.training_type == 'supervised_forward':
             train_dict = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
         elif self.training_type == 'resnet18policy':
-            train_dict = train_on_resnet18policy_batch(
-                batch, self.model, self.mse_loss_f, self.ce_loss_f, self.metadata
-            )
+            train_dict = train_on_resnet18policy_batch(batch, self.model, self.metadata)
         else:
             raise Exception(
                 "No training process exist for this training type: {}".format(self.training_type)
@@ -177,9 +176,9 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
     y_preds_raw = outputs[0]
     y_preds = y_preds_raw * mask
 
-    bs, seq_len, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * seq_len, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * seq_len, C, W, H)
+    bs, S, C, H, W = y_true.shape
+    y_preds_reshaped = y_preds.reshape(bs * S, C, W, H)
+    y_true_reshaped = y_true.reshape(bs * S, C, W, H)
 
     loss = loss_f(y_preds_reshaped, y_true_reshaped)
 
@@ -209,10 +208,10 @@ def val_on_supervised_seq_batch(
     # We can compute a simple decision boundary by using the round function
     y_preds_int = torch.round(y_preds)
 
-    bs, seq_len, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * seq_len, C, W, H)
-    y_preds_int_reshaped = y_preds_int.reshape(bs * seq_len, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * seq_len, C, W, H)
+    bs, S, C, H, W = y_true.shape
+    y_preds_reshaped = y_preds.reshape(bs * S, C, W, H)
+    y_preds_int_reshaped = y_preds_int.reshape(bs * S, C, W, H)
+    y_true_reshaped = y_true.reshape(bs * S, C, W, H)
 
     loss = loss_f(y_preds_reshaped, y_true_reshaped)
 
@@ -270,7 +269,7 @@ def val_on_supervised_forward_batch(
     acc = (y_preds_int == y_true).type(dtype).mean()  # type: ignore
     val_dict = val.get_stats(metadata, y_preds_int, y_true)
 
-    one_meta = {'pieces_one_mean': metadata['pieces']}
+    one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
     if 'actions' in metadata.keys():
         one_meta['actions_one_mean'] = metadata['actions']
     val_dict.update(val.get_stats(one_meta, y_preds_int, 1))
@@ -285,9 +284,7 @@ def val_on_supervised_forward_batch(
 def train_on_resnet18policy_batch(
     batch: SocBatchMultipleOut,
     model: Module,
-    state_loss_f: Callable,
-    action_loss_f: Callable,
-    metadata: SocDataMetadata = {},
+    metadata: List[SocDataMetadata],
 ) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
@@ -303,46 +300,20 @@ def train_on_resnet18policy_batch(
 
     y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = model(x_seq)
 
-    bs, S_h, C, H, W = x_seq.shape
-    _, S_f, C_s = y_s_true_seq.shape
-    _, _, C_a = y_a_true_seq.shape
-    y_s_logits = y_s_logits_seq.view(-1, C_s)
-    y_s_true = y_s_true_seq.view(-1, C_s)
-    y_a_logits = y_a_logits_seq.view(-1, C_a)
-    y_a_true = torch.argmax(y_a_true_seq.view(-1, C_a), dim=1)
+    spatial_metadata, linear_metadata, actions_metadata = metadata
 
-    start_i, end_i = metadata['map']
-    spatial_state_loss = state_loss_f(
-        y_spatial_s_logits_seq[:, :, start_i:end_i], y_spatial_s_true_seq[:, :, start_i:end_i]
+    train_dict = {}
+    train_dict.update(
+        compute_losses(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq)
     )
-    start_i, end_i = metadata['robber']
-    spatial_state_loss += F.cross_entropy(
-        y_spatial_s_logits_seq[:, :, start_i].reshape(bs * S_f, -1),
-        torch.argmax(y_spatial_s_true_seq[:, :, start_i].reshape(bs * S_f, -1), dim=1)
-    )
-    start_i, end_i = metadata['pieces']
-    y_spatial_pieces_true = y_spatial_s_true_seq[:, :, start_i:end_i]
-    # # We compute a mask to subsample zero values
-    # loss_mask = torch.zeros_like(
-    #     y_spatial_pieces_true, device=y_spatial_s_true_seq.device, requires_grad=False
-    # )
-    # loss_mask[y_spatial_pieces_true > 0] = 1
-    # random_c = torch.randperm(loss_mask.shape[2])[:2]
-    # loss_mask[:, :, random_c] = 1
-    spatial_state_loss += F.binary_cross_entropy_with_logits(
-        y_spatial_s_logits_seq[:, :, start_i:end_i], y_spatial_pieces_true
-    )
-    state_loss = state_loss_f(y_s_logits, y_s_true)
-    action_loss = action_loss_f(y_a_logits, y_a_true)
+    train_dict.update(compute_losses(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    train_dict.update(compute_losses(actions_metadata, y_a_logits_seq, y_a_true_seq))
 
-    loss = spatial_state_loss + state_loss + action_loss
+    loss = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, l in train_dict.items():
+        loss += l
 
-    train_dict = {
-        'train_loss': loss,
-        'train_spatial_state_loss': spatial_state_loss,
-        'train_state_loss': state_loss,
-        'train_action_loss': action_loss,
-    }
+    train_dict['train_loss'] = loss
 
     return train_dict
 
@@ -352,7 +323,7 @@ def val_on_resnet18policy_batch(
     model: Module,
     state_loss_f: Callable,
     action_loss_f: Callable,
-    metadata: SocDataMetadata = {},
+    metadata: List[SocDataMetadata],
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
@@ -361,64 +332,22 @@ def val_on_resnet18policy_batch(
 
     y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = model(x_seq)
 
-    bs, S_h, C, H, W = x_seq.shape
-    _, _, C_ss, _, _ = y_spatial_s_true_seq.shape
-    _, S_f, C_s = y_s_true_seq.shape
-    _, _, C_a = y_a_true_seq.shape
-    dtype = x_seq.dtype
-    y_s_logits = y_s_logits_seq.view(-1, C_s)
-    y_s_true = y_s_true_seq.view(-1, C_s)
-    y_a_logits = y_a_logits_seq.view(-1, C_a)
-    y_a_true = torch.argmax(y_a_true_seq.view(-1, C_a), dim=1)
+    spatial_metadata, linear_metadata, actions_metadata = metadata
 
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_spatial_s_preds_seq = torch.zeros_like(y_spatial_s_logits_seq)
-    start_i, end_i = metadata['map']
-    y_spatial_s_preds_seq[:, :, start_i:start_i + 1] = ds_utils.unnormalize_hexlayout(
-        y_spatial_s_logits_seq[:, :, start_i:start_i + 1]
-    )
-    y_spatial_s_true_seq[:, :, start_i:start_i + 1] = ds_utils.unnormalize_hexlayout(
-        y_spatial_s_true_seq[:, :, start_i:start_i + 1]
-    )
-    y_spatial_s_preds_seq[:, :, start_i + 1:end_i] = ds_utils.unnormalize_numberlayout(
-        y_spatial_s_logits_seq[:, :, start_i + 1:end_i]
-    )
-    y_spatial_s_true_seq[:, :, start_i + 1:end_i] = ds_utils.unnormalize_numberlayout(
-        y_spatial_s_true_seq[:, :, start_i + 1:end_i]
-    )
+    val_dict = {}
+    val_dict.update(compute_accs(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq))
+    val_dict.update(compute_accs(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    val_dict.update(compute_accs(actions_metadata, y_a_logits_seq, y_a_true_seq))
 
-    start_i, _ = metadata['robber']
-    rob_pred_idx = torch.argmax(y_spatial_s_logits_seq[:, :, start_i].view(bs * S_f, -1), dim=1)
-    line_select = torch.arange(bs * S_f, dtype=torch.long)
-    tmp = y_spatial_s_preds_seq.view(bs * S_f, C_ss, -1)
-    tmp[line_select, start_i, rob_pred_idx] = 1
-    y_spatial_s_preds_seq = tmp.view(y_spatial_s_preds_seq.shape)
+    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
 
-    start_i, end_i = metadata['pieces']
-    # Pieces corresponds to a binary predictions
-    y_spatial_s_preds_seq[:, :, start_i:end_i] = torch.round(
-        torch.sigmoid(y_spatial_s_logits_seq[:, :, start_i:end_i])
-    )
-    y_s_preds_int = torch.round(y_s_logits)
-    action_preds_int = torch.argmax(y_a_logits, dim=-1)
+    val_acc = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
 
-    y_s_spatial_eq = (y_spatial_s_preds_seq == y_spatial_s_true_seq)
-    spatial_state_acc = y_s_spatial_eq.type(dtype).mean()  # type: ignore
-    state_acc = (y_s_preds_int == y_s_true).type(dtype).mean()  # type: ignore
-    action_acc = (action_preds_int == y_a_true).type(dtype).mean()  # type: ignore
-    acc = (spatial_state_acc + state_acc + action_acc) / 3
-
-    val_dict = val.get_stats(metadata, y_spatial_s_preds_seq, y_spatial_s_true_seq)
-    one_meta = {'pieces_one_mean': metadata['pieces']}
-    val_dict.update(val.get_stats(one_meta, y_spatial_s_preds_seq, 1))
-
-    val_dict.update({
-        'val_accuracy': acc,
-        'val_spatial_state_accuracy': spatial_state_acc,
-        'val_state_accuracy': state_acc,
-        'val_action_accuracy': action_acc,
-    })
+    val_dict['val_accuracy'] = val_acc
 
     return val_dict
 

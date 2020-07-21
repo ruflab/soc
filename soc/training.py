@@ -2,7 +2,6 @@ import multiprocessing
 import os
 import torch
 import pprint
-from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from torch.nn import Module
@@ -199,7 +198,7 @@ def val_on_supervised_seq_batch(
     one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
     if 'actions' in metadata.keys():
         one_meta['actions_one_mean'] = metadata['actions']
-    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_logits)), 1))
+    val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
 
     val_acc = torch.tensor(0., device=y_logits.device)
     for k, acc in val_dict.items():
@@ -253,10 +252,14 @@ def val_on_supervised_forward_batch(
 
     val_dict = compute_accs(metadata, y_logits, y_true)
 
-    one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
-    if 'actions' in metadata.keys():
-        one_meta['actions_one_mean'] = metadata['actions']
-    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_logits)), 1))
+    if 'mean_piecesonboard' in metadata.keys():
+        prefix = 'mean_'
+    else:
+        prefix = ''
+    one_meta = {'piecesonboard_one_mean': metadata[prefix + 'piecesonboard']}
+    if 'actions' in metadata.keys() or 'mean_actions' in metadata.keys():
+        one_meta['actions_one_mean'] = metadata[prefix + 'actions']
+    val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
 
     val_acc = torch.tensor(0., device=y_logits.device)
     for k, acc in val_dict.items():

@@ -25,10 +25,6 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     """
 
     _length: int = -1
-    _n_states: int = 245
-    _n_spatial_states: int = 2 + 1 + 4 * 18
-    _n_spatial_states_wo_map: int = 1 + 4 * 18
-    _n_actions: int = 17
     _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
@@ -154,18 +150,18 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
-            'mse_hexlayout': [0, 1],
-            'mse_numberlayout': [1, 2],
-            'mse_robberhex': [2, 3],
-            'mse_piecesonboard': [3, 75],
-            'mse_gamestate': [75, 99],
-            'mse_diceresult': [99, 111],
-            'mse_startingplayer': [111, 115],
-            'mse_currentplayer': [115, 118],
-            'mse_devcardsleft': [118, 119],
-            'mse_playeddevcard': [119, 120],
-            'mse_players': [120, 284],
-            'mse_actions': [284, 301],
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'mean_robberhex': [2, 3],
+            'mean_piecesonboard': [3, 75],
+            'mean_gamestate': [75, 99],
+            'mean_diceresult': [99, 112],
+            'mean_startingplayer': [112, 116],
+            'mean_currentplayer': [116, 120],
+            'devcardsleft': [120, 121],
+            'mean_playeddevcard': [121, 122],
+            'players': [122, 286],
+            'mean_actions': [286, 303],
         }
 
         return metadata
@@ -200,8 +196,8 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         ).__getitem__(idx)
         _, _, H, W = history_t.shape
 
-        future_states_t = future_t[:, :-self._n_actions]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -self._n_actions:, 0, 0]  # [S, C_a]
+        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
         future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
                                             dim=1)  # [S, C_ss, H, W]
         future_lin_states_t = torch.cat(

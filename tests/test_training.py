@@ -171,7 +171,7 @@ class TestUtils(unittest.TestCase):
             'generic': {
                 'seed': 1,
                 'verbose': False,
-                'dataset': 'SocPSQLForwardSAToSADataset',
+                'dataset': 'SocPreprocessedForwardSAToSADataset',
                 'history_length': 3,
                 'future_length': 2,
                 'model': 'resnet18',

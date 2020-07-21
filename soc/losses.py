@@ -213,7 +213,7 @@ def compute_losses(
 ) -> Dict[str, torch.Tensor]:
     losses = {}
     for k, v in metadata.items():
-        if k[:4] == 'mse_':
+        if k[:4] == 'mean':
             losses[k + '_loss'] = mse_loss(v, t1_logits_seq, t2_true_seq)  # type: ignore
         else:
             losses[k + '_loss'] = loss_mapping[k](v, t1_logits_seq, t2_true_seq)  # type: ignore

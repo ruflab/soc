@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     if args.testing is True:
         ds = soc.datasets.SocPSQLSeqDataset({})
-        ds.dump_preprocessed_dataset(fixture_dir, 5)
+        ds.dump_preprocessed_dataset(fixture_dir, True)
     else:
         ds = soc.datasets.SocPSQLSeqDataset({})
         ds.dump_preprocessed_dataset(data_folder)

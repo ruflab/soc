@@ -13,7 +13,7 @@ Note:
 - Input and output states are represented as a tensor of size `[batch_size, seq * (C_s + C_a), H, W]`
 
 ### Hypothesis
-A resnet 18 can learn the mapping between past and future states for a small batch of data of the game settlers of catan for a fixed set of 4 robot players.
+A resnet 18 can learn the mapping between past and future states for a small batch of data of the game settlers of catan for a fixed set of 4 robot players using a very generic L2 loss (no specialization based on the type of inputs).
 
 ### Results
 Hypothesis false.

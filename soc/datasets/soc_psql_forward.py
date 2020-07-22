@@ -6,7 +6,6 @@ from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
-from .. import utils
 from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 
 
@@ -209,11 +208,3 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         }
 
         return metadata
-
-    def dump_preprocessed_dataset(self, folder: str):
-        utils.check_folder(folder)
-
-        path = "{}/50_forward_sasa.pt".format(folder)
-        all_data = [self[i] for i in range(len(self))]
-
-        torch.save(all_data, path)

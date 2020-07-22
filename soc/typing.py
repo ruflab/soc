@@ -9,11 +9,9 @@ SocPolicyDatasetItem = Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, tor
 SocBatch = Tuple[torch.Tensor, torch.Tensor]
 SocBatchMultipleOut = Tuple[torch.Tensor, List[torch.Tensor]]
 SocSeqBatch = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-SocSeqPolicyBatch = Tuple[
-    torch.Tensor,
-    Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
-    Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-]
+SocSeqPolicyBatch = Tuple[torch.Tensor,
+                          Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+                          Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]
 # SocSeqBatch = Tuple[PackedSequence, PackedSequence]
 SocSeqList = List[SocDatasetItem]
 SocSeqPolicyList = List[SocPolicyDatasetItem]

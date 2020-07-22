@@ -39,7 +39,7 @@ class TestTraining(unittest.TestCase):
 
         if not os.path.isfile(_DATASET_PATH):
             ds = soc.datasets.SocPSQLSeqDataset({})
-            ds.dump_preprocessed_dataset(fixture_dir, 5)
+            ds.dump_preprocessed_dataset(fixture_dir, True)
 
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
@@ -303,6 +303,64 @@ class TestTraining(unittest.TestCase):
                 'history_length': 3,
                 'future_length': 2,
                 "model": "Conv3dModelPolicy",
+                'lr': 1e-3,
+                'optimizer': 'adam',
+                'scheduler': None,
+                'batch_size': 3,  # Data
+                'no_db': True,
+                'first_index': 0,  # Model
+            },
+            'trainer': {
+                'overfit_batches': 3,  # To have 3 data in the validation loop
+                'fast_dev_run': True,
+                'default_root_dir': self.folder,
+                'logger': False,
+            },
+            "other": {
+                "save_top_k": 0
+            }
+        }
+
+        seed_everything(config['generic']['seed'])
+        runner = TestRunner(config['generic'])
+        trainer = Trainer(**config['trainer'], deterministic=True)
+        trainer.fit(runner)
+
+    def test_training_socseq_convlstm_policy(self):
+        states = self.states
+        actions = self.actions
+
+        def _get_states_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = states[table_id]
+            return seq[start_row_id:end_row_id]
+
+        def _get_actions_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = actions[table_id]
+            return seq[start_row_id:end_row_id]
+
+        class TestRunner(Runner):
+            def setup_dataset(self):
+                dataset = make_dataset(self.hparams)
+                dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+                dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+                dataset._get_length = MagicMock(return_value=4)
+                dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
+
+                return dataset
+
+        config = {
+            'generic': {
+                'seed': 1,
+                'verbose': False,
+                'dataset': 'SocPreprocessedSeqSAToSAPolicyDataset',
+                'dataset_path': _DATASET_PATH,
+                'history_length': 3,
+                'future_length': 2,
+                "model": "ConvLSTMPolicy",
                 'lr': 1e-3,
                 'optimizer': 'adam',
                 'scheduler': None,

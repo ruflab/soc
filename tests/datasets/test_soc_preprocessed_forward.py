@@ -48,7 +48,7 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
 
         if not os.path.isfile(_DATASET_PATH):
             ds = soc.datasets.SocPSQLSeqDataset({})
-            ds.dump_preprocessed_dataset(fixture_dir, 5)
+            ds.dump_preprocessed_dataset(fixture_dir, True)
 
     def test_dataset_index(self):
         config = {

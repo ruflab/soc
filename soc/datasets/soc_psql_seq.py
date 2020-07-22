@@ -98,11 +98,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return df_states
 
-    def dump_preprocessed_dataset(self, folder: str, max_i: int = -1):
+    def dump_preprocessed_dataset(self, folder: str, testing: bool = False):
         utils.check_folder(folder)
 
-        if max_i > 0:
-            limit = max_i
+        if testing is True:
+            limit = 5
         else:
             limit = len(self)
 
@@ -112,6 +112,9 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             data = self[i]
             state_seq_t = data[0]  # SxC_sxHxW
             action_seq_t = data[1]  # SxC_axHxW
+            if testing is True:
+                state_seq_t = state_seq_t[:8]
+                action_seq_t = action_seq_t[:8]
             input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
             seqs.append(input_t)
 

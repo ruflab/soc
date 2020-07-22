@@ -30,10 +30,6 @@ class Conv3dModelPolicy(nn.Module):
         self.n_states = self.state_output_size[1]
         self.n_actions = self.action_output_size[1]
 
-        self.n_core_planes = 32
-        self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
-        self.head_hidden_size = 512
-
         self.num_layers = config.get('num_layers', 2)
         self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim', 32), self.num_layers)
         self.kernel_size = self._extend_for_multilayer(
@@ -45,7 +41,12 @@ class Conv3dModelPolicy(nn.Module):
         self.paddings = self._extend_for_multilayer(
             config.get('paddings', (1, 1, 1, 1, 2, 0)), self.num_layers
         )
-        assert len(self.kernel_size) == self.num_layers
+        if not len(self.kernel_size) == len(self.h_chan_dim) == self.num_layers:
+            raise ValueError('Inconsistent list length.')
+
+        self.n_core_planes = self.h_chan_dim[-1]
+        self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
+        self.head_hidden_size = 512
 
         layers = []
         for i in range(self.num_layers - 1):
@@ -64,8 +65,8 @@ class Conv3dModelPolicy(nn.Module):
         layers.append(nn.ConstantPad3d(self.paddings[-1], 0))
         layers.append(
             HexaConv3d(
+                self.h_chan_dim[-2],
                 self.h_chan_dim[-1],
-                self.n_core_planes,
                 self.kernel_size[-1],
                 stride=self.strides[-1],
                 padding=0
@@ -172,10 +173,13 @@ class Conv3dModelPolicy(nn.Module):
                                                                     .spatial_state_output_size[1:])
         y_state_logits = self.linear_state_head(y_linear)
         y_state_logits_seq = y_state_logits.reshape([bs, S] + self.state_output_size[1:])
+
         y_action_logits = self.policy_head(y_linear)
         y_action_logits_seq = y_action_logits.reshape([bs, S] + self.action_output_size[1:])
 
-        return ((y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq), )
+        outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
+
+        return (outputs, )
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""

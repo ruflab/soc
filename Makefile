@@ -50,6 +50,19 @@ endif
 
 .PHONY: install export_env
 
+
+###
+# Test
+###
+dump_training_set:
+	python scripts/dump.py
+
+dump_fixtures:
+	python scripts/dump.py --testing 1
+
+.PHONY: dump_fixtures dump_training_set
+
+
 ###
 # CI
 ###
@@ -69,10 +82,10 @@ ci: lint typecheck test
 
 .PHONY: typecheck yapf lint test ci
 
+
 ###
 # Experiments
 ###
-
 exp_clean:
 	rm -rf scripts/results/*
 

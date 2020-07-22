@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from torch.nn.utils import rnn as rnn_utils
 from typing import TypeVar
-from ..typing import SocSeqList, SocSeqBatch
+from ..typing import SocSeqList, SocSeqBatch, SocSeqPolicyBatch, SocSeqPolicyList
 from . import java_utils as ju
 
 DataTensor = TypeVar('DataTensor', np.ndarray, torch.Tensor)
@@ -28,6 +28,49 @@ def pad_seq_sas(inputs: SocSeqList) -> SocSeqBatch:
     xs_t = rnn_utils.pad_sequence(xs_l, batch_first=True)
     ys_t = rnn_utils.pad_sequence(ys_l, batch_first=True)
     mask_t = rnn_utils.pad_sequence(mask_l, batch_first=True)
+
+    return xs_t, ys_t, mask_t
+
+
+def pad_seq_policy(inputs: SocSeqPolicyList) -> SocSeqPolicyBatch:
+    """
+        Pad the different inputs
+
+        inputs is a list of (state_seq, actions_seq)
+    """
+    xs_l = []
+    ys_spatial_l = []
+    ys_linear_l = []
+    ys_action_l = []
+    mask_spatial_l = []
+    mask_linear_l = []
+    mask_action_l = []
+    for tuple_seq in inputs:
+        x, y = tuple_seq
+        y_spatial, y_linear, y_action = y
+
+        xs_l.append(x)
+
+        ys_spatial_l.append(y_spatial)
+        ys_linear_l.append(y_linear)
+        ys_action_l.append(y_action)
+
+        mask_spatial_l.append(torch.ones_like(y_spatial))
+        mask_linear_l.append(torch.ones_like(y_linear))
+        mask_action_l.append(torch.ones_like(y_action))
+
+    xs_t = rnn_utils.pad_sequence(xs_l, batch_first=True)
+
+    ys_spatial_t = rnn_utils.pad_sequence(ys_spatial_l, batch_first=True)
+    ys_linear_t = rnn_utils.pad_sequence(ys_linear_l, batch_first=True)
+    ys_action_t = rnn_utils.pad_sequence(ys_action_l, batch_first=True)
+
+    mask_spatial_t = rnn_utils.pad_sequence(mask_spatial_l, batch_first=True)
+    mask_linear_t = rnn_utils.pad_sequence(mask_linear_l, batch_first=True)
+    mask_action_t = rnn_utils.pad_sequence(mask_action_l, batch_first=True)
+
+    ys_t = (ys_spatial_t, ys_linear_t, ys_action_t)
+    mask_t = (mask_spatial_t, mask_linear_t, mask_action_t)
 
     return xs_t, ys_t, mask_t
 

@@ -8,6 +8,7 @@ from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
+_DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
 
 SOCShape = Union[Tuple[List[int], ...], List[int]]
 
@@ -34,13 +35,9 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sasa.pt')
+        default_path = os.path.join(_DATA_FOLDER, 'soq_50_fullseq.pt')
         self.path = config.get('dataset_path', default_path)
-        data = torch.load(self.path)
-        self.seq_data = []
-        for x_t, y_t in data:
-            new_x_t = torch.cat([x_t, y_t[-1:]], dim=0)
-            self.seq_data.append(new_x_t)
+        self.data = torch.load(self.path)
 
         assert 'history_length' in config
         assert 'future_length' in config
@@ -52,9 +49,12 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self._set_props(config)
 
     def _set_props(self, config: SocConfig):
-        S, C, H, W = self.seq_data[0].shape
-        self.input_shape = [self.history_length, C, H, W]
-        self.output_shape = [self.future_length, C, H, W]
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+        self.output_shape = [
+            self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
 
     @classmethod
     def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
@@ -76,9 +76,9 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def _get_length(self) -> int:
         if self._length == -1:
             total_steps = 0
-            nb_games = len(self.seq_data)
+            nb_games = len(self.data)
             for i in range(nb_games):
-                total_steps += self.seq_data[i].shape[0]
+                total_steps += self.data[i].shape[0]
 
             self._length = total_steps - nb_games * self.seq_len_per_datum
 
@@ -95,10 +95,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
     def _get_nb_steps(self) -> List[int]:
-        nb_games = len(self.seq_data)
+        nb_games = len(self.data)
         nb_steps = []
         for i in range(nb_games):
-            nb_steps.append(self.seq_data[i].shape[0])
+            nb_steps.append(self.data[i].shape[0])
 
         return nb_steps
 
@@ -126,7 +126,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         start_row_id = r
         end_row_id = r + self.seq_len_per_datum
 
-        return self.seq_data[table_id][start_row_id:end_row_id]
+        return self.data[table_id][start_row_id:end_row_id]
 
     def get_input_size(self) -> SOCShape:
         """
@@ -176,7 +176,7 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
             Dims: [S_h, (C_states + C_actions), H, W]
 
         Output: Tuple of next state and next actions
-            Dims: ( [S_f, C_ss, H, W], [S_f,  C_ls], [S_f,  C_actions] )
+            Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
     def _set_props(self, config: SocConfig):
         self.input_shape = [
@@ -194,7 +194,6 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         history_t, future_t = super(
             SocPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
-        _, _, H, W = history_t.shape
 
         future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
         future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]

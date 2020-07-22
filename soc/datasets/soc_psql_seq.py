@@ -98,6 +98,25 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return df_states
 
+    def dump_preprocessed_dataset(self, folder: str, max_i: int = -1):
+        utils.check_folder(folder)
+
+        if max_i > 0:
+            limit = max_i
+        else:
+            limit = len(self)
+
+        path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+        seqs = []
+        for i in range(limit):
+            data = self[i]
+            state_seq_t = data[0]  # SxC_sxHxW
+            action_seq_t = data[1]  # SxC_axHxW
+            input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+            seqs.append(input_t)
+
+        torch.save(seqs, path)
+
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     """
@@ -113,8 +132,8 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSDataset, self).__getitem__(idx)
 
-        state_seq_t = data[0]  # SxFsxHxW
-        action_seq_t = data[1]  # SxFaxHxW
+        state_seq_t = data[0]  # SxC_sxHxW
+        action_seq_t = data[1]  # SxC_axHxW
         input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
         x_t = input_t[:-1]
@@ -161,14 +180,6 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
             'players': [120, 284],
         }
 
-    def dump_preprocessed_dataset(self, folder: str):
-        utils.check_folder(folder)
-
-        path = "{}/50_seq_sas.pt".format(folder)
-        all_data = [self[i] for i in range(len(self))]
-
-        torch.save(all_data, path)
-
 
 class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
     """
@@ -184,8 +195,8 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSADataset, self).__getitem__(idx)
 
-        state_seq_t = data[0]  # SxFsxHxW
-        action_seq_t = data[1]  # SxFaxHxW
+        state_seq_t = data[0]  # SxC_sxHxW
+        action_seq_t = data[1]  # SxC_axHxW
         cat_seq = torch.cat([state_seq_t, action_seq_t], dim=1)
 
         x_t = cat_seq[:-1]
@@ -233,11 +244,3 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         }
 
         return metadata
-
-    def dump_preprocessed_dataset(self, folder: str):
-        utils.check_folder(folder)
-
-        path = "{}/50_seq_sasa.pt".format(folder)
-        all_data = [self[i] for i in range(len(self))]
-
-        torch.save(all_data, path)

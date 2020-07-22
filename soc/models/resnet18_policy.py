@@ -165,19 +165,19 @@ class ResNet18Policy(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        x = self.layer4(x)
+        y = self.layer4(x)
 
-        x_linear = x.view(bs, -1)
+        y_linear = y.view(bs, -1)
 
-        y_spatial_state_logits = self.spatial_state_head(x)
+        y_spatial_state_logits = self.spatial_state_head(y)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
-        y_state_logits = self.linear_state_head(x_linear)
+        y_state_logits = self.linear_state_head(y_linear)
         y_state_logits_seq = y_state_logits.reshape([
             bs,
         ] + self.state_output_size)
-        y_action_logits = self.policy_head(x_linear)
+        y_action_logits = self.policy_head(y_linear)
         y_action_logits_seq = y_action_logits.reshape([
             bs,
         ] + self.action_output_size)

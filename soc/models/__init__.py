@@ -2,6 +2,7 @@ from .resnet18 import resnet18
 from .resnet18_policy import ResNet18Policy
 from .conv_lstm import ConvLSTM
 from .conv3d import Conv3dModel
+from .conv3d_policy import Conv3dModelPolicy
 from .hexa_conv import HexaConv2d
 
 __all__ = [
@@ -9,6 +10,7 @@ __all__ = [
     "ResNet18Policy",
     "ConvLSTM",
     "Conv3dModel",
+    "Conv3dModelPolicy",
     "HexaConv2d",
 ]
 

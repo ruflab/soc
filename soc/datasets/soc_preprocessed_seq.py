@@ -3,12 +3,15 @@ from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
-from typing import List, Callable
+from typing import List, Callable, Union, Tuple
 from . import utils as ds_utils
-from typing import Tuple
-from ..typing import SocDatasetItem
+from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
+_DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
+
+OutputShape = Union[List[int], Tuple[List[int], ...]]
 
 
 class SocPreprocessedSeqSAToSDataset(Dataset):
@@ -22,15 +25,21 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         Output: Next state
             Dims: [S, C_states, H, W]
     """
+
+    output_shape: OutputShape
+
     def __init__(self, config={}):
         super(SocPreprocessedSeqSAToSDataset, self).__init__()
 
-        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
+        default_path = os.path.join(_DATA_FOLDER, 'soq_50_fullseq.pt')
         self.path = config.get('dataset_path', default_path)
         self.data = torch.load(self.path)
 
-        self.input_shape = self.data[0][0].shape[1:]
-        self.output_shape = self.data[0][1].shape[1:]
+        self._set_props(config)
+
+    def _set_props(self, config: SocConfig):
+        self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [-1, soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
 
     @classmethod
     def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
@@ -48,11 +57,13 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx: int) -> SocDatasetItem:
-        x_t, y_t = self._get_data(idx)
+        seq = self._get_data(idx)
+        x_t = seq[:-1]
+        y_t = seq[1:].clone()[:, :soc_data.STATE_SIZE]
 
         return x_t, y_t
 
-    def _get_data(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_data(self, idx: int) -> torch.Tensor:
         return self.data[idx]
 
     def get_input_size(self) -> List[int]:
@@ -62,7 +73,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
         return self.input_shape
 
-    def get_output_size(self) -> List[int]:
+    def get_output_size(self) -> OutputShape:
         """
             Return the output dimension
         """
@@ -75,11 +86,123 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
     def get_training_type(self) -> str:
         return 'supervised_seq'
 
-    def get_output_metadata(self):
-        return {
-            'map': [[0, 2]],
-            'robber': [[2, 3]],
-            'properties': [[3, 9]],
-            'pieces': [[9, 81]],
-            'infos': [[81, 245]],
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 112],
+            'startingplayer': [112, 116],
+            'currentplayer': [116, 120],
+            'devcardsleft': [120, 121],
+            'playeddevcard': [121, 122],
+            'players': [122, 286],
         }
+
+        return metadata
+
+
+class SocPreprocessedSeqSAToSADataset(SocPreprocessedSeqSAToSDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S, (C_states + C_actions), H, W]
+
+        Output: Next state
+            Dims: [S, (C_states + C_actions), H, W]
+    """
+    def _set_props(self, config: SocConfig):
+        self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+
+    def __getitem__(self, idx: int) -> SocDatasetItem:
+        seq = self._get_data(idx)
+        x_t = seq[:-1]
+        y_t = seq[1:].clone()
+
+        return x_t, y_t
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 112],
+            'startingplayer': [112, 116],
+            'currentplayer': [116, 120],
+            'devcardsleft': [120, 121],
+            'playeddevcard': [121, 122],
+            'players': [122, 286],
+            'actions': [286, 303],
+        }
+
+        return metadata
+
+
+class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [-1, (C_states + C_actions), H, W]
+
+        Output: Tuple of next state and next actions
+            Dims: ( [-1, C_ss, H, W], [-1, C_ls], [-1, C_actions] )
+    """
+    def _set_props(self, config: SocConfig):
+        self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+
+        output_shape_spatial = [-1, soc_data.SPATIAL_STATE_SIZE] + soc_data.BOARD_SIZE
+        output_shape = [-1, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [-1, soc_data.ACTION_SIZE]
+
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
+
+    def __getitem__(self, idx: int):
+        x_t, y_t = super(SocPreprocessedSeqSAToSAPolicyDataset, self).__getitem__(idx)
+
+        y_states_t = y_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        y_actions_t = y_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        y_spatial_states_t = torch.cat([y_states_t[:, 0:3], y_states_t[:, 9:81]],
+                                       dim=1)  # [S, C_ss, H, W]
+        y_lin_states_t = torch.cat([y_states_t[:, 3:9, 0, 0], y_states_t[:, 81:, 0, 0]],
+                                   dim=1)  # [S, C_ls]
+
+        return (y_t, [y_spatial_states_t, y_lin_states_t, y_actions_t])
+
+    def get_training_type(self) -> str:
+        return 'supervised_seq_policy'
+
+    def get_collate_fn(self) -> Callable:
+        return ds_utils.pad_seq_policy
+
+    def get_output_metadata(self):
+        spatial_metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+        }
+
+        linear_metadata: SocDataMetadata = {
+            'gamestate': [0, 24],
+            'diceresult': [24, 37],
+            'startingplayer': [37, 41],
+            'currentplayer': [41, 45],
+            'devcardsleft': [45, 46],
+            'playeddevcard': [46, 47],
+            'players': [47, 211],
+        }
+
+        actions_metadata: SocDataMetadata = {
+            'actions': [0, soc_data.ACTION_SIZE],
+        }
+
+        return (spatial_metadata, linear_metadata, actions_metadata)

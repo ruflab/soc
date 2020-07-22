@@ -3,10 +3,13 @@ import unittest
 import pandas as pd
 import numpy as np
 from unittest.mock import MagicMock
+import soc
 from soc import datasets
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, '..', 'fixtures')
+
+_DATASET_PATH = os.path.join(fixture_dir, 'soc_5_fullseq.pt')
 
 
 class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
@@ -43,8 +46,18 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
         cls._get_states_from_db_se_f = _get_states_from_db_se_f
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
+        if not os.path.isfile(_DATASET_PATH):
+            ds = soc.datasets.SocPSQLSeqDataset({})
+            ds.dump_preprocessed_dataset(fixture_dir, 5)
+
     def test_dataset_index(self):
-        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
+        config = {
+            'no_db': True,
+            'history_length': 3,
+            'future_length': 2,
+            'first_index': 0,
+            'dataset_path': _DATASET_PATH
+        }
         dataset = datasets.SocPreprocessedForwardSAToSADataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
@@ -59,7 +72,13 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
         np.testing.assert_array_equal(outputs.shape, output_shape)
 
     def test_get_output_metadata(self):
-        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
+        config = {
+            'no_db': True,
+            'history_length': 3,
+            'future_length': 2,
+            'first_index': 0,
+            'dataset_path': _DATASET_PATH
+        }
         dataset = datasets.SocPreprocessedForwardSAToSADataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
@@ -109,7 +128,13 @@ class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_dataset_index(self):
-        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
+        config = {
+            'no_db': True,
+            'history_length': 3,
+            'future_length': 2,
+            'first_index': 0,
+            'dataset_path': _DATASET_PATH
+        }
         dataset = datasets.SocPreprocessedForwardSAToSAPolicyDataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
@@ -126,7 +151,13 @@ class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
         np.testing.assert_array_equal(outputs[2].shape, output_shape_actions)
 
     def test_get_output_metadata(self):
-        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
+        config = {
+            'no_db': True,
+            'history_length': 3,
+            'future_length': 2,
+            'first_index': 0,
+            'dataset_path': _DATASET_PATH
+        }
         dataset = datasets.SocPreprocessedForwardSAToSAPolicyDataset(config)
         dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
         dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

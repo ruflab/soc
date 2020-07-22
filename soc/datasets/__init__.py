@@ -1,6 +1,8 @@
 from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset, SocPSQLSeqSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSDataset
+from .soc_preprocessed_seq import SocPreprocessedSeqSAToSADataset
+from .soc_preprocessed_seq import SocPreprocessedSeqSAToSAPolicyDataset
 from .soc_preprocessed_forward import SocPreprocessedForwardSAToSADataset
 from .soc_preprocessed_forward import SocPreprocessedForwardSAToSAPolicyDataset
 
@@ -10,6 +12,8 @@ __all__ = [
     'SocPSQLSeqSAToSADataset',
     'SocPSQLForwardSAToSADataset',
     'SocPreprocessedSeqSAToSDataset',
+    'SocPreprocessedSeqSAToSADataset',
+    'SocPreprocessedSeqSAToSAPolicyDataset',
     'SocPreprocessedForwardSAToSADataset',
     'SocPreprocessedForwardSAToSAPolicyDataset',
 ]

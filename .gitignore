@@ -1,8 +1,8 @@
 # App
-tmp
 scripts/results
 data/
 tmp/
+tests/fixtures/soc_*_fullseq.pt
 
 # Python
 __pycache__

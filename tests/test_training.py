@@ -5,7 +5,6 @@ import unittest
 import pandas as pd
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
-import soc
 from soc.training import Runner
 from soc.datasets import make_dataset
 
@@ -36,10 +35,6 @@ class TestTraining(unittest.TestCase):
     def setUpClass(cls):
         cls.states = [pd.read_csv(file) for file in cls.obs_files]
         cls.actions = [pd.read_csv(file) for file in cls.actions_files]
-
-        if not os.path.isfile(_DATASET_PATH):
-            ds = soc.datasets.SocPSQLSeqDataset({})
-            ds.dump_preprocessed_dataset(fixture_dir, True)
 
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))

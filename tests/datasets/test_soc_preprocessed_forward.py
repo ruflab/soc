@@ -3,7 +3,6 @@ import unittest
 import pandas as pd
 import numpy as np
 from unittest.mock import MagicMock
-import soc
 from soc import datasets
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -45,10 +44,6 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
 
         cls._get_states_from_db_se_f = _get_states_from_db_se_f
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
-
-        if not os.path.isfile(_DATASET_PATH):
-            ds = soc.datasets.SocPSQLSeqDataset({})
-            ds.dump_preprocessed_dataset(fixture_dir, True)
 
     def test_dataset_index(self):
         config = {

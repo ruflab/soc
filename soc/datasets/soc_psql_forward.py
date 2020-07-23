@@ -6,7 +6,7 @@ from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
-from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from ..typing import SocDatasetItem, SocDataMetadata
 
 
 class SocPSQLForwardSAToSADataset(SocPSQLDataset):
@@ -26,7 +26,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     history_length: int
     future_length: int
 
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         assert 'history_length' in config
         assert 'future_length' in config
 

@@ -1,14 +1,14 @@
 import multiprocessing
 import os
 import torch
-import pprint
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from torch.nn import Module
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
 from typing import Callable, List, Any, Dict
-from .typing import SocSeqBatch, SocBatch, SocConfig, SocBatchMultipleOut, SocDataMetadata
+from omegaconf import DictConfig
+from .typing import SocSeqBatch, SocBatch, SocBatchMultipleOut, SocDataMetadata
 from .typing import SocSeqPolicyBatch
 from .models import make_model
 from .datasets import make_dataset
@@ -25,9 +25,9 @@ class Runner(pl.LightningModule):
         It contains everything from the dataset to the optimizer.
 
         Args:
-            - config: (SocConfig) Hyper paramete configuration
+            - config: Hyper parameters configuration
     """
-    def __init__(self, config: SocConfig):
+    def __init__(self, config):
         super(Runner, self).__init__()
         self.hparams = config
 
@@ -425,16 +425,10 @@ def val_on_resnet18policy_batch(
     return val_dict
 
 
-def train(config: SocConfig) -> Runner:
+def train(config: DictConfig) -> Runner:
     # Misc part
     if config['generic']['verbose'] is True:
-        import copy
-        tmp_config = copy.deepcopy(config)
-        if "gpus" in tmp_config['trainer']:
-            del tmp_config['trainer']["gpus"]
-        if "tpu_cores" in tmp_config['trainer']:
-            del tmp_config['trainer']["tpu_cores"]
-        pprint.pprint(tmp_config)
+        print(config.pretty())
 
     pl.seed_everything(config['generic']['seed'])
 

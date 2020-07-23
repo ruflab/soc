@@ -4,7 +4,7 @@ import os
 import torch
 from torch.utils.data import Dataset
 from typing import List, Tuple, Union
-from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from ..typing import SocDatasetItem, SocDataMetadata
 from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -32,7 +32,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     input_shape: SOCShape
     output_shape: SOCShape
 
-    def __init__(self, config: SocConfig):
+    def __init__(self, config):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
         default_path = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
@@ -48,7 +48,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         self._set_props(config)
 
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
@@ -178,7 +178,7 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         Output: Tuple of next state and next actions
             Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE

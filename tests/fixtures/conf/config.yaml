@@ -1,0 +1,8 @@
+# defaults:
+# - generic: cpu
+# - trainer: cpu
+# - other: cpu
+
+generic: ???
+trainer: ???
+other: ???

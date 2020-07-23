@@ -1,0 +1,6 @@
+# @package _group_
+target: soc.models.ResNet18Policy
+params:
+    host: localhost
+    user: root
+    password: 1234

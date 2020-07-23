@@ -4,8 +4,35 @@
 import argparse
 import torch.nn as nn
 import torch
+from dataclasses import dataclass, field
+from omegaconf import DictConfig, MISSING
+from typing import List, Tuple
 from .hexa_conv import HexaConv2d
 from .. import utils
+
+
+@dataclass
+class Kernel2d:
+    data: Tuple[int] = field(default_factory=lambda: (3, 3))
+
+@dataclass
+class User:
+    name: str = 'test'
+
+
+@dataclass
+class ConvLSTMConfig:
+    data_input_size: List[int] = MISSING
+    data_output_size: List[int] = MISSING
+
+    num_layers: int = 2
+    h_chan_dim: List[int] = field(default_factory=lambda: [64, 64])
+    kernel_size: List[Kernel2d] = field(default_factory=lambda: [Kernel2d(data=(3, 3))] * 2)
+    dudes: List[User] = field(default_factory=lambda: [User(name='bibop')])
+    yo: int = MISSING
+    batch_first: bool = True
+    bias: bool = True
+    return_all_layers: bool = False
 
 
 class ConvLSTMCell(nn.Module):
@@ -93,26 +120,22 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, config):
+    def __init__(self, config: DictConfig):
         super(ConvLSTM, self).__init__()
 
         data_input_size = config['data_input_size']
         data_output_size = config['data_output_size']
 
-        h_chan_dim = config.get('h_chan_dim', 32)
-        kernel_size = config.get('kernel_size', (3, 3))
-        num_layers = config.get('num_layers', 2)
-        batch_first = config.get('batch_first', True)
-        bias = config.get('bias', True)
-        return_all_layers = config.get('return_all_layers', False)
-
-        self._check_kernel_size_consistency(kernel_size)
+        h_chan_dim = config['h_chan_dim']
+        kernel_size = config['kernel_size']
+        num_layers = config['num_layers']
+        batch_first = config['batch_first']
+        bias = config['bias']
+        return_all_layers = config['return_all_layers']
 
         # Make sure that both `kernel_size` and `h_chan_dim` are lists having len == num_layers
         kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
         h_chan_dim = self._extend_for_multilayer(h_chan_dim, num_layers)
-        if not len(kernel_size) == len(h_chan_dim) == num_layers:
-            raise ValueError('Inconsistent list length.')
 
         self.data_input_size = data_input_size
         self.data_output_size = data_output_size
@@ -232,18 +255,18 @@ class ConvLSTM(nn.Module):
         return init_states
 
     @staticmethod
-    def _check_kernel_size_consistency(kernel_size):
-        if isinstance(kernel_size, tuple):
-            return
-
-        if isinstance(kernel_size, list):
-            if all([isinstance(elem, tuple) for elem in kernel_size]):
-                return
-
-        raise ValueError('`kernel_size` must be tuple or list of tuples')
-
-    @staticmethod
     def _extend_for_multilayer(param, num_layers):
-        if not isinstance(param, list):
-            param = [param] * num_layers
+        if isinstance(param, tuple):
+            param = list(param)
+
+        breakpoint()
+        if isinstance(param, list):
+            if not isinstance(param[0], list):
+                param = [param] * num_layers
+        else:
+            raise ValueError('`param` must be a list')
+
+        if len(param) != num_layers:
+            raise ValueError('`param` list should be of size {}'.format(num_layers))
+
         return param

@@ -5,8 +5,11 @@ import unittest
 import pandas as pd
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
+from hydra.experimental import initialize, compose
+from hydra.core.config_store import ConfigStore
 from soc.training import Runner
 from soc.datasets import make_dataset
+from soc.models.conv_lstm import ConvLSTMConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -61,36 +64,15 @@ class TestTraining(unittest.TestCase):
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'dataset': 'SocPSQLSeqSAToSDataset',
-                'model': 'ConvLSTM',
-                'h_chan_dim': [150, 150],
-                'kernel_size': [(3, 3), (3, 3)],
-                'strides': [(3, 3), (3, 3)],
-                'num_layers': 2,
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': '',
-                'batch_size': 2,  # Data
-                'no_db': True,  # Model
-            },
-            'trainer': {
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
-
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            cs = ConfigStore.instance()
+            cs.store(name="socseqsas_convlstm", node=ConvLSTMConfig)
+            config = compose(config_name="config", overrides=["+training=socseqsas_convlstm"])
+            breakpoint()
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_socseqsas_conv3dmodel(self):
         states = self.states

@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from typing import List, Callable, Union, Tuple
 from . import utils as ds_utils
-from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from ..typing import SocDatasetItem, SocDataMetadata
 from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -37,7 +37,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
         self._set_props(config)
 
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
         self.output_shape = [-1, soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
 
@@ -115,7 +115,7 @@ class SocPreprocessedSeqSAToSADataset(SocPreprocessedSeqSAToSDataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
         self.output_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
 
@@ -156,7 +156,7 @@ class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
         Output: Tuple of next state and next actions
             Dims: ( [-1, C_ss, H, W], [-1, C_ls], [-1, C_actions] )
     """
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
 
         output_shape_spatial = [-1, soc_data.SPATIAL_STATE_SIZE] + soc_data.BOARD_SIZE

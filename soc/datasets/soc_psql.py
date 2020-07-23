@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
 from typing import Any
-from ..typing import SocConfig, SocCollateFn
+from ..typing import SocCollateFn
 
 
 class SocPSQLDataset(Dataset):
@@ -23,7 +23,7 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, config: SocConfig) -> None:
+    def __init__(self, config) -> None:
         super(SocPSQLDataset, self).__init__()
 
         self.no_db = config.get('no_db', False)
@@ -59,7 +59,7 @@ class SocPSQLDataset(Dataset):
 
         return parser
 
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, config):
         pass
 
     def __len__(self) -> int:

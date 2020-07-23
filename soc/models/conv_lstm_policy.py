@@ -269,18 +269,17 @@ class ConvLSTMPolicy(nn.Module):
         return init_states
 
     @staticmethod
-    def _check_kernel_size_consistency(kernel_size):
-        if isinstance(kernel_size, tuple):
-            return
-
-        if isinstance(kernel_size, list):
-            if all([isinstance(elem, tuple) for elem in kernel_size]):
-                return
-
-        raise ValueError('`kernel_size` must be tuple or list of tuples')
-
-    @staticmethod
     def _extend_for_multilayer(param, num_layers):
-        if not isinstance(param, list):
-            param = [param] * num_layers
+        if isinstance(param, tuple):
+            param = list(param)
+
+        if isinstance(param, list):
+            if not isinstance(param[0], list):
+                param = [param] * num_layers
+        else:
+            raise ValueError('`param` must be a list')
+
+        if len(param) != num_layers:
+            raise ValueError('`param` list should be of size {}'.format(num_layers))
+
         return param

@@ -1,8 +1,17 @@
-# defaults:
-# - generic: cpu
-# - trainer: cpu
-# - other: cpu
+defaults:
+  - generic/model: convlstm
+  - generic/dataset: psqlseqsatos
 
-generic: ???
-trainer: ???
-other: ???
+generic:
+  seed: 1
+  verbose: False
+  lr: 1e-3
+  optimizer: adam
+  scheduler:
+  batch_size: 2 # Data
+trainer:
+  fast_dev_run: True
+  default_root_dir: ???
+  logger: False
+other:
+  save_top_k: 0

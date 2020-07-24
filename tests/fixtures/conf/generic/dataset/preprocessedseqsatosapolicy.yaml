@@ -1,0 +1,4 @@
+# @package _group_
+name: SocPreprocessedSeqSAToSAPolicyDataset
+history_length: 3
+future_length: 2

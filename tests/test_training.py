@@ -6,10 +6,8 @@ import pandas as pd
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
 from hydra.experimental import initialize, compose
-from hydra.core.config_store import ConfigStore
 from soc.training import Runner
 from soc.datasets import make_dataset
-from soc.models.conv_lstm import ConvLSTMConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -57,7 +55,7 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=2)
@@ -65,10 +63,12 @@ class TestTraining(unittest.TestCase):
                 return dataset
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
-            cs = ConfigStore.instance()
-            cs.store(name="socseqsas_convlstm", node=ConvLSTMConfig)
-            config = compose(config_name="config", overrides=["+training=socseqsas_convlstm"])
-            breakpoint()
+            config = compose(
+                config_name="config",
+                overrides=["generic/model=convlstm", "generic/dataset=psqlseqsatos"]
+            )
+            config.trainer.default_root_dir = self.folder
+
             seed_everything(config['generic']['seed'])
             runner = TestRunner(config['generic'])
             trainer = Trainer(**config['trainer'], deterministic=True)
@@ -86,44 +86,24 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=2)
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': '',
-                'batch_size': 2,  # Data
-                'dataset': 'SocPSQLSeqSAToSDataset',
-                'no_db': True,  # Model
-                'model': 'Conv3dModel',
-                'h_chan_dim': 64,
-                'kernel_size': (3, 3, 3),
-                'strides': (1, 1, 1),
-                'paddings': (1, 1, 1, 1, 2, 0),
-                'num_layers': 2,
-            },
-            'trainer': {
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=["generic/model=conv3d", "generic/dataset=psqlseqsatos"]
+            )
+            config.trainer.default_root_dir = self.folder
 
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_socforward_resnet(self):
         states = self.states
@@ -143,7 +123,7 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=2)
@@ -151,41 +131,18 @@ class TestTraining(unittest.TestCase):
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'dataset': 'SocPreprocessedForwardSAToSADataset',
-                'dataset_path': _DATASET_PATH,
-                'history_length': 3,
-                'future_length': 2,
-                'model': 'resnet18',
-                'h_chan_dim': 64,
-                'kernel_size': (3, 3),
-                'strides': (1, 1),
-                'paddings': (1, 1),
-                'num_layers': 2,
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': None,
-                'batch_size': 2,  # Data
-                'no_db': True,
-                'first_index': 0,  # Model
-            },
-            'trainer': {
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=["generic/model=resnet18", "generic/dataset=preprocessedforwardsatosa"]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
 
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_socforward_resnet_policy(self):
         states = self.states
@@ -205,7 +162,7 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=4)
@@ -213,37 +170,20 @@ class TestTraining(unittest.TestCase):
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'dataset': 'SocPreprocessedForwardSAToSAPolicyDataset',
-                'dataset_path': _DATASET_PATH,
-                'history_length': 3,
-                'future_length': 2,
-                "model": "ResNet18Policy",
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': None,
-                'batch_size': 3,  # Data
-                'no_db': True,
-                'first_index': 0,  # Model
-            },
-            'trainer': {
-                'overfit_batches': 3,  # To have 3 data in the validation loop
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18policy", "generic/dataset=preprocessedseqsatosapolicy"
+                ]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
 
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_socseq_conv3d_policy(self):
         states = self.states
@@ -263,7 +203,7 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=4)
@@ -271,37 +211,20 @@ class TestTraining(unittest.TestCase):
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'dataset': 'SocPreprocessedSeqSAToSAPolicyDataset',
-                'dataset_path': _DATASET_PATH,
-                'history_length': 3,
-                'future_length': 2,
-                "model": "Conv3dModelPolicy",
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': None,
-                'batch_size': 3,  # Data
-                'no_db': True,
-                'first_index': 0,  # Model
-            },
-            'trainer': {
-                'overfit_batches': 3,  # To have 3 data in the validation loop
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=conv3dpolicy", "generic/dataset=preprocessedseqsatosapolicy"
+                ]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
 
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_socseq_convlstm_policy(self):
         states = self.states
@@ -321,7 +244,7 @@ class TestTraining(unittest.TestCase):
 
         class TestRunner(Runner):
             def setup_dataset(self):
-                dataset = make_dataset(self.hparams)
+                dataset = make_dataset(self.hparams.dataset)
                 dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=4)
@@ -329,34 +252,17 @@ class TestTraining(unittest.TestCase):
 
                 return dataset
 
-        config = {
-            'generic': {
-                'seed': 1,
-                'verbose': False,
-                'dataset': 'SocPreprocessedSeqSAToSAPolicyDataset',
-                'dataset_path': _DATASET_PATH,
-                'history_length': 3,
-                'future_length': 2,
-                "model": "ConvLSTMPolicy",
-                'lr': 1e-3,
-                'optimizer': 'adam',
-                'scheduler': None,
-                'batch_size': 3,  # Data
-                'no_db': True,
-                'first_index': 0,  # Model
-            },
-            'trainer': {
-                'overfit_batches': 3,  # To have 3 data in the validation loop
-                'fast_dev_run': True,
-                'default_root_dir': self.folder,
-                'logger': False,
-            },
-            "other": {
-                "save_top_k": 0
-            }
-        }
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=convlstmpolicy", "generic/dataset=preprocessedseqsatosapolicy"
+                ]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
 
-        seed_everything(config['generic']['seed'])
-        runner = TestRunner(config['generic'])
-        trainer = Trainer(**config['trainer'], deterministic=True)
-        trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = TestRunner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)

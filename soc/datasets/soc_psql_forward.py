@@ -2,11 +2,19 @@ import sqlalchemy
 import numpy as np
 import pandas as pd
 import torch
+from dataclasses import dataclass
+from omegaconf import MISSING
 from typing import Tuple, List
-from .soc_psql import SocPSQLDataset
+from .soc_psql import SocPSQLDataset, PSQLConfig
 from . import utils as ds_utils
 from . import soc_data
 from ..typing import SocDatasetItem, SocDataMetadata
+
+
+@dataclass
+class PSQLForwardConfig(PSQLConfig):
+    history_length: int = MISSING
+    future_length: int = MISSING
 
 
 class SocPSQLForwardSAToSADataset(SocPSQLDataset):
@@ -27,21 +35,9 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     future_length: int
 
     def _set_props(self, config):
-        assert 'history_length' in config
-        assert 'future_length' in config
-
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = super(SocPSQLForwardSAToSADataset, cls).add_argparse_args(parent_parser)
-
-        parser.add_argument('history_length', type=int, default=8)
-        parser.add_argument('future_length', type=int, default=1)
-
-        return parser
 
     def __len__(self) -> int:
         return self._get_length()

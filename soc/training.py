@@ -38,30 +38,34 @@ class Runner(pl.LightningModule):
     def setup(self, stage):
         dataset = self.setup_dataset()
 
-        ds_len = len(dataset)
-        train_len = min(round(0.9 * ds_len), ds_len - 1)
-        val_len = ds_len - train_len
-        soc_train, soc_val = random_split(dataset, [train_len, val_len])
-        self.train_dataset = soc_train
-        self.val_dataset = soc_val
+        self.train_dataset, self.val_dataset = self.split_dataset(dataset)
         self.training_type = dataset.get_training_type()
         self.metadata = dataset.get_output_metadata()
         self.collate_fn = dataset.get_collate_fn()
-        self.hparams['data_input_size'] = dataset.get_input_size()
-        self.hparams['data_output_size'] = dataset.get_output_size()
+        self.hparams.model['data_input_size'] = dataset.get_input_size()
+        self.hparams.model['data_output_size'] = dataset.get_output_size()
 
-        self.model = make_model(self.hparams)
+        self.model = make_model(self.hparams.model)
+
+    def split_dataset(self, dataset, percent: float = 0.9):
+        ds_len = len(dataset)
+        train_len = min(round(percent * ds_len), ds_len - 1)
+        val_len = ds_len - train_len
+        soc_train, soc_val = random_split(dataset, [train_len, val_len])
+
+        return soc_train, soc_val
 
     def setup_dataset(self):
         """This function purpose is mainly to be overrided for tests"""
-        dataset = make_dataset(self.hparams)
+        dataset = make_dataset(self.hparams.dataset)
 
         return dataset
 
     def train_dataloader(self):
         # Ho my god! overfit_batches is broken
         # See https://github.com/PyTorchLightning/pytorch-lightning/issues/2311
-        shuffle = self.hparams['shuffle_dataset'] if 'shuffle_dataset' in self.hparams else True
+        ds_params = self.hparams.dataset
+        shuffle = ds_params['shuffle'] if 'shuffle' in ds_params else True
 
         dataloader = DataLoader(
             self.train_dataset,

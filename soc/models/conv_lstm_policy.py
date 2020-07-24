@@ -116,10 +116,6 @@ class ConvLSTMPolicy(nn.Module):
         bias = config.get('bias', True)
         return_all_layers = config.get('return_all_layers', False)
 
-        self._check_kernel_size_consistency(self.kernel_size)
-        if not len(self.kernel_size) == len(self.h_chan_dim) == self.num_layers:
-            raise ValueError('Inconsistent list length.')
-
         self.batch_first = batch_first
         self.bias = bias
         self.return_all_layers = return_all_layers

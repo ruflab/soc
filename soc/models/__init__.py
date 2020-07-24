@@ -1,34 +1,37 @@
-from .resnet18 import resnet18
+from .resnet18 import resnet18, ResNetConfig
 from .resnet18_policy import ResNet18Policy
-from .conv_lstm import ConvLSTM
+from .conv_lstm import ConvLSTM, ConvLSTMConfig
 from .conv_lstm_policy import ConvLSTMPolicy
-from .conv3d import Conv3dModel
+from .conv3d import Conv3dModel, Conv3dModelConfig
 from .conv3d_policy import Conv3dModelPolicy
 from .hexa_conv import HexaConv2d
 
 __all__ = [
     "resnet18",
     "ResNet18Policy",
+    "ResNetConfig",
     "ConvLSTM",
+    "ConvLSTMConfig",
     "ConvLSTMPolicy",
     "Conv3dModel",
+    "Conv3dModelConfig",
     "Conv3dModelPolicy",
     "HexaConv2d",
 ]
 
 
 def make_model(config):
-    if config['model'] in __all__:
-        return globals()[config['model']](config)
+    if config.name in __all__:
+        return globals()[config.name](config)
     else:
-        raise Exception('The model name {} does not exist'.format(config['model']))
+        raise Exception('The model name {} does not exist'.format(config.name))
 
 
 def get_model_class(config):
-    if config['model'] in __all__:
-        return globals()[config['model']]
+    if config.name in __all__:
+        return globals()[config.name]
     else:
-        raise Exception('The model name {} does not exist'.format(config['model']))
+        raise Exception('The model name {} does not exist'.format(config.name))
 
 
 def get_models_list():

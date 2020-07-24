@@ -1,35 +1,23 @@
 ###
 # Taken from https://raw.githubusercontent.com/ndrplz/ConvLSTM_pytorch/master/convlstm.py
 ###
-import argparse
 import torch.nn as nn
 import torch
 from dataclasses import dataclass, field
-from omegaconf import DictConfig, MISSING
-from typing import List, Tuple
+from omegaconf import MISSING, DictConfig, OmegaConf
+from typing import List, Any
 from .hexa_conv import HexaConv2d
-from .. import utils
 
 
 @dataclass
-class Kernel2d:
-    data: Tuple[int] = field(default_factory=lambda: (3, 3))
-
-@dataclass
-class User:
-    name: str = 'test'
-
-
-@dataclass
-class ConvLSTMConfig:
+class ConvLSTMConfig(DictConfig):
     data_input_size: List[int] = MISSING
     data_output_size: List[int] = MISSING
 
+    name: str = 'convlstm'
     num_layers: int = 2
     h_chan_dim: List[int] = field(default_factory=lambda: [64, 64])
-    kernel_size: List[Kernel2d] = field(default_factory=lambda: [Kernel2d(data=(3, 3))] * 2)
-    dudes: List[User] = field(default_factory=lambda: [User(name='bibop')])
-    yo: int = MISSING
+    kernel_size: List[Any] = field(default_factory=lambda: [(3, 3)] * 2)
     batch_first: bool = True
     bias: bool = True
     return_all_layers: bool = False
@@ -120,31 +108,23 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, config: DictConfig):
+    def __init__(self, config: ConvLSTMConfig):
         super(ConvLSTM, self).__init__()
 
-        data_input_size = config['data_input_size']
-        data_output_size = config['data_output_size']
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        config = OmegaConf.to_container(config)
 
-        h_chan_dim = config['h_chan_dim']
-        kernel_size = config['kernel_size']
-        num_layers = config['num_layers']
-        batch_first = config['batch_first']
-        bias = config['bias']
-        return_all_layers = config['return_all_layers']
-
-        # Make sure that both `kernel_size` and `h_chan_dim` are lists having len == num_layers
-        kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
-        h_chan_dim = self._extend_for_multilayer(h_chan_dim, num_layers)
-
-        self.data_input_size = data_input_size
-        self.data_output_size = data_output_size
-        self.h_chan_dim = h_chan_dim
-        self.kernel_size = kernel_size
-        self.num_layers = num_layers
-        self.batch_first = batch_first
-        self.bias = bias
-        self.return_all_layers = return_all_layers
+        self.data_input_size = config['data_input_size']
+        self.data_output_size = config['data_output_size']
+        self.num_layers = config['num_layers']
+        self.kernel_size = self._extend_for_multilayer(config['kernel_size'])
+        self.check_kernel_size()
+        self.h_chan_dim = self._extend_for_multilayer(config['h_chan_dim'])
+        self.check_h_chan_dim()
+        self.batch_first = config['batch_first']
+        self.bias = config['bias']
+        self.return_all_layers = config['return_all_layers']
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -165,36 +145,9 @@ class ConvLSTM(nn.Module):
             in_channels=self.h_chan_dim[-1],
             out_channels=self.data_output_size[0],
             kernel_size=self.kernel_size[-1],
-            padding=(kernel_size[-1][0] // 2, kernel_size[-1][1] // 2),
+            padding=(self.kernel_size[-1][0] // 2, self.kernel_size[-1][1] // 2),
             bias=self.bias
         )
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--h_chan_dim',
-            type=int,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of hidden channels per layer'
-        )
-        parser.add_argument(
-            '--kernel_size',
-            type=utils.soc_tuple,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of Kernel size per layer'
-        )
-        parser.add_argument(
-            '--num_layers', type=int, default=argparse.SUPPRESS, help='Number of layers'
-        )
-        parser.add_argument('--batch_first', type=bool, default=argparse.SUPPRESS)
-        parser.add_argument('--bias', type=bool, default=argparse.SUPPRESS)
-        parser.add_argument('--return_all_layers', type=bool, default=argparse.SUPPRESS)
-
-        return parser
 
     def forward(self, input_tensor, hidden_state=None):
         """
@@ -254,19 +207,24 @@ class ConvLSTM(nn.Module):
             init_states.append(self.cell_list[i].init_hidden(batch_size, image_size))
         return init_states
 
-    @staticmethod
-    def _extend_for_multilayer(param, num_layers):
-        if isinstance(param, tuple):
-            param = list(param)
+    def check_kernel_size(self):
+        if not isinstance(self.kernel_size, list):
+            raise ValueError('`self.kernel_size` must be a list of list of 2 ints')
+        if not all([isinstance(x, list) and len(x) == 2 for x in self.kernel_size]):
+            raise ValueError('`self.kernel_size` must be a list of list of 2 ints')
 
-        breakpoint()
-        if isinstance(param, list):
-            if not isinstance(param[0], list):
-                param = [param] * num_layers
-        else:
-            raise ValueError('`param` must be a list')
+    def check_h_chan_dim(self):
+        if not isinstance(self.h_chan_dim, list):
+            raise ValueError('`self.h_chan_dim` must be a list of list of 2 ints')
 
-        if len(param) != num_layers:
-            raise ValueError('`param` list should be of size {}'.format(num_layers))
+        if not all([type(x) == int for x in self.h_chan_dim]):
+            raise ValueError('`self.h_chan_dim` must be a list of ints')
+
+    def _extend_for_multilayer(self, param: list):
+        if len(param) == 1:
+            param = [param[0]] * self.num_layers
+
+        if len(param) != self.num_layers:
+            raise ValueError('`param` list should be of size {}'.format(self.num_layers))
 
         return param

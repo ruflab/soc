@@ -1,9 +1,22 @@
-import argparse
-from argparse import ArgumentParser
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from typing import Any
 from ..typing import SocCollateFn
+
+
+@dataclass
+class PSQLConfig(DictConfig):
+    name: str = MISSING
+    no_db: bool = False
+    psql_username: str = 'deepsoc'
+    psql_host: str = 'localhost'
+    psql_port: int = 5432
+    psql_db_name: str = 'soc'
+
+    first_index: int = 100
+    shuffle: bool = True
 
 
 class SocPSQLDataset(Dataset):
@@ -23,7 +36,7 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: PSQLConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
         self.no_db = config.get('no_db', False)
@@ -45,19 +58,6 @@ class SocPSQLDataset(Dataset):
             )
 
         self._set_props(config)
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument('no_db', type=str, default=False)
-        parser.add_argument('psql_username', type=str, default='deepsoc')
-        parser.add_argument('psql_host', type=str, default='localhost')
-        parser.add_argument('psql_port', type=int, default=5432)
-        parser.add_argument('psql_db_name', type=str, default='soc')
-        parser.add_argument('first_index', type=int, default=100)
-
-        return parser
 
     def _set_props(self, config):
         pass

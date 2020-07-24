@@ -1,8 +1,8 @@
-import argparse
-from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from typing import List, Tuple, Union
 from ..typing import SocDatasetItem, SocDataMetadata
 from . import soc_data
@@ -11,6 +11,16 @@ cfd = os.path.dirname(os.path.realpath(__file__))
 _DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
 
 SOCShape = Union[Tuple[List[int], ...], List[int]]
+
+
+@dataclass
+class PreprocessedForwardConfig(DictConfig):
+    name: str = MISSING
+    dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
+    history_length: int = MISSING
+    future_length: int = MISSING
+
+    shuffle: bool = True
 
 
 class SocPreprocessedForwardSAToSADataset(Dataset):
@@ -32,11 +42,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     input_shape: SOCShape
     output_shape: SOCShape
 
-    def __init__(self, config):
+    def __init__(self, config: PreprocessedForwardConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        default_path = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
-        self.path = config.get('dataset_path', default_path)
+        self.path = config['dataset_path']
         self.data = torch.load(self.path)
 
         assert 'history_length' in config
@@ -55,20 +64,6 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.output_shape = [
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--dataset_path',
-            type=str,
-            default=argparse.SUPPRESS,
-        )
-        parser.add_argument('history_length', type=int, default=8)
-        parser.add_argument('future_length', type=int, default=1)
-
-        return parser
 
     def __len__(self) -> int:
         return self._get_length()

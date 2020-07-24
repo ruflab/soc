@@ -2,15 +2,17 @@
 generic:
     seed: 1
     verbose: true
-    dataset: SocPreprocessedSeqSAToSAPolicyDataset
-    model: Conv3dModelPolicy
-    num_layers: 8
-    h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
+    dataset:
+        name: SocPreprocessedSeqSAToSAPolicyDataset
+        shuffle: false
+    model:
+        name: Conv3dModelPolicy
+        num_layers: 8
+        h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
     lr: 0.0005
     optimizer: adam
     scheduler: null
     batch_size: 1
-    shuffle_dataset: false
 trainer:
     logger: true
     deterministic: true

@@ -1,8 +1,8 @@
-import argparse
-from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from typing import List, Callable, Union, Tuple
 from . import utils as ds_utils
 from ..typing import SocDatasetItem, SocDataMetadata
@@ -12,6 +12,14 @@ cfd = os.path.dirname(os.path.realpath(__file__))
 _DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
 
 OutputShape = Union[List[int], Tuple[List[int], ...]]
+
+
+@dataclass
+class PreprocessedSeqConfig(DictConfig):
+    name: str = MISSING
+    dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
+
+    shuffle: bool = True
 
 
 class SocPreprocessedSeqSAToSDataset(Dataset):
@@ -40,18 +48,6 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
     def _set_props(self, config):
         self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
         self.output_shape = [-1, soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--dataset_path',
-            type=str,
-            default=argparse.SUPPRESS,
-        )
-
-        return parser
 
     def __len__(self) -> int:
         return len(self.data)

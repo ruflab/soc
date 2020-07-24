@@ -2,15 +2,17 @@
 generic:
     seed: 1
     verbose: true
-    dataset: SocPreprocessedForwardSAToSAPolicyDataset
-    history_length: 16
-    future_length: 4
-    model: ResNet18Policy
+    dataset:
+        name: SocPreprocessedForwardSAToSAPolicyDataset
+        history_length: 16
+        future_length: 4
+        shuffle: false
+    model:
+        name: ResNet18Policy
     lr: 0.0005
     optimizer: adam
     scheduler: null
     batch_size: 32
-    shuffle_dataset: false
 trainer:
     logger: true
     deterministic: true

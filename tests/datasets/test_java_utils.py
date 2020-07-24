@@ -2,10 +2,11 @@ import os
 import unittest
 import numpy as np
 import pandas as pd
-from soc import java_utils as ju
+from soc.datasets import java_utils as ju
+from soc.datasets import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
-fixture_dir = os.path.join(cfd, 'fixtures')
+fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestJavaUtils(unittest.TestCase):
@@ -90,3 +91,69 @@ class TestJavaUtils(unittest.TestCase):
         players_plans = ju.parse_player_infos(p_infos)
 
         assert players_plans.shape == (4 * 41, 7, 7)
+
+    def test_parse_actions(self):
+        action_file = os.path.join(fixture_dir, 'gameactions_100.csv')
+        df = pd.read_csv(action_file)
+        actions = df['type'].iloc[[0, 1, 2, 9, -1]]
+
+        x = np.stack(actions.apply(ju.parse_actions))
+
+        y = np.zeros([5, soc_data.ACTION_SIZE, 7, 7])
+        y[0, 1] = 1
+        y[1, 5] = 1
+        y[2, 4] = 1
+        y[3, 5] = 1
+        y[4, -1] = 1
+
+        np.testing.assert_array_equal(x, y)
+
+    def test_parse_dice_result(self):
+        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
+        df = pd.read_csv(obs_file)
+        diceresults = df['diceresult'].iloc[[0, 1, 9, 18, 83, -1]]
+
+        x = np.stack(diceresults.apply(ju.parse_dice_result))
+
+        y = np.zeros([6, soc_data.STATE_COLS_SIZE['diceresult'], 7, 7])
+
+        y[0, -2] = 1
+        y[1, -2] = 1
+        y[2, -2] = 1
+        y[3, 5] = 1
+        y[4, 7] = 1
+        y[5, 5] = 1
+
+        np.testing.assert_array_equal(x, y)
+
+    def test_parse_game_phases(self):
+        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
+        df = pd.read_csv(obs_file)
+        gamestates = df['gamestate'].iloc[[0, 1, 2, 9, -1]]
+
+        x = np.stack(gamestates.apply(ju.parse_game_phases))
+
+        y = np.zeros([5, soc_data.STATE_COLS_SIZE['gamestate'], 7, 7])
+        y[0, 5] = 1
+        y[1, 6] = 1
+        y[2, 5] = 1
+        y[3, 8] = 1
+        y[4, -1] = 1
+
+        np.testing.assert_array_equal(x, y)
+
+    def test_parse_current_player(self):
+        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
+        df = pd.read_csv(obs_file)
+        currentplayers = df['currentplayer'].iloc[[0, 1, 2, 9, -1]]
+
+        x = np.stack(currentplayers.apply(ju.parse_current_player))
+
+        y = np.zeros([5, 4, 7, 7])
+        y[0, 3] = 1
+        y[1, 3] = 1
+        y[2, 0] = 1
+        y[3, 2] = 1
+        y[4, 3] = 1
+
+        np.testing.assert_array_equal(x, y)

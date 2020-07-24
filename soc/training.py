@@ -2,16 +2,19 @@ import multiprocessing
 import os
 import torch
 import pprint
-from torch.nn import Module
-from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
+from torch.nn import Module
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
 from typing import Callable, List, Any, Dict
-from .typing import SocSeqBatch, SocBatch, SocConfig
+from .typing import SocSeqBatch, SocBatch, SocConfig, SocBatchMultipleOut, SocDataMetadata
+from .typing import SocSeqPolicyBatch
 from .models import make_model
 from .datasets import make_dataset
+from . import val
+from .losses import compute_losses
+from .val import compute_accs
 
 CollateFnType = Callable[[List[Any]], Any]
 
@@ -28,11 +31,6 @@ class Runner(pl.LightningModule):
         super(Runner, self).__init__()
         self.hparams = config
 
-        if self.hparams['loss_name'] == 'mse':
-            self.loss_f = F.mse_loss
-        else:
-            raise Exception('Unknown loss function {}'.format(self.hparams['loss_name']))
-
     def prepare_data(self):
         # Download data here if needed
         pass
@@ -47,6 +45,7 @@ class Runner(pl.LightningModule):
         self.train_dataset = soc_train
         self.val_dataset = soc_val
         self.training_type = dataset.get_training_type()
+        self.metadata = dataset.get_output_metadata()
         self.collate_fn = dataset.get_collate_fn()
         self.hparams['data_input_size'] = dataset.get_input_size()
         self.hparams['data_output_size'] = dataset.get_output_size()
@@ -60,10 +59,14 @@ class Runner(pl.LightningModule):
         return dataset
 
     def train_dataloader(self):
+        # Ho my god! overfit_batches is broken
+        # See https://github.com/PyTorchLightning/pytorch-lightning/issues/2311
+        shuffle = self.hparams['shuffle_dataset'] if 'shuffle_dataset' in self.hparams else True
+
         dataloader = DataLoader(
             self.train_dataset,
             batch_size=self.hparams['batch_size'],
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=multiprocessing.cpu_count(),
             collate_fn=self.collate_fn,
         )
@@ -100,22 +103,31 @@ class Runner(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         if self.training_type == 'supervised_seq':
-            loss = train_on_supervised_seq_batch(batch, self.model, self.loss_f)
+            train_dict = train_on_supervised_seq_batch(batch, self.model, self.metadata)
+        elif self.training_type == 'supervised_seq_policy':
+            train_dict = train_on_supervised_seq_policy_batch(batch, self.model, self.metadata)
         elif self.training_type == 'supervised_forward':
-            loss = train_on_supervised_forward_batch(batch, self.model, self.loss_f)
+            train_dict = train_on_supervised_forward_batch(batch, self.model, self.metadata)
+        elif self.training_type == 'resnet18policy':
+            train_dict = train_on_resnet18policy_batch(batch, self.model, self.metadata)
         else:
             raise Exception(
                 "No training process exist for this training type: {}".format(self.training_type)
             )
 
-        logs = {'train_loss': loss}
-        return {'loss': loss, 'log': logs}
+        final_dict = {'loss': train_dict['train_loss'], 'log': train_dict}
+
+        return final_dict
 
     def validation_step(self, batch, batch_idx):
         if self.training_type == 'supervised_seq':
-            val_dict = val_on_supervised_seq_batch(batch, self.model, self.loss_f)
+            val_dict = val_on_supervised_seq_batch(batch, self.model, self.metadata)
+        elif self.training_type == 'supervised_seq_policy':
+            val_dict = val_on_supervised_seq_policy_batch(batch, self.model, self.metadata)
         elif self.training_type == 'supervised_forward':
-            val_dict = val_on_supervised_forward_batch(batch, self.model, self.loss_f)
+            val_dict = val_on_supervised_forward_batch(batch, self.model, self.metadata)
+        elif self.training_type == 'resnet18policy':
+            val_dict = val_on_resnet18policy_batch(batch, self.model, self.metadata)
         else:
             raise Exception(
                 "No training process exist for this training type: {}".format(self.training_type)
@@ -131,16 +143,13 @@ class Runner(pl.LightningModule):
         for k in outputs[0].keys():
             logs[k] = _mean(outputs, k)
 
-        final_dict = {
-            'val_loss': logs['val_loss'], 'val_accuracy': logs['val_accuracy'], 'log': logs
-        }
+        final_dict = {'val_accuracy': logs['val_accuracy'], 'log': logs}
 
         return final_dict
 
 
-def train_on_supervised_seq_batch(
-        batch: SocSeqBatch, model: Module, loss_f: Callable
-) -> torch.Tensor:
+def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
+                                  metadata: SocDataMetadata) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -156,20 +165,24 @@ def train_on_supervised_seq_batch(
     # We assume the model outputs a tuple where the first element
     # is the actual predictions
     outputs = model(x)
-    y_preds_raw = outputs[0]
-    y_preds = y_preds_raw * mask
+    y_logits_raw = outputs[0]
+    y_logits = y_logits_raw * mask
 
-    bs, seq_len, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * seq_len, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * seq_len, C, W, H)
+    train_dict = compute_losses(metadata, y_logits, y_true)
 
-    loss = loss_f(y_preds_reshaped, y_true_reshaped)
+    loss = torch.tensor(0., device=y_logits.device)
+    for k, l in train_dict.items():
+        loss += l
+    train_dict['train_loss'] = loss
 
-    return loss
+    return train_dict
 
 
-def val_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
-                                loss_f: Callable) -> Dict[str, torch.Tensor]:
+def val_on_supervised_seq_batch(
+    batch: SocSeqBatch,
+    model: Module,
+    metadata: SocDataMetadata,
+) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
     x = batch[0]
@@ -179,46 +192,114 @@ def val_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
     # We assume the model outputs a tuple where the first element
     # is the actual predictions
     outputs = model(x)
-    y_preds_raw = outputs[0]
-    y_preds = y_preds_raw * mask
+    y_logits_raw = outputs[0]
+    y_logits = y_logits_raw * mask
 
-    bs, seq_len, C, H, W = y_true.shape
-    y_preds_reshaped = y_preds.reshape(bs * seq_len, C, W, H)
-    y_true_reshaped = y_true.reshape(bs * seq_len, C, W, H)
+    val_dict = compute_accs(metadata, y_logits, y_true)
 
-    loss = loss_f(y_preds_reshaped, y_true_reshaped)
+    one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
+    if 'actions' in metadata.keys():
+        one_meta['actions_one_mean'] = metadata['actions']
+    val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
 
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_preds_int = torch.round(y_preds)
-    acc = (y_preds_int == y_true).type(loss.dtype).mean()  # type: ignore
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
 
-    dtype = loss.dtype
-    acc_map = (y_preds_int[:, 0:2] == y_true[:, 0:2]).type(dtype).mean()  # type: ignore
-    acc_props = (y_preds_int[:, 2:9] == y_true[:, 2:9]).type(dtype).mean()  # type: ignore
-    acc_pieces = (y_preds_int[:, 9:81] == y_true[:, 9:81]).type(dtype).mean()  # type: ignore
-    acc_infos = (y_preds_int[:, 81:245] == y_true[:, 81:245]).type(dtype).mean()  # type: ignore
+    val_dict['val_accuracy'] = val_acc
 
-    data = {
-        'val_loss': loss,
-        'val_accuracy': acc,
-        'acc_map': acc_map,
-        'acc_properties': acc_props,
-        'acc_pieces': acc_pieces,
-        'acc_public_infos': acc_infos,
-    }
-    if y_preds.shape[1] == 245 + 17:
-        acc_act = (y_preds_int[:, 245:] == y_true[:, 245:]).type(loss.dtype).mean()  # type: ignore
-        acc_act_one_mean = (y_preds_int[:, 245:] == 1).mean()
-        data['acc_action'] = acc_act
-        data['acc_act_one_mean'] = acc_act_one_mean
-
-    return data
+    return val_dict
 
 
-def train_on_supervised_forward_batch(
-        batch: SocBatch, model: Module, loss_f: Callable
-) -> torch.Tensor:
+def train_on_supervised_seq_policy_batch(
+    batch: SocSeqPolicyBatch, model: Module, metadata: List[SocDataMetadata]
+) -> Dict[str, torch.Tensor]:
+    """
+        This function apply an batch update to the model.
+
+        Args:
+            - batch: (x, y, mask) batch of data
+            - model: (Module) the model
+            - loss_f: (Callable) the loss function to apply
+    """
+    x_seq = batch[0]
+    y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+
+    mask_spatial, mask_linear, mask_action = batch[2]
+
+    # We assume the model outputs a tuple where the first element
+    # is the actual predictions
+    outputs = model(x_seq)
+    y_spatial_s_logits_seq_raw, y_s_logits_seq_raw, y_a_logits_seq_raw = outputs[0]
+    y_spatial_s_logits_seq = y_spatial_s_logits_seq_raw * mask_spatial
+    y_s_logits_seq = y_s_logits_seq_raw * mask_linear
+    y_a_logits_seq = y_a_logits_seq_raw * mask_action
+
+    spatial_metadata, linear_metadata, actions_metadata = metadata
+
+    train_dict = {}
+    train_dict.update(
+        compute_losses(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq)
+    )
+    train_dict.update(compute_losses(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    train_dict.update(compute_losses(actions_metadata, y_a_logits_seq, y_a_true_seq))
+
+    loss = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, l in train_dict.items():
+        loss += l
+
+    train_dict['train_loss'] = loss
+
+    return train_dict
+
+
+def val_on_supervised_seq_policy_batch(
+    batch: SocSeqPolicyBatch, model: Module, metadata: List[SocDataMetadata]
+) -> Dict[str, torch.Tensor]:
+    """
+        This function apply an batch update to the model.
+
+        Args:
+            - batch: (x, y, mask) batch of data
+            - model: (Module) the model
+            - loss_f: (Callable) the loss function to apply
+    """
+    x_seq = batch[0]
+    y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+
+    mask_spatial, mask_linear, mask_action = batch[2]
+
+    # We assume the model outputs a tuple where the first element
+    # is the actual predictions
+    outputs = model(x_seq)
+    y_spatial_s_logits_seq_raw, y_s_logits_seq_raw, y_a_logits_seq_raw = outputs[0]
+    y_spatial_s_logits_seq = y_spatial_s_logits_seq_raw * mask_spatial
+    y_s_logits_seq = y_s_logits_seq_raw * mask_linear
+    y_a_logits_seq = y_a_logits_seq_raw * mask_action
+
+    spatial_metadata, linear_metadata, actions_metadata = metadata
+
+    val_dict = {}
+    val_dict.update(compute_accs(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq))
+    val_dict.update(compute_accs(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    val_dict.update(compute_accs(actions_metadata, y_a_logits_seq, y_a_true_seq))
+
+    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
+
+    val_acc = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
+
+    val_dict['val_accuracy'] = val_acc
+
+    return val_dict
+
+
+def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
+                                      metadata: SocDataMetadata) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -230,84 +311,118 @@ def train_on_supervised_forward_batch(
     x = batch[0]
     y_true = batch[1]
 
-    y_preds = model(x)
+    y_logits = model(x)
 
-    loss = loss_f(y_preds, y_true)
+    train_dict = compute_losses(metadata, y_logits, y_true)
 
-    return loss
+    loss = torch.tensor(0., device=y_logits.device)
+    for k, l in train_dict.items():
+        loss += l
+    train_dict['train_loss'] = loss
+
+    return train_dict
 
 
-def val_on_supervised_forward_batch(batch: SocBatch, model: Module,
-                                    loss_f: Callable) -> Dict[str, torch.Tensor]:
+def val_on_supervised_forward_batch(
+    batch: SocBatch,
+    model: Module,
+    metadata: SocDataMetadata,
+) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
     x = batch[0]
     y_true = batch[1]
 
-    y_preds = model(x)
+    y_logits = model(x)
 
-    loss = loss_f(y_preds, y_true)
+    val_dict = compute_accs(metadata, y_logits, y_true)
 
-    # Actions and state are represented as ints
-    # We can compute a simple decision boundary by using the round function
-    y_preds_int = torch.round(y_preds)
-    dtype = loss.dtype
-    acc = (y_preds_int == y_true).type(dtype).mean()  # type: ignore
-
-    data = {
-        'val_loss': loss,
-        'val_accuracy': acc, }
-
-    def mean_indices(t1, t2, start_i, end_i):
-        equal_tensor = (t1[:, start_i:end_i] == t2[:, start_i:end_i])
-        return equal_tensor.type(dtype).mean()  # type: ignore
-
-    ones = torch.ones(y_preds_int.shape, device=y_preds_int.device)
-    if y_preds.shape[1] % 262 == 0:
-        timestep = y_preds.shape[1] // 262
-        acc_map = 0
-        acc_props = 0
-        acc_pieces = 0
-        acc_pieces_one_mean = 0
-        acc_infos = 0
-        acc_act = 0
-        acc_act_one_mean = 0
-        for i in range(timestep):
-            start_i = i * 262
-            acc_map += mean_indices(y_preds_int, y_true, start_i + 0, start_i + 2)
-            acc_props += mean_indices(y_preds_int, y_true, start_i + 2, start_i + 9)
-            acc_pieces += mean_indices(y_preds_int, y_true, start_i + 9, start_i + 81)
-            acc_pieces_one_mean += mean_indices(y_preds_int, ones, start_i + 9, start_i + 81)
-            acc_infos += mean_indices(y_preds_int, y_true, start_i + 81, start_i + 245)
-            acc_act += mean_indices(y_preds_int, y_true, start_i + 245, start_i + 262)
-            acc_act_one_mean += mean_indices(y_preds_int, ones, start_i + 245, start_i + 262)
-
-        data['acc_map'] = acc_map / timestep
-        data['acc_properties'] = acc_props / timestep
-        data['acc_pieces'] = acc_pieces / timestep
-        data['acc_pieces_one_mean'] = acc_pieces_one_mean / timestep
-        data['acc_public_infos'] = acc_infos / timestep
-        data['acc_action'] = acc_act / timestep
-        data['acc_act_one_mean'] = acc_act_one_mean / timestep
+    if 'mean_piecesonboard' in metadata.keys():
+        prefix = 'mean_'
     else:
-        timestep = y_preds.shape[1] // 245
-        acc_map = 0
-        acc_props = 0
-        acc_pieces = 0
-        acc_infos = 0
-        for i in range(timestep):
-            start_i = i * 245
-            acc_map += mean_indices(y_preds_int, y_true, start_i + 0, start_i + 2)
-            acc_props += mean_indices(y_preds_int, y_true, start_i + 2, start_i + 9)
-            acc_pieces += mean_indices(y_preds_int, y_true, start_i + 9, start_i + 81)
-            acc_infos += mean_indices(y_preds_int, y_true, start_i + 81, start_i + 245)
+        prefix = ''
+    one_meta = {'piecesonboard_one_mean': metadata[prefix + 'piecesonboard']}
+    if 'actions' in metadata.keys() or 'mean_actions' in metadata.keys():
+        one_meta['actions_one_mean'] = metadata[prefix + 'actions']
+    val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
 
-        data['acc_map'] = acc_map / timestep
-        data['acc_properties'] = acc_props / timestep
-        data['acc_pieces'] = acc_pieces / timestep
-        data['acc_public_infos'] = acc_infos / timestep
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
 
-    return data
+    val_dict['val_accuracy'] = val_acc
+
+    return val_dict
+
+
+def train_on_resnet18policy_batch(
+    batch: SocBatchMultipleOut,
+    model: Module,
+    metadata: List[SocDataMetadata],
+) -> Dict[str, torch.Tensor]:
+    """
+        This function apply an batch update to the model.
+
+        Args:
+            - batch: (x, y) batch of data
+            - model: (Module) the model
+            - state_loss_f: (Callable) the loss function for states
+            - ation_loss_f: (Callable) the loss function for states
+    """
+    x_seq = batch[0]
+    y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+
+    y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = model(x_seq)
+
+    spatial_metadata, linear_metadata, actions_metadata = metadata
+
+    train_dict = {}
+    train_dict.update(
+        compute_losses(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq)
+    )
+    train_dict.update(compute_losses(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    train_dict.update(compute_losses(actions_metadata, y_a_logits_seq, y_a_true_seq))
+
+    loss = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, l in train_dict.items():
+        loss += l
+
+    train_dict['train_loss'] = loss
+
+    return train_dict
+
+
+def val_on_resnet18policy_batch(
+    batch: SocBatchMultipleOut,
+    model: Module,
+    metadata: List[SocDataMetadata],
+) -> Dict[str, torch.Tensor]:
+    """This function computes the validation loss and accuracy of the model."""
+
+    x_seq = batch[0]
+    y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+
+    y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = model(x_seq)
+
+    spatial_metadata, linear_metadata, actions_metadata = metadata
+
+    val_dict = {}
+    val_dict.update(compute_accs(spatial_metadata, y_spatial_s_logits_seq, y_spatial_s_true_seq))
+    val_dict.update(compute_accs(linear_metadata, y_s_logits_seq, y_s_true_seq))
+    val_dict.update(compute_accs(actions_metadata, y_a_logits_seq, y_a_true_seq))
+
+    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
+
+    val_acc = torch.tensor(0., device=y_spatial_s_logits_seq.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc /= len(val_dict)
+
+    val_dict['val_accuracy'] = val_acc
+
+    return val_dict
 
 
 def train(config: SocConfig) -> Runner:
@@ -367,8 +482,8 @@ def train(config: SocConfig) -> Runner:
         verbose=True,
         save_top_k=save_top_k,
         save_last=True,
-        monitor='val_loss',
-        mode='min',
+        monitor='val_accuracy',
+        mode='max',
     )
     config['trainer']['checkpoint_callback'] = checkpoint_callback
 

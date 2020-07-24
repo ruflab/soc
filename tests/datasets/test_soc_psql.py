@@ -3,6 +3,7 @@ import unittest
 import pandas as pd
 from unittest.mock import MagicMock
 from soc import datasets
+from soc.datasets import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, '..', 'fixtures')
@@ -45,8 +46,10 @@ class TestSocPSQLDataset(unittest.TestCase):
         seqs = dataset[0]
         assert len(seqs) == 2
         assert len(seqs[0]) == 297
-        assert seqs[0][0].shape == (245, 7, 7)
+        assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
+        assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)
 
         seqs = dataset[1]
         assert len(seqs[0]) == 270
-        assert seqs[0][0].shape == (245, 7, 7)
+        assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
+        assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)

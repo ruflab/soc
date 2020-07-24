@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from unittest.mock import MagicMock
 import soc
 from soc.datasets import utils as ds_utils
+from soc.datasets import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
@@ -52,6 +53,6 @@ class TestUtils(unittest.TestCase):
         x = next(iter(dataloader))
 
         assert len(x) == 3
-        assert x[0].shape == (2, 8, 262, 7, 7)
-        assert x[1].shape == (2, 8, 245, 7, 7)
-        assert x[2].shape == (2, 8, 245, 7, 7)
+        assert x[0].shape == (2, 8, soc_data.STATE_SIZE + soc_data.ACTION_SIZE, 7, 7)
+        assert x[1].shape == (2, 8, soc_data.STATE_SIZE, 7, 7)
+        assert x[2].shape == (2, 8, soc_data.STATE_SIZE, 7, 7)

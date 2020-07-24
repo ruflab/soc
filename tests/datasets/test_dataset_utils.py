@@ -1,9 +1,12 @@
 import os
 import unittest
 import pandas as pd
+import numpy as np
+import torch
 from unittest.mock import MagicMock
 from soc import datasets
 from soc.datasets import utils as ds_utils
+from soc.datasets import java_utils as ju
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, '..', 'fixtures')
@@ -59,3 +62,40 @@ class TestUtils(unittest.TestCase):
         assert s_in == s_out
         assert in_data.shape == (2, s - 1, input_size[0], input_size[1], input_size[2])
         assert out_data.shape == (2, s - 1, output_size[0], output_size[1], output_size[2])
+
+    def test_normalize_hexlayout_np(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        hexlayout = seq_data['hexlayout'].apply(ju.parse_layout).apply(ju.mapping_1d_2d)[0]
+
+        normed = ds_utils.normalize_hexlayout(hexlayout)
+        hexlayout_reconstructed = ds_utils.unnormalize_hexlayout(normed)
+
+        np.testing.assert_array_equal(hexlayout_reconstructed, hexlayout)
+
+    def test_normalize_hexlayout_torch(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        hexlayout = seq_data['hexlayout'].apply(ju.parse_layout).apply(ju.mapping_1d_2d)[0]
+        hexlayout_t = torch.tensor(hexlayout)
+
+        normed = ds_utils.normalize_hexlayout(hexlayout_t)
+        hexlayout_reconstructed = ds_utils.unnormalize_hexlayout(normed)
+
+        np.testing.assert_array_equal(hexlayout_reconstructed, hexlayout_t)
+
+    def test_normalize_numberlayout_np(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        numberlayout = seq_data['numberlayout'].apply(ju.parse_layout).apply(ju.mapping_1d_2d)[0]
+        normed = ds_utils.normalize_numberlayout(numberlayout)
+        numberlayout_reconstructed = ds_utils.unnormalize_numberlayout(normed)
+
+        np.testing.assert_array_equal(numberlayout_reconstructed, numberlayout)
+
+    def test_normalize_numberlayout_torch(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        numberlayout = seq_data['numberlayout'].apply(ju.parse_layout).apply(ju.mapping_1d_2d)[0]
+        numberlayout_t = torch.tensor(numberlayout)
+
+        normed = ds_utils.normalize_numberlayout(numberlayout_t)
+        numberlayout_reconstructed = ds_utils.unnormalize_numberlayout(normed)
+
+        np.testing.assert_array_equal(numberlayout_reconstructed, numberlayout_t)

@@ -1,6 +1,7 @@
 import re
 import numpy as np
 from typing import List, Tuple, Dict
+from . import soc_data
 
 # Types
 IntVector = List[int]
@@ -83,14 +84,16 @@ _lands_building_rel_pos = {
     0x21: 2,
     0x10: 3,
     -0x01: 4,
-    -0x10: 5, }
+    -0x10: 5,
+}
 _lands_road_rel_pos = {
     0x01: 0,
     0x11: 1,
     0x10: 2,
     -0x01: 3,
     -0x11: 4,
-    -0x10: 5, }
+    -0x10: 5,
+}
 
 
 def parse_layout(raw_data: str) -> IntVector:
@@ -235,29 +238,31 @@ def parse_pieces(pieces: str) -> np.ndarray:
 def parse_player_infos(p_infos: str) -> np.ndarray:
     """
         Parse the JAVA representation for players
-
+        4 arrays of 41 datum
         It is a list of int ordered as:
-            - player's ID (from the db, int)
-            - public vp (int)
-            - total vp (int)
-            - largest army (LA, bool)
-            - longest road (LR, bool)
-            - total number of development cards in hand (int)
-            - number of dev cards which represent a vp (int)
+            - 0, player's ID (from the db, int)
+            - 1, public vp (int)
+            - 2, total vp (int)
+            - 3, largest army (LA, bool)
+            - 4, longest road (LR, bool)
+            - 5, total number of development cards in hand (int)
+            - 6, number of dev cards which represent a vp (int)
 
-            - an array[5] of all the unplayed dev cards
-            - an array[5] of all the newly bought dev cards
-            - number of played knights
+            - 7:11, all the unplayed dev cards (int)
+            - 12:16, all the newly bought dev cards (int)
+            - 17, how many knight (moving robber) cards played by this player
 
-            - an array[6]: number of each resource (clay, ore, sheep, wheat, wood, unknown)
+            - 18:23, number of each resource (clay, ore, sheep, wheat, wood, unknown)
 
-            - an array[5] of which resource types the player is touching
-            - an array[6] of which port types the player is touching
-            - an array[3] of all the pieces the player can still build.
+            - 24:28, which resource types the player is touching
+            - 19:34, which port types the player is touching
+            - 35, roads left to build
+            - 36, settlements left to build
+            - 37, cities left to build
 
-            - number of road building cards this player has played
-            - number of discovery cards this player has played
-            - number of monopoly cards this player has played
+            - 38, how many road building cards played by this player
+            - 39, how many monopoly cards played by this player
+            - 40, how many discovery cards played by this player
 
         All booleans (LA, LR, touching stuff are represented in 1 for true or 0 for false).
     """
@@ -277,30 +282,41 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
     return np.concatenate(all_player_infos, axis=0)
 
 
-_ACTIONS = {
-    'TRADE': 1.0,
-    'ENDTURN': 2.0,
-    'ROLL': 3.0,
-    'BUILD': 4.0,
-    'BUILDROAD': 4.1,
-    'BUILDSETT': 4.2,
-    'BUILDCITY': 4.3,
-    'MOVEROBBER': 5.0,
-    'CHOOSEPLAYER': 6.0,
-    'DISCARD': 7.0,
-    'BUYDEVCARD': 8.0,
-    'PLAYDEVCARD': 9.0,
-    'PLAYKNIGHT': 9.1,
-    'PLAYMONO': 9.2,
-    'PLAYDISC': 9.3,
-    'PLAYROAD': 9.4,
-    'WIN': 10.0,
-}
+def parse_game_phases(game_phase: int):
+    game_phase_plan = np.zeros([len(soc_data.GAME_PHASES), 7, 7])
+    idx = list(soc_data.GAME_PHASES.values()).index(game_phase)
+
+    game_phase_plan[idx, :, :] = 1
+
+    return game_phase_plan
+
+
+def parse_current_player(current_player: int):
+    player_plan = np.zeros([4, 7, 7])
+    player_plan[current_player, :, :] = 1
+
+    return player_plan
+
+
+def parse_starting_player(starting_player: int):
+    player_plan = np.zeros([4, 7, 7])
+    player_plan[starting_player, :, :] = 1
+
+    return player_plan
+
+
+def parse_dice_result(dice_result: int):
+    actions_plan = np.zeros([len(soc_data.DICE_RESULTS), 7, 7])
+    idx = list(soc_data.DICE_RESULTS.values()).index(dice_result)
+
+    actions_plan[idx, :, :] = 1
+
+    return actions_plan
 
 
 def parse_actions(action: float):
-    actions_plan = np.zeros([len(_ACTIONS), 7, 7])
-    idx = list(_ACTIONS.values()).index(action)
+    actions_plan = np.zeros([len(soc_data.ACTIONS), 7, 7])
+    idx = list(soc_data.ACTIONS.values()).index(action)
 
     actions_plan[idx, :, :] = 1
 

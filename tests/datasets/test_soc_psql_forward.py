@@ -29,13 +29,13 @@ class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
         actions = [pd.read_csv(file) for file in cls.actions_files]
 
         def _get_states_from_db_se_f(
-                self, table_id: int, start_row_id: int, end_row_id: int
+            self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
             seq = states[table_id]
             return seq[start_row_id:end_row_id]
 
         def _get_actions_from_db_se_f(
-                self, table_id: int, start_row_id: int, end_row_id: int
+            self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
             seq = actions[table_id]
             return seq[start_row_id:end_row_id]

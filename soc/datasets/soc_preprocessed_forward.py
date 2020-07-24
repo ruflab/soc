@@ -3,10 +3,14 @@ from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
-from typing import List
-from ..typing import SocDatasetItem, SocConfig
+from typing import List, Tuple, Union
+from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
+_DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
+
+SOCShape = Union[Tuple[List[int], ...], List[int]]
 
 
 class SocPreprocessedForwardSAToSADataset(Dataset):
@@ -15,32 +19,25 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
 
         Input: Concatenation of state and actions representation
         in Sequence.
-            Dims: [S * (C_states + C_actions), H, W]
+            Dims: [S, (C_states + C_actions), H, W]
 
         Output: Next state
-            Dims: [S * (C_states + C_actions), H, W]
+            Dims: [S, (C_states + C_actions), H, W]
     """
 
     _length: int = -1
-    _n_actions: int = 17
     _inc_seq_steps: List[int] = []
     history_length: int
     future_length: int
+    input_shape: SOCShape
+    output_shape: SOCShape
 
     def __init__(self, config: SocConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        default_path = os.path.join(cfd, '..', '..', 'data', '50_seq_sas.pt')
+        default_path = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
         self.path = config.get('dataset_path', default_path)
-        data = torch.load(self.path)
-        self.seq_data = []
-        n_action_channels = data[0][0].shape[1] - data[0][1].shape[1]
-        for x_t, y_t in data:
-            # create a None action
-            last_a = torch.zeros([1, n_action_channels, x_t.shape[-2], x_t.shape[-1]])
-            last_sa = torch.cat([y_t[-1:], last_a], dim=1)
-            new_x_t = torch.cat([x_t, last_sa], dim=0)
-            self.seq_data.append(new_x_t)
+        self.data = torch.load(self.path)
 
         assert 'history_length' in config
         assert 'future_length' in config
@@ -52,10 +49,12 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self._set_props(config)
 
     def _set_props(self, config: SocConfig):
-        self.input_shape = list(self.seq_data[0].shape[1:])
-        self.input_shape[0] *= self.history_length
-        self.output_shape = list(self.seq_data[0].shape[1:])
-        self.output_shape[0] *= self.future_length
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+        self.output_shape = [
+            self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
 
     @classmethod
     def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
@@ -64,7 +63,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         parser.add_argument(
             '--dataset_path',
             type=str,
-            default=argparse.SUPPRESS, )
+            default=argparse.SUPPRESS,
+        )
         parser.add_argument('history_length', type=int, default=8)
         parser.add_argument('future_length', type=int, default=1)
 
@@ -76,9 +76,9 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def _get_length(self) -> int:
         if self._length == -1:
             total_steps = 0
-            nb_games = len(self.seq_data)
+            nb_games = len(self.data)
             for i in range(nb_games):
-                total_steps += self.seq_data[i].shape[0]
+                total_steps += self.data[i].shape[0]
 
             self._length = total_steps - nb_games * self.seq_len_per_datum
 
@@ -95,10 +95,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
     def _get_nb_steps(self) -> List[int]:
-        nb_games = len(self.seq_data)
+        nb_games = len(self.data)
         nb_steps = []
         for i in range(nb_games):
-            nb_steps.append(self.seq_data[i].shape[0])
+            nb_steps.append(self.data[i].shape[0])
 
         return nb_steps
 
@@ -109,7 +109,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         history_t = x_t[:self.history_length]
         future_t = x_t[self.history_length:]
 
-        return history_t.view(-1, H, W), future_t.view(-1, H, W)
+        return history_t, future_t
 
     def _get_data(self, idx: int) -> torch.Tensor:
         if len(self._inc_seq_steps) == 0:
@@ -126,16 +126,16 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         start_row_id = r
         end_row_id = r + self.seq_len_per_datum
 
-        return self.seq_data[table_id][start_row_id:end_row_id]
+        return self.data[table_id][start_row_id:end_row_id]
 
-    def get_input_size(self) -> List[int]:
+    def get_input_size(self) -> SOCShape:
         """
             Return the input dimension
         """
 
         return self.input_shape
 
-    def get_output_size(self) -> List[int]:
+    def get_output_size(self) -> SOCShape:
         """
             Return the output dimension
         """
@@ -148,36 +148,86 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_training_type(self) -> str:
         return 'supervised_forward'
 
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'mean_robberhex': [2, 3],
+            'mean_piecesonboard': [3, 75],
+            'mean_gamestate': [75, 99],
+            'mean_diceresult': [99, 112],
+            'mean_startingplayer': [112, 116],
+            'mean_currentplayer': [116, 120],
+            'devcardsleft': [120, 121],
+            'mean_playeddevcard': [121, 122],
+            'players': [122, 286],
+            'mean_actions': [286, 303],
+        }
 
-# class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSADataset):
-#     """
-#         Returns a completely formatted dataset:
+        return metadata
 
-#         Input: Concatenation of state and actions representation
-#         in Sequence.
-#             Dims: [S * C_states + C_actions), H, W]
 
-#         Output: Tuple of next state and next actions
-#             Dims: ( [S * C_states, H, W], [S * C_actions] )
-#     """
-#     def _set_props(self, config: SocConfig):
-#         self.input_shape = list(self.seq_data[0].shape[1:])
-#         self.input_shape[0] *= self.history_length
+class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSADataset):
+    """
+        Returns a completely formatted dataset:
 
-#         output_shape_1 = list(self.seq_data[0].shape[1:])
-#         output_shape_1[0] -= self._n_actions
-#         output_shape_1[0] *= self.future_length
-#         self.output_shape = (output_shape_1[0], [self._n_actions * self.future_length, 1])
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S_h, (C_states + C_actions), H, W]
 
-#     def __getitem__(self, idx: int) -> SocDatasetItem:
-#         x_t = self._get_data(idx)
+        Output: Tuple of next state and next actions
+            Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
+    """
+    def _set_props(self, config: SocConfig):
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
 
-#         _, _, H, W = x_t.shape
-#         history_t = x_t[:self.history_length]
-#         future_t = x_t[self.history_length:]
-#         future_states_t = future_t[:, :-self._n_actions]
-#         future_actions_t = future_t[:, -self._n_actions:, 0, 0]
+        output_shape_spatial = [
+            self.future_length, soc_data.SPATIAL_STATE_SIZE
+        ] + soc_data.BOARD_SIZE
+        output_shape = [self.future_length, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
-#         return (
-#             history_t.view(-1, H, W), (future_states_t.view(-1, H, W), future_actions_t.view(-1))
-#         )
+    def __getitem__(self, idx: int):
+        history_t, future_t = super(
+            SocPreprocessedForwardSAToSAPolicyDataset, self
+        ).__getitem__(idx)
+
+        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
+                                            dim=1)  # [S, C_ss, H, W]
+        future_lin_states_t = torch.cat(
+            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
+        )  # [S, C_ls]
+
+        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+
+    def get_training_type(self) -> str:
+        return 'resnet18policy'
+
+    def get_output_metadata(self):
+        spatial_metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+        }
+
+        linear_metadata: SocDataMetadata = {
+            'gamestate': [0, 24],
+            'diceresult': [24, 37],
+            'startingplayer': [37, 41],
+            'currentplayer': [41, 45],
+            'devcardsleft': [45, 46],
+            'playeddevcard': [46, 47],
+            'players': [47, 211],
+        }
+
+        actions_metadata: SocDataMetadata = {
+            'actions': [0, soc_data.ACTION_SIZE],
+        }
+
+        return (spatial_metadata, linear_metadata, actions_metadata)

@@ -5,8 +5,8 @@ import torch
 from typing import Tuple, List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
-from .. import utils
-from ..typing import SocDatasetItem, SocConfig
+from . import soc_data
+from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
 
 
 class SocPSQLForwardSAToSADataset(SocPSQLDataset):
@@ -101,8 +101,9 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             current_state_df = df_states.iloc[i]
             current_action_df = df_actions.iloc[i]
 
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
+            current_state_np = np.concatenate(
+                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+            )  # yapf: ignore
             current_action_np = current_action_df['type']
 
             to_concat.append(current_state_np)
@@ -111,8 +112,8 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         history_l = to_concat[:self.history_length * 2]
         future_l = to_concat[self.history_length * 2:]
 
-        history_np = np.concatenate(history_l, axis=0)
-        future_np = np.concatenate(future_l, axis=0)
+        history_np = np.concatenate(history_l, axis=0).reshape(self.get_input_size())
+        future_np = np.concatenate(future_l, axis=0).reshape(self.get_output_size())
 
         history_t = torch.tensor(history_np, dtype=torch.float32)
         future_t = torch.tensor(future_np, dtype=torch.float32)
@@ -140,7 +141,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         return states, actions
 
     def _get_states_from_db(
-            self, table_id: int, start_row_id: int, end_row_id: int
+        self, table_id: int, start_row_id: int, end_row_id: int
     ) -> pd.DataFrame:
         query = """
             SELECT *
@@ -153,7 +154,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         return df_states
 
     def _get_actions_from_db(
-            self, table_id: int, start_row_id: int, end_row_id: int
+        self, table_id: int, start_row_id: int, end_row_id: int
     ) -> pd.DataFrame:
         query = """
             SELECT *
@@ -169,21 +170,20 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         """
             Return the input dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
-        size[0] *= self.history_length
 
-        return size
+        return [
+            self.history_length,
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_output_size(self) -> List:
         """
             Return the output dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
-        size[0] *= self.future_length
-
-        return size
+        return [
+            self.future_length,
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return None
@@ -191,10 +191,20 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     def get_training_type(self):
         return 'supervised_forward'
 
-    def dump_preprocessed_dataset(self, folder: str):
-        utils.check_folder(folder)
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+            'actions': [284, 301],
+        }
 
-        path = "{}/50_forward_sasa.pt".format(folder)
-        all_data = [self[i] for i in range(len(self))]
-
-        torch.save(all_data, path)
+        return metadata

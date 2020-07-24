@@ -5,8 +5,9 @@ import torch
 from typing import List
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
+from . import soc_data
 from .. import utils
-from ..typing import SocDatasetItem
+from ..typing import SocDatasetItem, SocDataMetadata
 
 
 class SocPSQLSeqDataset(SocPSQLDataset):
@@ -62,8 +63,9 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             current_state_df = df_states.iloc[i]
             current_action_df = df_actions.iloc[i]
 
-            current_state_np = np.concatenate([current_state_df[col] for col in self._obs_columns],
-                                              axis=0)
+            current_state_np = np.concatenate(
+                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+            )  # yapf: ignore
             current_action_np = current_action_df['type']
 
             state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
@@ -96,6 +98,28 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return df_states
 
+    def dump_preprocessed_dataset(self, folder: str, testing: bool = False):
+        utils.check_folder(folder)
+
+        if testing is True:
+            limit = 5
+        else:
+            limit = len(self)
+
+        path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+        seqs = []
+        for i in range(limit):
+            data = self[i]
+            state_seq_t = data[0]  # SxC_sxHxW
+            action_seq_t = data[1]  # SxC_axHxW
+            if testing is True:
+                state_seq_t = state_seq_t[:8]
+                action_seq_t = action_seq_t[:8]
+            input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+            seqs.append(input_t)
+
+        torch.save(seqs, path)
+
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     """
@@ -111,8 +135,8 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSDataset, self).__getitem__(idx)
 
-        state_seq_t = data[0]  # SxFsxHxW
-        action_seq_t = data[1]  # SxFaxHxW
+        state_seq_t = data[0]  # SxC_sxHxW
+        action_seq_t = data[1]  # SxC_axHxW
         input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
         x_t = input_t[:-1]
@@ -120,21 +144,23 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List:
+    def get_input_size(self) -> List[int]:
         """
             Return the input dimension
         """
-        size = self._state_size.copy()
-        size[0] += self._action_size[0]
 
-        return size
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
 
-    def get_output_size(self) -> List:
+    def get_output_size(self) -> List[int]:
         """
             Return the output dimension
         """
 
-        return self._state_size
+        return [
+            soc_data.STATE_SIZE,
+        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
@@ -142,10 +168,82 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def get_training_type(self):
         return 'supervised_seq'
 
-    def dump_preprocessed_dataset(self, folder: str):
-        utils.check_folder(folder)
+    def get_output_metadata(self) -> SocDataMetadata:
+        return {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+        }
 
-        path = "{}/50_seq_sas.pt".format(folder)
-        all_data = [self[i] for i in range(len(self))]
 
-        torch.save(all_data, path)
+class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S, (C_states + C_actions), H, W]
+
+        Output: Next state
+            Dims: [S, (C_states + C_actions), H, W]
+    """
+    def __getitem__(self, idx: int) -> SocDatasetItem:
+        data = super(SocPSQLSeqSAToSADataset, self).__getitem__(idx)
+
+        state_seq_t = data[0]  # SxC_sxHxW
+        action_seq_t = data[1]  # SxC_axHxW
+        cat_seq = torch.cat([state_seq_t, action_seq_t], dim=1)
+
+        x_t = cat_seq[:-1]
+        y_t = cat_seq[1:]
+
+        return x_t, y_t
+
+    def get_input_size(self) -> List[int]:
+        """
+            Return the input dimension
+        """
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
+
+    def get_output_size(self) -> List:
+        """
+            Return the output dimension
+        """
+
+        return [
+            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
+        ] + soc_data.BOARD_SIZE
+
+    def get_collate_fn(self):
+        return ds_utils.pad_seq_sas
+
+    def get_training_type(self):
+        return 'supervised_seq'
+
+    def get_output_metadata(self) -> SocDataMetadata:
+        metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+            'gamestate': [75, 99],
+            'diceresult': [99, 111],
+            'startingplayer': [111, 115],
+            'currentplayer': [115, 118],
+            'devcardsleft': [118, 119],
+            'playeddevcard': [119, 120],
+            'players': [120, 284],
+            'actions': [284, 301],
+        }
+
+        return metadata

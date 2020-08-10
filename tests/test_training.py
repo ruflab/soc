@@ -174,7 +174,8 @@ class TestTraining(unittest.TestCase):
             config = compose(
                 config_name="config",
                 overrides=[
-                    "generic/model=resnet18policy", "generic/dataset=preprocessedseqsatosapolicy"
+                    "generic/model=resnet18policy",
+                    "generic/dataset=preprocessedforwardsatosapolicy"
                 ]
             )
             config.generic.dataset.dataset_path = _DATASET_PATH

@@ -34,21 +34,22 @@ class Conv3dModel(nn.Module):
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        config = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(config)
+        assert isinstance(conf, dict)
 
-        self.data_input_size = config['data_input_size']
-        self.data_output_size = config['data_output_size']
-        self.num_layers = config['num_layers']
-        self.kernel_size = self._extend_for_multilayer(config['kernel_size'])
+        self.data_input_size = conf['data_input_size']
+        self.data_output_size = conf['data_output_size']
+        self.num_layers = conf['num_layers']
+        self.kernel_size = self._extend_for_multilayer(conf['kernel_size'])
         self.check_kernel_size()
-        self.h_chan_dim = self._extend_for_multilayer(config['h_chan_dim'])
+        self.h_chan_dim = self._extend_for_multilayer(conf['h_chan_dim'])
         self.check_h_chan_dim()
-        self.strides = self._extend_for_multilayer(config['strides'])
+        self.strides = self._extend_for_multilayer(conf['strides'])
         self.check_strides()
-        self.paddings = self._extend_for_multilayer(config['paddings'])
+        self.paddings = self._extend_for_multilayer(conf['paddings'])
         self.check_paddings()
 
-        layers = []
+        layers: List[nn.Module] = []
         for i in range(self.num_layers - 1):
             layers.append(nn.ConstantPad3d(self.paddings[i], 0))
             layers.append(

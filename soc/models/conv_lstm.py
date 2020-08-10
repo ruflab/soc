@@ -113,18 +113,19 @@ class ConvLSTM(nn.Module):
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        config = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(config)
+        assert isinstance(conf, dict)
 
-        self.data_input_size = config['data_input_size']
-        self.data_output_size = config['data_output_size']
-        self.num_layers = config['num_layers']
-        self.kernel_size = self._extend_for_multilayer(config['kernel_size'])
+        self.data_input_size = conf['data_input_size']
+        self.data_output_size = conf['data_output_size']
+        self.num_layers = conf['num_layers']
+        self.kernel_size = self._extend_for_multilayer(conf['kernel_size'])
         self.check_kernel_size()
-        self.h_chan_dim = self._extend_for_multilayer(config['h_chan_dim'])
+        self.h_chan_dim = self._extend_for_multilayer(conf['h_chan_dim'])
         self.check_h_chan_dim()
-        self.batch_first = config['batch_first']
-        self.bias = config['bias']
-        self.return_all_layers = config['return_all_layers']
+        self.batch_first = conf['batch_first']
+        self.bias = conf['bias']
+        self.return_all_layers = conf['return_all_layers']
 
         cell_list = []
         for i in range(0, self.num_layers):

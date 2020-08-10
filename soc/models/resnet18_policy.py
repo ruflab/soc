@@ -1,13 +1,13 @@
-import argparse
 from torch import nn
-from .resnet18 import conv1x1, Bottleneck, BasicBlock
+from omegaconf import OmegaConf
+from .resnet18 import conv1x1, Bottleneck, BasicBlock, ResNetConfig
 from .hexa_conv import HexaConv2d
 
 
 class ResNet18Policy(nn.Module):
     def __init__(
         self,
-        config,
+        config: ResNetConfig,
         block=BasicBlock,
         layers=[2, 2, 2, 2],
         zero_init_residual=False,
@@ -17,26 +17,30 @@ class ResNet18Policy(nn.Module):
         norm_layer=None
     ):
         super(ResNet18Policy, self).__init__()
-
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        data_input_size = config['data_input_size']
-        self.inplanes = data_input_size[0] * data_input_size[1]
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        conf = OmegaConf.to_container(config)
+        assert isinstance(conf, dict)
+
+        self.data_input_size = conf['data_input_size']
+        self.inplanes = self.data_input_size[0] * self.data_input_size[1]
 
         self.n_core_planes = 32
-        self.n_core_outputs = self.n_core_planes * data_input_size[2] * data_input_size[3]
+        self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
 
-        data_output_size = config['data_output_size']
+        data_output_size = conf['data_output_size']
         self.spatial_state_output_size = data_output_size[0]
         self.state_output_size = data_output_size[1]
         self.action_output_size = data_output_size[2]
-        future_seq_len = self.spatial_state_output_size[0]
+        n_future_seq = self.spatial_state_output_size[0]
 
-        self.n_spatial_planes = future_seq_len * self.spatial_state_output_size[1]
-        self.n_states = future_seq_len * self.state_output_size[1]
-        self.n_actions = future_seq_len * self.action_output_size[1]
+        self.n_spatial_planes = n_future_seq * self.spatial_state_output_size[1]
+        self.n_states = n_future_seq * self.state_output_size[1]
+        self.n_actions = n_future_seq * self.action_output_size[1]
 
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -147,12 +151,6 @@ class ResNet18Policy(nn.Module):
             )
 
         return nn.Sequential(*layers)
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        return parser
 
     def _forward_impl(self, x):
         bs, S, C, H, W = x.shape

@@ -145,7 +145,7 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
-        config,
+        config: ResNetConfig,
         block,
         layers,
         zero_init_residual=False,
@@ -161,10 +161,11 @@ class ResNet(nn.Module):
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        config = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(config)
+        assert isinstance(conf, dict)
 
-        self.data_input_size = config['data_input_size']
-        self.data_output_size = config['data_output_size']
+        self.data_input_size = conf['data_input_size']
+        self.data_output_size = conf['data_output_size']
         self.inplanes = self.data_input_size[0] * self.data_input_size[1]
         self.outplanes = self.data_output_size[0] * self.data_output_size[1]
 

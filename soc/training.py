@@ -6,8 +6,9 @@ import pytorch_lightning as pl
 from torch.nn import Module
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
-from typing import Callable, List, Any, Dict
-from omegaconf import DictConfig
+from typing import Callable, List, Any, Dict, Optional
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from .typing import SocSeqBatch, SocBatch, SocBatchMultipleOut, SocDataMetadata
 from .typing import SocSeqPolicyBatch
 from .models import make_model
@@ -17,6 +18,28 @@ from .losses import compute_losses
 from .val import compute_accs
 
 CollateFnType = Callable[[List[Any]], Any]
+
+
+@dataclass
+class GenericConfig:
+    seed: int = 1
+    verbose: bool = False
+    dataset: Any = MISSING
+    model: Any = MISSING
+    lr: float = 3e-3
+    optimizer: str = 'adam'
+    scheduler: Optional[str] = None
+    batch_size: int = 32
+    weight_decay: Optional[float] = 0.
+
+
+@dataclass
+class SocConfig:
+    defaults: List[Any] = MISSING
+
+    generic: GenericConfig = GenericConfig()
+    trainer: Any = MISSING
+    other: Any = MISSING
 
 
 class Runner(pl.LightningModule):
@@ -62,7 +85,7 @@ class Runner(pl.LightningModule):
         return dataset
 
     def train_dataloader(self):
-        # Ho my god! overfit_batches is broken
+        # Ho my god! -_- overfit_batches is broken
         # See https://github.com/PyTorchLightning/pytorch-lightning/issues/2311
         ds_params = self.hparams.dataset
         shuffle = ds_params['shuffle'] if 'shuffle' in ds_params else True
@@ -89,7 +112,11 @@ class Runner(pl.LightningModule):
 
     def configure_optimizers(self):
         if self.hparams['optimizer'] == 'adam':
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams['lr'])
+            optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.hparams['lr'],
+                weight_decay=self.hparams.weight_decay
+            )
         else:
             raise Exception('Unknown optimizer {}'.format(self.hparams['optimizer']))
 
@@ -160,7 +187,7 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x = batch[0]
     y_true = batch[1]
@@ -225,7 +252,7 @@ def train_on_supervised_seq_policy_batch(
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -267,7 +294,7 @@ def val_on_supervised_seq_policy_batch(
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -310,7 +337,7 @@ def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
         Args:
             - batch: (x, y) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x = batch[0]
     y_true = batch[1]
@@ -371,8 +398,7 @@ def train_on_resnet18policy_batch(
         Args:
             - batch: (x, y) batch of data
             - model: (Module) the model
-            - state_loss_f: (Callable) the loss function for states
-            - ation_loss_f: (Callable) the loss function for states
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -402,7 +428,14 @@ def val_on_resnet18policy_batch(
     model: Module,
     metadata: List[SocDataMetadata],
 ) -> Dict[str, torch.Tensor]:
-    """This function computes the validation loss and accuracy of the model."""
+    """
+        This function computes the validation loss and accuracy of the model.
+
+        Args:
+            - batch: (x, y) batch of data
+            - model: (Module) the model
+            - metadata: (Dict) metadata to compute losses
+    """
 
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]

@@ -6,7 +6,9 @@ import pandas as pd
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
 from hydra.experimental import initialize, compose
-from soc.training import Runner
+from hydra.core.config_store import ConfigStore
+from soc import models, datasets
+from soc.training import Runner, SocConfig
 from soc.datasets import make_dataset
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -34,6 +36,31 @@ class TestTraining(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cs = ConfigStore.instance()
+        cs.store(name="config", node=SocConfig)
+        cs.store(group="generic/model", name="convlstm", node=models.ConvLSTMConfig)
+        cs.store(group="generic/model", name="convlstmpolicy", node=models.ConvLSTMConfig)
+        cs.store(group="generic/model", name="conv3d", node=models.Conv3dModelConfig)
+        cs.store(group="generic/model", name="conv3dpolicy", node=models.Conv3dModelConfig)
+        cs.store(group="generic/model", name="resnet18", node=models.ResNetConfig)
+        cs.store(group="generic/model", name="resnet18policy", node=models.ResNetConfig)
+        cs.store(group="generic/dataset", name="psqlseqsatos", node=datasets.PSQLConfig)
+        cs.store(
+            group="generic/dataset",
+            name="preprocessedforwardsatosa",
+            node=datasets.PreprocessedForwardConfig
+        )
+        cs.store(
+            group="generic/dataset",
+            name="preprocessedforwardsatosapolicy",
+            node=datasets.PreprocessedForwardConfig
+        )
+        cs.store(
+            group="generic/dataset",
+            name="preprocessedseqsatosapolicy",
+            node=datasets.PreprocessedSeqConfig
+        )
+
         cls.states = [pd.read_csv(file) for file in cls.obs_files]
         cls.actions = [pd.read_csv(file) for file in cls.actions_files]
 

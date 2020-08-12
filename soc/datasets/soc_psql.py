@@ -36,17 +36,17 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, config: PSQLConfig) -> None:
+    def __init__(self, omegaConf: PSQLConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
-        self.no_db = config.get('no_db', False)
-        self.psql_username = config.get('psql_username', 'deepsoc')
-        self.psql_host = config.get('psql_host', 'localhost')
-        self.psql_port = config.get('psql_port', 5432)
-        self.psql_db_name = config.get('psql_db_name', 'soc')
+        self.no_db = omegaConf.get('no_db', False)
+        self.psql_username = omegaConf.get('psql_username', 'deepsoc')
+        self.psql_host = omegaConf.get('psql_host', 'localhost')
+        self.psql_port = omegaConf.get('psql_port', 5432)
+        self.psql_db_name = omegaConf.get('psql_db_name', 'soc')
 
         self._length = -1
-        self._first_index = config.get('first_index', 100)  # Due to the java implementation
+        self._first_index = omegaConf.get('first_index', 100)  # Due to the java implementation
 
         if self.no_db:
             self.engine = None
@@ -57,9 +57,9 @@ class SocPSQLDataset(Dataset):
                 )
             )
 
-        self._set_props(config)
+        self._set_props(omegaConf)
 
-    def _set_props(self, config):
+    def _set_props(self, omegaConf):
         pass
 
     def __len__(self) -> int:

@@ -42,22 +42,22 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     input_shape: SOCShape
     output_shape: SOCShape
 
-    def __init__(self, config: PreprocessedForwardConfig):
+    def __init__(self, omegaConf: PreprocessedForwardConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        self.path = config['dataset_path']
+        self.path = omegaConf['dataset_path']
         self.data = torch.load(self.path)
 
-        assert 'history_length' in config
-        assert 'future_length' in config
+        assert 'history_length' in omegaConf
+        assert 'future_length' in omegaConf
 
-        self.history_length = config['history_length']
-        self.future_length = config['future_length']
+        self.history_length = omegaConf['history_length']
+        self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
-        self._set_props(config)
+        self._set_props(omegaConf)
 
-    def _set_props(self, config):
+    def _set_props(self, omegaConf):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
@@ -173,7 +173,7 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         Output: Tuple of next state and next actions
             Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
-    def _set_props(self, config):
+    def _set_props(self, omegaConf):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE

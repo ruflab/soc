@@ -7,7 +7,7 @@ from .hexa_conv import HexaConv2d
 class ResNet18Policy(nn.Module):
     def __init__(
         self,
-        config: ResNetConfig,
+        omegaConf: ResNetConfig,
         block=BasicBlock,
         layers=[2, 2, 2, 2],
         zero_init_residual=False,
@@ -23,7 +23,7 @@ class ResNet18Policy(nn.Module):
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        conf = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(omegaConf)
         assert isinstance(conf, dict)
 
         self.data_input_size = conf['data_input_size']

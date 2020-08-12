@@ -108,12 +108,12 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, config: ConvLSTMConfig):
+    def __init__(self, omegaConf: ConvLSTMConfig):
         super(ConvLSTM, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        conf = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(omegaConf)
         assert isinstance(conf, dict)
 
         self.data_input_size = conf['data_input_size']

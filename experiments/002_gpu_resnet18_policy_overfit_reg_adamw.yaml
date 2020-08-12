@@ -1,0 +1,28 @@
+# @package _global_
+generic:
+    seed: 1
+    verbose: true
+    lr: 0.0005
+    optimizer: adamw
+    scheduler: null
+    batch_size: 32
+    weight_decay: 0.01
+    amsgrad: true
+    dataset:
+        name: SocPreprocessedForwardSAToSAPolicyDataset
+        history_length: 16
+        future_length: 4
+        shuffle: false
+        dataset_path: ???
+    model:
+        name: ResNet18Policy
+        data_input_size: ???
+        data_output_size: ???
+trainer:
+    logger: neptune
+    deterministic: true
+    terminate_on_nan: true
+    gpus: 1
+    overfit_batches: 2
+other:
+    save_top_k: 0

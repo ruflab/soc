@@ -1,1 +1,5 @@
+include conf/*.yaml
 include conf/**/*.yaml
+
+include experiments/*.yaml
+include experiments/**/*.yaml

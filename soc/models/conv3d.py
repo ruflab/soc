@@ -29,12 +29,12 @@ class Conv3dModel(nn.Module):
                 This is achieved with padding (left, right, top, bottom, 2, 0)
 
     """
-    def __init__(self, config: Conv3dModelConfig):
+    def __init__(self, omegaConf: Conv3dModelConfig):
         super(Conv3dModel, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf
         # so we can extract primitives to use with other libs
-        conf = OmegaConf.to_container(config)
+        conf = OmegaConf.to_container(omegaConf)
         assert isinstance(conf, dict)
 
         self.data_input_size = conf['data_input_size']

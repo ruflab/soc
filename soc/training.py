@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
 from typing import Callable, List, Any, Dict, Optional
 from dataclasses import dataclass
-from omegaconf import MISSING, DictConfig
+from omegaconf import MISSING, DictConfig, OmegaConf
 from .typing import SocSeqBatch, SocBatch, SocBatchMultipleOut, SocDataMetadata
 from .typing import SocSeqPolicyBatch
 from .models import make_model
@@ -117,12 +117,27 @@ class Runner(pl.LightningModule):
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams.weight_decay
             )
+        elif self.hparams['optimizer'] == 'adamw':
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams['lr'],
+                weight_decay=self.hparams.weight_decay,
+                amsgrad=self.hparams.amsgrad
+            )
         else:
             raise Exception('Unknown optimizer {}'.format(self.hparams['optimizer']))
 
         if self.hparams['scheduler'] == 'plateau':
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001
+            )
+
+            return optimizer, scheduler
+        elif self.hparams['scheduler'] == 'cyclic':
+            scheduler = torch.optim.lr_scheduler.CyclicLR(
+                optimizer,
+                base_lr=self.hparams['lr'],
+                max_lr=10 * self.hparams['lr'],
             )
 
             return optimizer, scheduler
@@ -462,15 +477,15 @@ def val_on_resnet18policy_batch(
     return val_dict
 
 
-def train(config: DictConfig) -> Runner:
+def train(omegaConf: DictConfig) -> Runner:
     # Misc part
-    if config['generic']['verbose'] is True:
-        print(config.pretty())
+    if omegaConf['generic']['verbose'] is True:
+        print(omegaConf.pretty())
 
-    pl.seed_everything(config['generic']['seed'])
+    pl.seed_everything(omegaConf['generic']['seed'])
 
     # Runner part
-    runner = Runner(config['generic'])
+    runner = Runner(omegaConf['generic'])
 
     ###
     # LR finder
@@ -479,19 +494,24 @@ def train(config: DictConfig) -> Runner:
     # The situation is being handled:
     # https://github.com/PyTorchLightning/pytorch-lightning/issues/2485
     ###
-    if "auto_lr_find" in config['trainer'] and config['trainer']['auto_lr_find'] is True:
-        del config['trainer']['auto_lr_find']
-        tmp_trainer = pl.Trainer(**config['trainer'])
+    if "auto_lr_find" in omegaConf['trainer'] and omegaConf['trainer']['auto_lr_find'] is True:
+        del omegaConf['trainer']['auto_lr_find']
+        tmp_trainer = pl.Trainer(**omegaConf['trainer'])
         runner.prepare_data()
         runner.setup('lr_finder')
         lr_finder = tmp_trainer.lr_find(runner)
         # fig = lr_finder.plot(suggest=True)
         new_lr = lr_finder.suggestion()
-        config['generic']['lr'] = new_lr
-        runner = Runner(config['generic'])
+        omegaConf['generic']['lr'] = new_lr
+        runner = Runner(omegaConf['generic'])
 
-        if config['generic'].get('verbose', False) is True:
+        if omegaConf['generic'].get('verbose', False) is True:
             print('Learning rate found: {}'.format(new_lr))
+
+    # When we are here, the omegaConf has already been checked by OmegaConf
+    # so we can extract primitives to use with other libs
+    config = OmegaConf.to_container(omegaConf)
+    assert isinstance(config, dict)
 
     config['trainer']['deterministic'] = True
     # config['trainer'][' distributed_backend'] = 'dp'

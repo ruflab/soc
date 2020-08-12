@@ -1,9 +1,22 @@
-import argparse
 import math
 import torch.nn as nn
-from .. import utils
+from dataclasses import dataclass, field
+from omegaconf import MISSING, DictConfig, OmegaConf
+from typing import List, Tuple, Any
 from .hexa_conv import HexaConv3d
-from typing import List, Tuple
+
+
+@dataclass
+class Conv3dModelConfig(DictConfig):
+    data_input_size: List[int] = MISSING
+    data_output_size: List[int] = MISSING
+
+    name: str = 'Conv3dModel'
+    num_layers: int = 2
+    h_chan_dim: List[int] = field(default_factory=lambda: [32] * 2)
+    kernel_size: List[Any] = field(default_factory=lambda: [(3, 3, 3)] * 2)
+    strides: List[Any] = field(default_factory=lambda: [(1, 1, 1)] * 2)
+    paddings: List[Any] = field(default_factory=lambda: [(1, 1, 1, 1, 2, 0)] * 2)
 
 
 class Conv3dModel(nn.Module):
@@ -16,25 +29,27 @@ class Conv3dModel(nn.Module):
                 This is achieved with padding (left, right, top, bottom, 2, 0)
 
     """
-    def __init__(self, config):
+    def __init__(self, omegaConf: Conv3dModelConfig):
         super(Conv3dModel, self).__init__()
 
-        self.data_input_size = config['data_input_size']
-        self.data_output_size = config['data_output_size']
-        self.num_layers = config.get('num_layers', 2)
-        self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim', 32), self.num_layers)
-        self.kernel_size = self._extend_for_multilayer(
-            config.get('kernel_size', (3, 3, 3)), self.num_layers
-        )
-        self.strides = self._extend_for_multilayer(
-            config.get('strides', (1, 1, 1)), self.num_layers
-        )
-        self.paddings = self._extend_for_multilayer(
-            config.get('paddings', (1, 1, 1, 1, 2, 0)), self.num_layers
-        )
-        assert len(self.kernel_size) == self.num_layers
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        conf = OmegaConf.to_container(omegaConf)
+        assert isinstance(conf, dict)
 
-        layers = []
+        self.data_input_size = conf['data_input_size']
+        self.data_output_size = conf['data_output_size']
+        self.num_layers = conf['num_layers']
+        self.kernel_size = self._extend_for_multilayer(conf['kernel_size'])
+        self.check_kernel_size()
+        self.h_chan_dim = self._extend_for_multilayer(conf['h_chan_dim'])
+        self.check_h_chan_dim()
+        self.strides = self._extend_for_multilayer(conf['strides'])
+        self.check_strides()
+        self.paddings = self._extend_for_multilayer(conf['paddings'])
+        self.check_paddings()
+
+        layers: List[nn.Module] = []
         for i in range(self.num_layers - 1):
             layers.append(nn.ConstantPad3d(self.paddings[i], 0))
             layers.append(
@@ -60,44 +75,6 @@ class Conv3dModel(nn.Module):
         )
 
         self.m = nn.Sequential(*layers)
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--h_chan_dim',
-            type=int,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of hidden channels per layer'
-        )
-        parser.add_argument(
-            '--kernel_size',
-            type=utils.soc_tuple,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of Kernel size per layer'
-        )
-        parser.add_argument(
-            '--num_layers', type=int, default=argparse.SUPPRESS, help='Number of layers'
-        )
-        parser.add_argument(
-            '--strides',
-            type=utils.soc_tuple,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of Kernel size per layer'
-        )
-        parser.add_argument(
-            '--paddings',
-            type=utils.soc_tuple,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of Kernel size per layer'
-        )
-
-        return parser
 
     def forward(self, input_tensor):
         """
@@ -158,8 +135,36 @@ class Conv3dModel(nn.Module):
         else:
             return (D_out, C_out, H_out, W_out)
 
-    @staticmethod
-    def _extend_for_multilayer(param, num_layers):
-        if not isinstance(param, list):
-            param = [param] * num_layers
+    def check_kernel_size(self):
+        if not isinstance(self.kernel_size, list):
+            raise ValueError('`self.kernel_size` must be a list of list of 3 ints')
+        if not all([isinstance(x, list) and len(x) == 3 for x in self.kernel_size]):
+            raise ValueError('`self.kernel_size` must be a list of list of 3 ints')
+
+    def check_strides(self):
+        if not isinstance(self.strides, list):
+            raise ValueError('`self.strides` must be a list of list of 3 ints')
+        if not all([isinstance(x, list) and len(x) == 3 for x in self.strides]):
+            raise ValueError('`self.strides` must be a list of list of 3 ints')
+
+    def check_paddings(self):
+        if not isinstance(self.paddings, list):
+            raise ValueError('`self.paddings` must be a list of list of 6 ints')
+        if not all([isinstance(x, list) and len(x) == 6 for x in self.paddings]):
+            raise ValueError('`self.paddings` must be a list of list of 6 ints')
+
+    def check_h_chan_dim(self):
+        if not isinstance(self.h_chan_dim, list):
+            raise ValueError('`self.h_chan_dim` must be a list of list of 2 ints')
+
+        if not all([type(x) == int for x in self.h_chan_dim]):
+            raise ValueError('`self.h_chan_dim` must be a list of ints')
+
+    def _extend_for_multilayer(self, param: list):
+        if len(param) == 1:
+            param = [param[0]] * self.num_layers
+
+        if len(param) != self.num_layers:
+            raise ValueError('`param` list should be of size {}'.format(self.num_layers))
+
         return param

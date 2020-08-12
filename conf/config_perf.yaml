@@ -1,0 +1,9 @@
+trainer:
+    logger: true
+    max_epochs: 3
+    profiler: true
+    benchmark: true
+    deterministic: true
+    terminate_on_nan: true
+other:
+    save_top_k: 0

@@ -1,0 +1,30 @@
+# @package _global_
+generic:
+    seed: 1
+    verbose: true
+    lr: 0.0005
+    optimizer: adam
+    scheduler: null
+    batch_size: 1
+    weight_decay: 0.0
+    dataset:
+        name: SocPreprocessedSeqSAToSAPolicyDataset
+        shuffle: false
+        dataset_path: ???
+    model:
+        name: Conv3dModelPolicy
+        num_layers: 8
+        h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
+        kernel_size: [[3, 3, 3]]
+        strides: [[1, 1, 1]]
+        paddings: [[1, 1, 1, 1, 2, 0]]
+        data_input_size: ???
+        data_output_size: ???
+trainer:
+    logger: neptune
+    deterministic: true
+    terminate_on_nan: true
+    gpus: 1
+    overfit_batches: 2
+other:
+    save_top_k: 0

@@ -1,14 +1,15 @@
 import multiprocessing
 import os
 import torch
-import pprint
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 from torch.nn import Module
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
-from typing import Callable, List, Any, Dict
-from .typing import SocSeqBatch, SocBatch, SocConfig, SocBatchMultipleOut, SocDataMetadata
+from typing import Callable, List, Any, Dict, Optional
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig, OmegaConf
+from .typing import SocSeqBatch, SocBatch, SocBatchMultipleOut, SocDataMetadata
 from .typing import SocSeqPolicyBatch
 from .models import make_model
 from .datasets import make_dataset
@@ -19,15 +20,37 @@ from .val import compute_accs
 CollateFnType = Callable[[List[Any]], Any]
 
 
+@dataclass
+class GenericConfig:
+    seed: int = 1
+    verbose: bool = False
+    dataset: Any = MISSING
+    model: Any = MISSING
+    lr: float = 3e-3
+    optimizer: str = 'adam'
+    scheduler: Optional[str] = None
+    batch_size: int = 32
+    weight_decay: Optional[float] = 0.
+
+
+@dataclass
+class SocConfig:
+    defaults: List[Any] = MISSING
+
+    generic: GenericConfig = GenericConfig()
+    trainer: Any = MISSING
+    other: Any = MISSING
+
+
 class Runner(pl.LightningModule):
     """
         A runner represent a training pipeline.
         It contains everything from the dataset to the optimizer.
 
         Args:
-            - config: (SocConfig) Hyper paramete configuration
+            - config: Hyper parameters configuration
     """
-    def __init__(self, config: SocConfig):
+    def __init__(self, config):
         super(Runner, self).__init__()
         self.hparams = config
 
@@ -38,30 +61,34 @@ class Runner(pl.LightningModule):
     def setup(self, stage):
         dataset = self.setup_dataset()
 
-        ds_len = len(dataset)
-        train_len = min(round(0.9 * ds_len), ds_len - 1)
-        val_len = ds_len - train_len
-        soc_train, soc_val = random_split(dataset, [train_len, val_len])
-        self.train_dataset = soc_train
-        self.val_dataset = soc_val
+        self.train_dataset, self.val_dataset = self.split_dataset(dataset)
         self.training_type = dataset.get_training_type()
         self.metadata = dataset.get_output_metadata()
         self.collate_fn = dataset.get_collate_fn()
-        self.hparams['data_input_size'] = dataset.get_input_size()
-        self.hparams['data_output_size'] = dataset.get_output_size()
+        self.hparams.model['data_input_size'] = dataset.get_input_size()
+        self.hparams.model['data_output_size'] = dataset.get_output_size()
 
-        self.model = make_model(self.hparams)
+        self.model = make_model(self.hparams.model)
+
+    def split_dataset(self, dataset, percent: float = 0.9):
+        ds_len = len(dataset)
+        train_len = min(round(percent * ds_len), ds_len - 1)
+        val_len = ds_len - train_len
+        soc_train, soc_val = random_split(dataset, [train_len, val_len])
+
+        return soc_train, soc_val
 
     def setup_dataset(self):
         """This function purpose is mainly to be overrided for tests"""
-        dataset = make_dataset(self.hparams)
+        dataset = make_dataset(self.hparams.dataset)
 
         return dataset
 
     def train_dataloader(self):
-        # Ho my god! overfit_batches is broken
+        # Ho my god! -_- overfit_batches is broken
         # See https://github.com/PyTorchLightning/pytorch-lightning/issues/2311
-        shuffle = self.hparams['shuffle_dataset'] if 'shuffle_dataset' in self.hparams else True
+        ds_params = self.hparams.dataset
+        shuffle = ds_params['shuffle'] if 'shuffle' in ds_params else True
 
         dataloader = DataLoader(
             self.train_dataset,
@@ -85,13 +112,32 @@ class Runner(pl.LightningModule):
 
     def configure_optimizers(self):
         if self.hparams['optimizer'] == 'adam':
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams['lr'])
+            optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.hparams['lr'],
+                weight_decay=self.hparams.weight_decay
+            )
+        elif self.hparams['optimizer'] == 'adamw':
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams['lr'],
+                weight_decay=self.hparams.weight_decay,
+                amsgrad=self.hparams.amsgrad
+            )
         else:
             raise Exception('Unknown optimizer {}'.format(self.hparams['optimizer']))
 
         if self.hparams['scheduler'] == 'plateau':
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001
+            )
+
+            return optimizer, scheduler
+        elif self.hparams['scheduler'] == 'cyclic':
+            scheduler = torch.optim.lr_scheduler.CyclicLR(
+                optimizer,
+                base_lr=self.hparams['lr'],
+                max_lr=10 * self.hparams['lr'],
             )
 
             return optimizer, scheduler
@@ -156,7 +202,7 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x = batch[0]
     y_true = batch[1]
@@ -221,7 +267,7 @@ def train_on_supervised_seq_policy_batch(
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -263,7 +309,7 @@ def val_on_supervised_seq_policy_batch(
         Args:
             - batch: (x, y, mask) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -306,7 +352,7 @@ def train_on_supervised_forward_batch(batch: SocBatch, model: Module,
         Args:
             - batch: (x, y) batch of data
             - model: (Module) the model
-            - loss_f: (Callable) the loss function to apply
+            - metadata: (Dict) metadata to compute losses
     """
     x = batch[0]
     y_true = batch[1]
@@ -367,8 +413,7 @@ def train_on_resnet18policy_batch(
         Args:
             - batch: (x, y) batch of data
             - model: (Module) the model
-            - state_loss_f: (Callable) the loss function for states
-            - ation_loss_f: (Callable) the loss function for states
+            - metadata: (Dict) metadata to compute losses
     """
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -398,7 +443,14 @@ def val_on_resnet18policy_batch(
     model: Module,
     metadata: List[SocDataMetadata],
 ) -> Dict[str, torch.Tensor]:
-    """This function computes the validation loss and accuracy of the model."""
+    """
+        This function computes the validation loss and accuracy of the model.
+
+        Args:
+            - batch: (x, y) batch of data
+            - model: (Module) the model
+            - metadata: (Dict) metadata to compute losses
+    """
 
     x_seq = batch[0]
     y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
@@ -425,21 +477,15 @@ def val_on_resnet18policy_batch(
     return val_dict
 
 
-def train(config: SocConfig) -> Runner:
+def train(omegaConf: DictConfig) -> Runner:
     # Misc part
-    if config['generic']['verbose'] is True:
-        import copy
-        tmp_config = copy.deepcopy(config)
-        if "gpus" in tmp_config['trainer']:
-            del tmp_config['trainer']["gpus"]
-        if "tpu_cores" in tmp_config['trainer']:
-            del tmp_config['trainer']["tpu_cores"]
-        pprint.pprint(tmp_config)
+    if omegaConf['generic']['verbose'] is True:
+        print(omegaConf.pretty())
 
-    pl.seed_everything(config['generic']['seed'])
+    pl.seed_everything(omegaConf['generic']['seed'])
 
     # Runner part
-    runner = Runner(config['generic'])
+    runner = Runner(omegaConf['generic'])
 
     ###
     # LR finder
@@ -448,19 +494,24 @@ def train(config: SocConfig) -> Runner:
     # The situation is being handled:
     # https://github.com/PyTorchLightning/pytorch-lightning/issues/2485
     ###
-    if "auto_lr_find" in config['trainer'] and config['trainer']['auto_lr_find'] is True:
-        del config['trainer']['auto_lr_find']
-        tmp_trainer = pl.Trainer(**config['trainer'])
+    if "auto_lr_find" in omegaConf['trainer'] and omegaConf['trainer']['auto_lr_find'] is True:
+        del omegaConf['trainer']['auto_lr_find']
+        tmp_trainer = pl.Trainer(**omegaConf['trainer'])
         runner.prepare_data()
         runner.setup('lr_finder')
         lr_finder = tmp_trainer.lr_find(runner)
         # fig = lr_finder.plot(suggest=True)
         new_lr = lr_finder.suggestion()
-        config['generic']['lr'] = new_lr
-        runner = Runner(config['generic'])
+        omegaConf['generic']['lr'] = new_lr
+        runner = Runner(omegaConf['generic'])
 
-        if config['generic'].get('verbose', False) is True:
+        if omegaConf['generic'].get('verbose', False) is True:
             print('Learning rate found: {}'.format(new_lr))
+
+    # When we are here, the omegaConf has already been checked by OmegaConf
+    # so we can extract primitives to use with other libs
+    config = OmegaConf.to_container(omegaConf)
+    assert isinstance(config, dict)
 
     config['trainer']['deterministic'] = True
     # config['trainer'][' distributed_backend'] = 'dp'

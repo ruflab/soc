@@ -1,6 +1,5 @@
-# Include the README
-include *.md
+include conf/*.yaml
+include conf/**/*.yaml
 
-include experiments/*.json
-
-include perf/*.json
+include experiments/*.yaml
+include experiments/**/*.yaml

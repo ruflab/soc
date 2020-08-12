@@ -1,0 +1,8 @@
+name: Conv3dModel
+data_input_size: [7, 11, 13]
+data_output_size: [3, 11, 13]
+num_layers: 2
+h_chan_dim: [5]
+kernel_size: [[3, 3, 3]]
+strides: [[1, 1, 1]]
+paddings: [[1, 1, 2, 2, 3, 3]]

@@ -1,16 +1,26 @@
-import argparse
-from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from typing import List, Tuple, Union
-from ..typing import SocDatasetItem, SocConfig, SocDataMetadata
+from ..typing import SocDatasetItem, SocDataMetadata
 from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 _DATA_FOLDER = os.path.join(cfd, '..', '..', 'data')
 
 SOCShape = Union[Tuple[List[int], ...], List[int]]
+
+
+@dataclass
+class PreprocessedForwardConfig(DictConfig):
+    name: str = MISSING
+    dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
+    history_length: int = MISSING
+    future_length: int = MISSING
+
+    shuffle: bool = True
 
 
 class SocPreprocessedForwardSAToSADataset(Dataset):
@@ -32,43 +42,28 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     input_shape: SOCShape
     output_shape: SOCShape
 
-    def __init__(self, config: SocConfig):
+    def __init__(self, omegaConf: PreprocessedForwardConfig):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
-        default_path = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
-        self.path = config.get('dataset_path', default_path)
+        self.path = omegaConf['dataset_path']
         self.data = torch.load(self.path)
 
-        assert 'history_length' in config
-        assert 'future_length' in config
+        assert 'history_length' in omegaConf
+        assert 'future_length' in omegaConf
 
-        self.history_length = config['history_length']
-        self.future_length = config['future_length']
+        self.history_length = omegaConf['history_length']
+        self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
-        self._set_props(config)
+        self._set_props(omegaConf)
 
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, omegaConf):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
         self.output_shape = [
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--dataset_path',
-            type=str,
-            default=argparse.SUPPRESS,
-        )
-        parser.add_argument('history_length', type=int, default=8)
-        parser.add_argument('future_length', type=int, default=1)
-
-        return parser
 
     def __len__(self) -> int:
         return self._get_length()
@@ -178,7 +173,7 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         Output: Tuple of next state and next actions
             Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, omegaConf):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE

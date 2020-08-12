@@ -107,5 +107,9 @@ dependencies:
   - zlib=1.2.11=h1de35cc_3
   - zstd=1.4.4=h1990bb4_3
   - pip:
+    - antlr4-python3-runtime==4.8
+    - hydra-core==1.0.0rc2
+    - importlib-resources==3.0.0
     - git+https://github.com/numpy/numpy-stubs.git
+    - omegaconf==2.0.1rc11
 

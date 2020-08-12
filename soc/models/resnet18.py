@@ -1,9 +1,19 @@
 ###
 # Taken from https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 ###
-import argparse
 import torch.nn as nn
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig, OmegaConf
+from typing import List
 from .hexa_conv import HexaConv2d
+
+
+@dataclass
+class ResNetConfig(DictConfig):
+    data_input_size: List[int] = MISSING
+    data_output_size: List[int] = MISSING
+
+    name: str = MISSING
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -135,7 +145,7 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
-        config,
+        omegaConf: ResNetConfig,
         block,
         layers,
         zero_init_residual=False,
@@ -149,8 +159,13 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        self.data_input_size = config['data_input_size']
-        self.data_output_size = config['data_output_size']
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        conf = OmegaConf.to_container(omegaConf)
+        assert isinstance(conf, dict)
+
+        self.data_input_size = conf['data_input_size']
+        self.data_output_size = conf['data_output_size']
         self.inplanes = self.data_input_size[0] * self.data_input_size[1]
         self.outplanes = self.data_output_size[0] * self.data_output_size[1]
 
@@ -238,12 +253,6 @@ class ResNet(nn.Module):
             )
 
         return nn.Sequential(*layers)
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        return parser
 
     def _forward_impl(self, x):
         bs, S, C, H, W = x.shape

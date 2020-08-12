@@ -1,0 +1,16 @@
+# @package _global_
+generic:
+    seed: 1
+    verbose: true
+    dataset: SocPreprocessedSeqSAToSDataset
+    model: ConvLSTM
+    h_chan_dim: 128
+    num_layers: 3
+    bias: false
+    loss_name: mse
+    lr: 0.001
+    optimizer: adam
+    scheduler: null
+    batch_size: 8
+trainer:
+    gpus: 1

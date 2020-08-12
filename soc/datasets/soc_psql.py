@@ -1,9 +1,22 @@
-import argparse
-from argparse import ArgumentParser
 from sqlalchemy import create_engine
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from omegaconf import MISSING, DictConfig
 from typing import Any
-from ..typing import SocConfig, SocCollateFn
+from ..typing import SocCollateFn
+
+
+@dataclass
+class PSQLConfig(DictConfig):
+    name: str = MISSING
+    no_db: bool = False
+    psql_username: str = 'deepsoc'
+    psql_host: str = 'localhost'
+    psql_port: int = 5432
+    psql_db_name: str = 'soc'
+
+    first_index: int = 100
+    shuffle: bool = True
 
 
 class SocPSQLDataset(Dataset):
@@ -23,17 +36,17 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, config: SocConfig) -> None:
+    def __init__(self, omegaConf: PSQLConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
-        self.no_db = config.get('no_db', False)
-        self.psql_username = config.get('psql_username', 'deepsoc')
-        self.psql_host = config.get('psql_host', 'localhost')
-        self.psql_port = config.get('psql_port', 5432)
-        self.psql_db_name = config.get('psql_db_name', 'soc')
+        self.no_db = omegaConf.get('no_db', False)
+        self.psql_username = omegaConf.get('psql_username', 'deepsoc')
+        self.psql_host = omegaConf.get('psql_host', 'localhost')
+        self.psql_port = omegaConf.get('psql_port', 5432)
+        self.psql_db_name = omegaConf.get('psql_db_name', 'soc')
 
         self._length = -1
-        self._first_index = config.get('first_index', 100)  # Due to the java implementation
+        self._first_index = omegaConf.get('first_index', 100)  # Due to the java implementation
 
         if self.no_db:
             self.engine = None
@@ -44,22 +57,9 @@ class SocPSQLDataset(Dataset):
                 )
             )
 
-        self._set_props(config)
+        self._set_props(omegaConf)
 
-    @classmethod
-    def add_argparse_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument('no_db', type=str, default=False)
-        parser.add_argument('psql_username', type=str, default='deepsoc')
-        parser.add_argument('psql_host', type=str, default='localhost')
-        parser.add_argument('psql_port', type=int, default=5432)
-        parser.add_argument('psql_db_name', type=str, default='soc')
-        parser.add_argument('first_index', type=int, default=100)
-
-        return parser
-
-    def _set_props(self, config: SocConfig):
+    def _set_props(self, omegaConf):
         pass
 
     def __len__(self) -> int:

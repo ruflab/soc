@@ -1,6 +1,6 @@
 import torch
 # from torch.nn.utils.rnn import PackedSequence
-from typing import List, Tuple, Dict, Callable, Any, Union
+from typing import List, Tuple, Dict, Callable, Union
 
 _TensorOrTensors = Union[torch.Tensor, List[torch.Tensor]]
 
@@ -17,5 +17,3 @@ SocSeqList = List[SocDatasetItem]
 SocSeqPolicyList = List[SocPolicyDatasetItem]
 SocCollateFn = Callable[[SocSeqList], SocBatch]
 SocDataMetadata = Dict[str, List[int]]
-
-SocConfig = Dict[str, Any]

@@ -1,11 +1,11 @@
 ###
 # Taken from https://raw.githubusercontent.com/ndrplz/ConvLSTM_pytorch/master/convlstm.py
 ###
-import argparse
 import torch.nn as nn
 import torch
+from omegaconf import OmegaConf
 from .hexa_conv import HexaConv2d
-from .. import utils
+from .conv_lstm import ConvLSTMConfig
 
 
 class ConvLSTMCell(nn.Module):
@@ -93,12 +93,17 @@ class ConvLSTMPolicy(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, config):
+    def __init__(self, omegaConf: ConvLSTMConfig):
         super(ConvLSTMPolicy, self).__init__()
 
-        self.data_input_size = config['data_input_size']
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        conf = OmegaConf.to_container(omegaConf)
+        assert isinstance(conf, dict)
 
-        data_output_size = config['data_output_size']
+        self.data_input_size = conf['data_input_size']
+
+        data_output_size = conf['data_output_size']
         self.spatial_state_output_size = data_output_size[0]
         self.state_output_size = data_output_size[1]
         self.action_output_size = data_output_size[2]
@@ -107,22 +112,12 @@ class ConvLSTMPolicy(nn.Module):
         self.n_states = self.state_output_size[1]
         self.n_actions = self.action_output_size[1]
 
-        self.num_layers = config.get('num_layers', 2)
-        self.h_chan_dim = self._extend_for_multilayer(config.get('h_chan_dim', 32), self.num_layers)
-        self.kernel_size = self._extend_for_multilayer(
-            config.get('kernel_size', (3, 3)), self.num_layers
-        )
-        batch_first = config.get('batch_first', True)
-        bias = config.get('bias', True)
-        return_all_layers = config.get('return_all_layers', False)
-
-        self._check_kernel_size_consistency(self.kernel_size)
-        if not len(self.kernel_size) == len(self.h_chan_dim) == self.num_layers:
-            raise ValueError('Inconsistent list length.')
-
-        self.batch_first = batch_first
-        self.bias = bias
-        self.return_all_layers = return_all_layers
+        self.num_layers = conf['num_layers']
+        self.kernel_size = self._extend_for_multilayer(conf['kernel_size'])
+        self.h_chan_dim = self._extend_for_multilayer(conf['h_chan_dim'])
+        self.batch_first = conf['batch_first']
+        self.bias = conf['bias']
+        self.return_all_layers = conf['return_all_layers']
 
         self.n_core_planes = self.h_chan_dim[-1]
         self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
@@ -173,33 +168,6 @@ class ConvLSTMPolicy(nn.Module):
             nn.ReLU(),
             nn.Linear(self.head_hidden_size, self.n_actions),
         )
-
-    @classmethod
-    def add_argparse_args(cls, parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-
-        parser.add_argument(
-            '--h_chan_dim',
-            type=int,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of hidden channels per layer'
-        )
-        parser.add_argument(
-            '--kernel_size',
-            type=utils.soc_tuple,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='List of Kernel size per layer'
-        )
-        parser.add_argument(
-            '--num_layers', type=int, default=argparse.SUPPRESS, help='Number of layers'
-        )
-        parser.add_argument('--batch_first', type=bool, default=argparse.SUPPRESS)
-        parser.add_argument('--bias', type=bool, default=argparse.SUPPRESS)
-        parser.add_argument('--return_all_layers', type=bool, default=argparse.SUPPRESS)
-
-        return parser
 
     def forward(self, input_tensor, hidden_state=None):
         """
@@ -268,19 +236,11 @@ class ConvLSTMPolicy(nn.Module):
             init_states.append(self.cell_list[i].init_hidden(batch_size, image_size))
         return init_states
 
-    @staticmethod
-    def _check_kernel_size_consistency(kernel_size):
-        if isinstance(kernel_size, tuple):
-            return
+    def _extend_for_multilayer(self, param: list):
+        if len(param) == 1:
+            param = [param[0]] * self.num_layers
 
-        if isinstance(kernel_size, list):
-            if all([isinstance(elem, tuple) for elem in kernel_size]):
-                return
+        if len(param) != self.num_layers:
+            raise ValueError('`param` list should be of size {}'.format(self.num_layers))
 
-        raise ValueError('`kernel_size` must be tuple or list of tuples')
-
-    @staticmethod
-    def _extend_for_multilayer(param, num_layers):
-        if not isinstance(param, list):
-            param = [param] * num_layers
         return param

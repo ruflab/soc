@@ -23,5 +23,10 @@ setup(
     keywords=['deep learning', 'pytorch', 'AI'],
     long_description=load_long_description(),
     long_description_content_type='text/markdown',
-    packages=find_packages(exclude=['tests', 'tests/*'])
+    packages=find_packages(exclude=['tests', 'tests/*']),
+    install_requires=[
+        'neptune-client',
+        'pytorch_lightning >= 0.8.5',
+        'hydra-core==1.0.0rc2'
+    ]
 )

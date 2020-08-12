@@ -1,0 +1,4 @@
+# @package _group_
+logger: true
+deterministic: true
+terminate_on_nan: true

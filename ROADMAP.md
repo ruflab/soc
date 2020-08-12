@@ -1,6 +1,6 @@
 # Roadmap
 
-- Check hydra for configuration
+- Fix the regularization fields problem
 - Grid search the learning rate?
 - Implement history_length/future_length for sequential models
 - handle the roll_dice to avoid penalizing the model trajectories due to randomness?

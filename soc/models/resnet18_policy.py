@@ -18,7 +18,9 @@ class ResNet18Policy(nn.Module):
     ):
         super(ResNet18Policy, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf

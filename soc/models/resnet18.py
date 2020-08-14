@@ -51,7 +51,9 @@ class BasicBlock(nn.Module):
     ):
         super(BasicBlock, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
         if groups != 1 or base_width != 64:
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
@@ -106,7 +108,9 @@ class Bottleneck(nn.Module):
     ):
         super(Bottleneck, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
@@ -156,7 +160,9 @@ class ResNet(nn.Module):
     ):
         super(ResNet, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf

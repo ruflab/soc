@@ -156,8 +156,8 @@ def normalize_hexlayout(data: DataTensor) -> DataTensor:
         data = data.clone().type(torch.float32)  # type:ignore
         # We add 1 to replace the -1 values with zeros and avoid any other 0 in the data
         data += 1
-        # We make sure all the values are between 1 and 256 so that
-        # All log values are between 0 and 256
+        # We make sure all the values are between 1 and 257 so that
+        # All log values are between 0 and 257
         val = torch.tensor(255 + 1 + 1, dtype=data.dtype)
         data = torch.log(data + 1) / torch.log(val)
     else:
@@ -203,13 +203,13 @@ def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
     if isinstance(data, torch.Tensor):
         data = data.clone()
         data = data * 12
-        data[data == 0] = -1
         data = torch.round(data).type(torch.int64)  # type:ignore
+        data[data == 0] = -1
     else:
         data = data.copy()
         data = data * 12
-        data[data == 0] = -1
         data = np.round(data).astype(np.int64)
+        data[data == 0] = -1
 
     return data
 
@@ -227,10 +227,12 @@ def normalize_devcardsleft(data: DataTensor) -> DataTensor:
 
 def unnormalize_devcardsleft(data: DataTensor) -> DataTensor:
     if isinstance(data, torch.Tensor):
+        data = data.clone()
         data = data * 25.
         data = torch.round(data).type(torch.int64)  # type:ignore
     else:
         data = data.copy()
+        data = data * 25.
         data = np.round(data).astype(np.int64)
 
     return data

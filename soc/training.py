@@ -74,7 +74,7 @@ class Runner(pl.LightningModule):
         ds_len = len(dataset)
         train_len = min(round(percent * ds_len), ds_len - 1)
         val_len = ds_len - train_len
-        soc_train, soc_val = random_split(dataset, [train_len, val_len])
+        soc_train, soc_val = random_split(dataset, [train_len, val_len], torch.Generator())
 
         return soc_train, soc_val
 
@@ -194,8 +194,9 @@ class Runner(pl.LightningModule):
         return final_dict
 
 
-def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
-                                  metadata: SocDataMetadata) -> Dict[str, torch.Tensor]:
+def train_on_supervised_seq_batch(
+    batch: SocSeqBatch, model: Module, metadata: SocDataMetadata
+) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -225,9 +226,7 @@ def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
 
 
 def val_on_supervised_seq_batch(
-    batch: SocSeqBatch,
-    model: Module,
-    metadata: SocDataMetadata,
+    batch: SocSeqBatch, model: Module, metadata: SocDataMetadata,
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 
@@ -243,17 +242,16 @@ def val_on_supervised_seq_batch(
 
     val_dict = compute_accs(metadata, y_logits, y_true)
 
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc = val_acc / len(val_dict)
+    val_dict['val_accuracy'] = val_acc
+
     one_meta = {'piecesonboard_one_mean': metadata['piecesonboard']}
     if 'actions' in metadata.keys():
         one_meta['actions_one_mean'] = metadata['actions']
     val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
-
-    val_acc = torch.tensor(0., device=y_logits.device)
-    for k, acc in val_dict.items():
-        val_acc += acc
-    val_acc /= len(val_dict)
-
-    val_dict['val_accuracy'] = val_acc
 
     return val_dict
 
@@ -331,15 +329,14 @@ def val_on_supervised_seq_policy_batch(
     val_dict.update(compute_accs(linear_metadata, y_s_logits_seq, y_s_true_seq))
     val_dict.update(compute_accs(actions_metadata, y_a_logits_seq, y_a_true_seq))
 
-    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
-    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
-
     val_acc = torch.tensor(0., device=y_spatial_s_logits_seq.device)
     for k, acc in val_dict.items():
         val_acc += acc
-    val_acc /= len(val_dict)
-
+    val_acc = val_acc / len(val_dict)
     val_dict['val_accuracy'] = val_acc
+
+    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
 
     return val_dict
 
@@ -383,6 +380,12 @@ def val_on_supervised_forward_batch(
 
     val_dict = compute_accs(metadata, y_logits, y_true)
 
+    val_acc = torch.tensor(0., device=y_logits.device)
+    for k, acc in val_dict.items():
+        val_acc += acc
+    val_acc = val_acc / len(val_dict)
+    val_dict['val_accuracy'] = val_acc
+
     if 'mean_piecesonboard' in metadata.keys():
         prefix = 'mean_'
     else:
@@ -391,13 +394,6 @@ def val_on_supervised_forward_batch(
     if 'actions' in metadata.keys() or 'mean_actions' in metadata.keys():
         one_meta['actions_one_mean'] = metadata[prefix + 'actions']
     val_dict.update(val.get_stats(one_meta, torch.round(y_logits), 1))
-
-    val_acc = torch.tensor(0., device=y_logits.device)
-    for k, acc in val_dict.items():
-        val_acc += acc
-    val_acc /= len(val_dict)
-
-    val_dict['val_accuracy'] = val_acc
 
     return val_dict
 
@@ -464,15 +460,14 @@ def val_on_resnet18policy_batch(
     val_dict.update(compute_accs(linear_metadata, y_s_logits_seq, y_s_true_seq))
     val_dict.update(compute_accs(actions_metadata, y_a_logits_seq, y_a_true_seq))
 
-    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
-    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
-
     val_acc = torch.tensor(0., device=y_spatial_s_logits_seq.device)
     for k, acc in val_dict.items():
         val_acc += acc
-    val_acc /= len(val_dict)
-
+    val_acc = val_acc / len(val_dict)
     val_dict['val_accuracy'] = val_acc
+
+    one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
+    val_dict.update(val.get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
 
     return val_dict
 
@@ -525,9 +520,12 @@ def train(omegaConf: DictConfig) -> Runner:
     # Checkpointing
     ###
     save_top_k = 1
+    period = 1
     if 'other' in config:
         if 'save_top_k' in config['other']:
             save_top_k = config['other']['save_top_k']
+        if 'period' in config['other']:
+            period = config['other']['period']
     checkpoint_callback = ModelCheckpoint(
         filepath=config['trainer']['default_root_dir'],
         verbose=True,
@@ -535,6 +533,7 @@ def train(omegaConf: DictConfig) -> Runner:
         save_last=True,
         monitor='val_accuracy',
         mode='max',
+        period=period
     )
     config['trainer']['checkpoint_callback'] = checkpoint_callback
 

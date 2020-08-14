@@ -1,7 +1,7 @@
 # Roadmap
 
-- Fix the regularization fields problem
-- Grid search the learning rate?
+- test Siren/Hopfield networks?
+- Implement a HP tuning lib
 - Implement history_length/future_length for sequential models
 - handle the roll_dice to avoid penalizing the model trajectories due to randomness?
 - Change the JAVA to have an column counting players full turn

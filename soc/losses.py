@@ -33,7 +33,7 @@ def hexlayout_loss(
     # To do so we add a coefficient for thos losses
     # The coefficient depends on the normalization applied
     # which defines how precise the output should be to make the right prediction
-    coef = 50
+    coef = 20
     loss = coef * F.mse_loss(hexlayout_logits, hexlayout_true)
 
     return loss
@@ -53,7 +53,7 @@ def numberlayout_loss(
     # To do so we add a coefficient for thos losses
     # The coefficient depends on the normalization applied
     # which defines how precise the output should be to make the right prediction
-    coef = 10
+    coef = 20
     loss = coef * F.mse_loss(numberlayout_logits, numberlayout_true)
 
     return loss

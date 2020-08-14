@@ -31,7 +31,7 @@ class ResNet18Policy(nn.Module):
         self.data_input_size = conf['data_input_size']
         self.inplanes = self.data_input_size[0] * self.data_input_size[1]
 
-        self.n_core_planes = 32
+        self.n_core_planes = conf['n_core_planes']
         self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
 
         data_output_size = conf['data_output_size']
@@ -57,13 +57,18 @@ class ResNet18Policy(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = HexaConv2d(
-            self.inplanes, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False
+            self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn1 = norm_layer(self.inplanes)
+        self.bn1 = norm_layer(32 * self.n_core_planes)
+        self.inplanes = 32 * self.n_core_planes
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 256, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1, dilate=False)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=1, dilate=False)
+        self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
+        self.layer2 = self._make_layer(
+            block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
+        )
+        self.layer3 = self._make_layer(
+            block, 2 * self.n_core_planes, layers[2], stride=1, dilate=False
+        )
         self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
         self.spatial_state_head = nn.Sequential(
             nn.Conv2d(

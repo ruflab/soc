@@ -194,9 +194,8 @@ class Runner(pl.LightningModule):
         return final_dict
 
 
-def train_on_supervised_seq_batch(
-    batch: SocSeqBatch, model: Module, metadata: SocDataMetadata
-) -> Dict[str, torch.Tensor]:
+def train_on_supervised_seq_batch(batch: SocSeqBatch, model: Module,
+                                  metadata: SocDataMetadata) -> Dict[str, torch.Tensor]:
     """
         This function apply an batch update to the model.
 
@@ -226,7 +225,9 @@ def train_on_supervised_seq_batch(
 
 
 def val_on_supervised_seq_batch(
-    batch: SocSeqBatch, model: Module, metadata: SocDataMetadata,
+    batch: SocSeqBatch,
+    model: Module,
+    metadata: SocDataMetadata,
 ) -> Dict[str, torch.Tensor]:
     """This function computes the validation loss and accuracy of the model."""
 

@@ -131,6 +131,7 @@ dependencies:
     - smmap==3.0.4
     - strict-rfc3339==0.7
     - swagger-spec-validator==2.7.3
+    - torchsummary==1.5.1
     - webcolors==1.11.1
     - websocket-client==0.57.0
     - xmltodict==0.12.0

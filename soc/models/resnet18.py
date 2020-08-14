@@ -14,6 +14,7 @@ class ResNetConfig(DictConfig):
     data_output_size: List[int] = MISSING
 
     name: str = MISSING
+    n_core_planes: int = 32
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -173,6 +174,7 @@ class ResNet(nn.Module):
         self.data_input_size = conf['data_input_size']
         self.data_output_size = conf['data_output_size']
         self.inplanes = self.data_input_size[0] * self.data_input_size[1]
+        self.n_core_planes = conf['n_core_planes']
         self.outplanes = self.data_output_size[0] * self.data_output_size[1]
 
         self.dilation = 1
@@ -188,14 +190,19 @@ class ResNet(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = HexaConv2d(
-            self.inplanes, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False
+            self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn1 = norm_layer(self.inplanes)
+        self.bn1 = norm_layer(32 * self.n_core_planes)
+        self.inplanes = 32 * self.n_core_planes
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 256, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1, dilate=False)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=1, dilate=False)
-        self.layer4 = self._make_layer(block, 32, layers[3], stride=1, dilate=False)
+        self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
+        self.layer2 = self._make_layer(
+            block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
+        )
+        self.layer3 = self._make_layer(
+            block, 2 * self.n_core_planes, layers[2], stride=1, dilate=False
+        )
+        self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
         self.conv_out = HexaConv2d(
             32, self.outplanes, kernel_size=3, stride=1, padding=1, bias=False
         )

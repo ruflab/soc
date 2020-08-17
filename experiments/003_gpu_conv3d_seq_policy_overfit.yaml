@@ -3,10 +3,11 @@ generic:
     seed: 1
     verbose: true
     lr: 0.0005
-    optimizer: adam
+    optimizer: adamw
     scheduler: null
     batch_size: 1
     weight_decay: 0.0
+    amsgrad: true
     dataset:
         name: SocPreprocessedSeqSAToSAPolicyDataset
         shuffle: false
@@ -26,5 +27,7 @@ trainer:
     terminate_on_nan: true
     gpus: 1
     overfit_batches: 2
+    row_log_interval: 2
 other:
     save_top_k: 0
+    period: 500

@@ -22,11 +22,13 @@ The results are much better with multiple heads for different predictions. So fa
 Other notes:
 I've explored the L2 regularisation. As it is known, the original adam implementation has trouble with L2 reg. This is why AdamW has been created. Used in conjunction with amsgrad, it allows me to regularize and keep the same learning curve. It also seems to accelerate the learning but does not solve the regression problems.
 
-My idea on this problem, is to separate those heads. I wouldn't be surprised if mixing parameters head for regression and category is harmful for regression.
+My idea on this problem, is to separate those heads. I wouldn't be surprised if mixing parameters head for regression and category is harmful for regression (happened to be wrong).
 
-I've explored the outputs of the model. It is actually quite accurate, the problem seems to be coming from the fact that the true values are very close to each other and so the network needs to predict them very accurately.
-For the maps, this mean, it must compensate all the inputs to stabilize quite perfectly its output.
-For devcardsleft, you have a segment of 0.04 to be correct which means that the squared loss must fall down between 4e-4 to ensure a good accuracy.
+I've explored the outputs of the model. It is actually quite accurate (predicting target +-2 in general), the problem seems to be coming from the fact that the true values are very close to each other and so the network needs to predict them very accurately.
+As an example, for the `devcardsleft` input, you have a segment of 0.04 to be correct which means that the squared loss must fall down under 4e-4 to ensure a good accuracy.
 
-All right, so I've been bitten by Batch norm. It does not work well for small batchs and you need a certain amount of batches to approximate the statistics in a sufficient manner. The training goes very well in the overfit setting, but Batchnorm completely fail for regression in evaluation mode. If I keep the batchnorm training setting then I indeed see that my model learns absolutely everything.
-I'm going to switch this batchnorm for instance norm.
+After more exploration, I finally find out the problem. The hint came from the training logs which were not consistent with predictions for the different regressions. The problem was coming from Batch norm.
+First, as a general case, tt does not work well for small batchs and you need a certain amount of batches to approximate the statistics in a sufficient manner.
+But even though, the training goes very well in the overfit setting, but Batchnorm completely fail for regression in evaluation mode. If I keep the batchnorm training setting then I indeed see that my model learns absolutely everything. The exact problem is coming from the faxct that the statistics is not computed the same way during training and evaluation. This adds noise when doing a prediction and this noise is sufficient to push the model off when trying to regress.
+
+Conclusion: I'm going to switch norms. Since regression is a generative problem, I'll look into instance norm which has proven its capacity in the style transfer task.

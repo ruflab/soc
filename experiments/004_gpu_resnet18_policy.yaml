@@ -2,11 +2,12 @@
 generic:
     seed: 1
     verbose: true
-    lr: 0.0005
-    optimizer: adam
+    lr: 0.0003
+    optimizer: adamw
     scheduler: null
     batch_size: 256
-    weight_decay: 0.0
+    weight_decay: 0.01
+    amsgrad: true
     dataset:
         name: SocPreprocessedForwardSAToSAPolicyDataset
         history_length: 16
@@ -15,6 +16,7 @@ generic:
         dataset_path: ???
     model:
         name: ResNet18Policy
+        n_core_planes: 32
         data_input_size: ???
         data_output_size: ???
 trainer:
@@ -22,3 +24,8 @@ trainer:
     deterministic: true
     terminate_on_nan: true
     gpus: 1
+    row_log_interval: 20
+    max_epochs: 1001
+other:
+    save_top_k: 3
+    period: 50

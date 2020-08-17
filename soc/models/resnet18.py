@@ -9,7 +9,7 @@ from .hexa_conv import HexaConv2d
 
 
 @dataclass
-class ResNetConfig(DictConfig):
+class ResNetConfig:
     data_input_size: List[int] = MISSING
     data_output_size: List[int] = MISSING
 
@@ -150,7 +150,7 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
-        omegaConf: ResNetConfig,
+        omegaConf: DictConfig,
         block,
         layers,
         zero_init_residual=False,

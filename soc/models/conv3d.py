@@ -1,13 +1,13 @@
 import math
 import torch.nn as nn
 from dataclasses import dataclass, field
-from omegaconf import MISSING, DictConfig, OmegaConf
+from omegaconf import MISSING, OmegaConf, DictConfig
 from typing import List, Tuple, Any
 from .hexa_conv import HexaConv3d
 
 
 @dataclass
-class Conv3dModelConfig(DictConfig):
+class Conv3dModelConfig:
     data_input_size: List[int] = MISSING
     data_output_size: List[int] = MISSING
 
@@ -29,7 +29,7 @@ class Conv3dModel(nn.Module):
                 This is achieved with padding (left, right, top, bottom, 2, 0)
 
     """
-    def __init__(self, omegaConf: Conv3dModelConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(Conv3dModel, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf

@@ -14,7 +14,7 @@ SOCShape = Union[Tuple[List[int], ...], List[int]]
 
 
 @dataclass
-class PreprocessedForwardConfig(DictConfig):
+class PreprocessedForwardConfig:
     name: str = MISSING
     dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
     history_length: int = MISSING
@@ -42,22 +42,18 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     input_shape: SOCShape
     output_shape: SOCShape
 
-    def __init__(self, omegaConf: PreprocessedForwardConfig):
+    def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
         self.path = omegaConf['dataset_path']
-        self.data = torch.load(self.path)
-
-        assert 'history_length' in omegaConf
-        assert 'future_length' in omegaConf
-
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
+        self.data = torch.load(self.path)
         self._set_props(omegaConf)
 
-    def _set_props(self, omegaConf):
+    def _set_props(self, omegaConf: DictConfig):
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE

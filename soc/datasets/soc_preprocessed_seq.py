@@ -2,7 +2,7 @@ import os
 import torch
 from torch.utils.data import Dataset
 from dataclasses import dataclass
-from omegaconf import MISSING, DictConfig
+from omegaconf import MISSING
 from typing import List, Callable, Union, Tuple
 from . import utils as ds_utils
 from ..typing import SocDatasetItem, SocDataMetadata
@@ -15,7 +15,7 @@ OutputShape = Union[List[int], Tuple[List[int], ...]]
 
 
 @dataclass
-class PreprocessedSeqConfig(DictConfig):
+class PreprocessedSeqConfig:
     name: str = MISSING
     dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
 

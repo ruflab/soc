@@ -1,13 +1,13 @@
 from torch import nn
-from omegaconf import OmegaConf
-from .resnet18 import conv1x1, Bottleneck, BasicBlock, ResNetConfig
+from omegaconf import OmegaConf, DictConfig
+from .resnet18 import conv1x1, Bottleneck, BasicBlock
 from .hexa_conv import HexaConv2d
 
 
 class ResNet18Policy(nn.Module):
     def __init__(
         self,
-        omegaConf: ResNetConfig,
+        omegaConf: DictConfig,
         block=BasicBlock,
         layers=[2, 2, 2, 2],
         zero_init_residual=False,

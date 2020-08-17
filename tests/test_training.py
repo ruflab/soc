@@ -87,7 +87,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=2)
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
@@ -118,7 +118,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
                 dataset._get_length = MagicMock(return_value=2)
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
@@ -156,7 +156,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_length = MagicMock(return_value=2)
                 dataset._get_nb_steps = MagicMock(return_value=[9, 9])
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
@@ -195,7 +195,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_length = MagicMock(return_value=4)
                 dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
@@ -237,7 +237,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_length = MagicMock(return_value=4)
                 dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
@@ -278,7 +278,7 @@ class TestTraining(unittest.TestCase):
                 dataset._get_length = MagicMock(return_value=4)
                 dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
 
-                return dataset
+                return dataset, None
 
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(

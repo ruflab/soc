@@ -7,7 +7,7 @@ from ..typing import SocCollateFn
 
 
 @dataclass
-class PSQLConfig(DictConfig):
+class PSQLConfig:
     name: str = MISSING
     no_db: bool = False
     psql_username: str = 'deepsoc'
@@ -15,7 +15,7 @@ class PSQLConfig(DictConfig):
     psql_port: int = 5432
     psql_db_name: str = 'soc'
 
-    first_index: int = 100
+    first_index: int = 100  # Due to the java implementation
     shuffle: bool = True
 
 
@@ -36,17 +36,17 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, omegaConf: PSQLConfig) -> None:
+    def __init__(self, omegaConf: DictConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
-        self.no_db = omegaConf.get('no_db', False)
-        self.psql_username = omegaConf.get('psql_username', 'deepsoc')
-        self.psql_host = omegaConf.get('psql_host', 'localhost')
-        self.psql_port = omegaConf.get('psql_port', 5432)
-        self.psql_db_name = omegaConf.get('psql_db_name', 'soc')
+        self.no_db = omegaConf['no_db']
+        self.psql_username = omegaConf['psql_username']
+        self.psql_host = omegaConf['psql_host']
+        self.psql_port = omegaConf['psql_port']
+        self.psql_db_name = omegaConf['psql_db_name']
 
         self._length = -1
-        self._first_index = omegaConf.get('first_index', 100)  # Due to the java implementation
+        self._first_index = omegaConf['first_index']
 
         if self.no_db:
             self.engine = None
@@ -59,7 +59,7 @@ class SocPSQLDataset(Dataset):
 
         self._set_props(omegaConf)
 
-    def _set_props(self, omegaConf):
+    def _set_props(self, omegaConf: DictConfig):
         pass
 
     def __len__(self) -> int:

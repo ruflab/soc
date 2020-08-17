@@ -3,8 +3,8 @@
 ###
 import torch.nn as nn
 import torch
-from omegaconf import OmegaConf
-from .conv_lstm import ConvLSTMConfig, ConvLSTMCell
+from omegaconf import OmegaConf, DictConfig
+from .conv_lstm import ConvLSTMCell
 
 
 class ConvLSTMPolicy(nn.Module):
@@ -33,7 +33,7 @@ class ConvLSTMPolicy(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, omegaConf: ConvLSTMConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(ConvLSTMPolicy, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf

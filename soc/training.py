@@ -53,22 +53,35 @@ class Runner(pl.LightningModule):
     def __init__(self, config):
         super(Runner, self).__init__()
         self.hparams = config
+        self.val_dataset = None
 
     def prepare_data(self):
         # Download data here if needed
         pass
 
     def setup(self, stage):
-        dataset = self.setup_dataset()
+        self.train_dataset, self.val_dataset = self.setup_dataset()
 
-        self.train_dataset, self.val_dataset = self.split_dataset(dataset)
-        self.training_type = dataset.get_training_type()
-        self.metadata = dataset.get_output_metadata()
-        self.collate_fn = dataset.get_collate_fn()
-        self.hparams.model['data_input_size'] = dataset.get_input_size()
-        self.hparams.model['data_output_size'] = dataset.get_output_size()
+        self.training_type = self.train_dataset.get_training_type()
+        self.metadata = self.train_dataset.get_output_metadata()
+        self.collate_fn = self.train_dataset.get_collate_fn()
+        self.hparams.model['data_input_size'] = self.train_dataset.get_input_size()
+        self.hparams.model['data_output_size'] = self.train_dataset.get_output_size()
+
+        if self.val_dataset is None:
+            self.train_dataset, self.val_dataset = self.split_dataset(self.train_dataset)
 
         self.model = make_model(self.hparams.model)
+
+    def setup_dataset(self):
+        """This function purpose is mainly to be overrided for tests"""
+        train_dataset = make_dataset(self.hparams.dataset)
+        if 'val_dataset' in self.hparams:
+            val_dataset = make_dataset(self.hparams.val_dataset)
+        else:
+            val_dataset = None
+
+        return train_dataset, val_dataset
 
     def split_dataset(self, dataset, percent: float = 0.9):
         ds_len = len(dataset)
@@ -77,12 +90,6 @@ class Runner(pl.LightningModule):
         soc_train, soc_val = random_split(dataset, [train_len, val_len], torch.Generator())
 
         return soc_train, soc_val
-
-    def setup_dataset(self):
-        """This function purpose is mainly to be overrided for tests"""
-        dataset = make_dataset(self.hparams.dataset)
-
-        return dataset
 
     def train_dataloader(self):
         # Ho my god! -_- overfit_batches is broken

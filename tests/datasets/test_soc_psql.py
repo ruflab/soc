@@ -1,6 +1,8 @@
 import os
 import unittest
 import pandas as pd
+from hydra.experimental import initialize, compose
+from hydra.core.config_store import ConfigStore
 from unittest.mock import MagicMock
 from soc import datasets
 from soc.datasets import soc_data
@@ -25,6 +27,9 @@ class TestSocPSQLDataset(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cs = ConfigStore.instance()
+        cs.store(name="config", node=datasets.PSQLConfig)
+
         states = [pd.read_csv(file) for file in cls.obs_files]
         actions = [pd.read_csv(file) for file in cls.actions_files]
 
@@ -38,18 +43,23 @@ class TestSocPSQLDataset(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_soc_psql_seq_dataset(self):
-        dataset = datasets.SocPSQLSeqDataset({'no_db': True})
+        with initialize():
+            config = compose(
+                config_name="config",
+                overrides=["no_db=true"]
+            )
+            dataset = datasets.SocPSQLSeqDataset(config)
 
-        dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
-        dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
+            dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
+            dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
 
-        seqs = dataset[0]
-        assert len(seqs) == 2
-        assert len(seqs[0]) == 297
-        assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
-        assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)
+            seqs = dataset[0]
+            assert len(seqs) == 2
+            assert len(seqs[0]) == 297
+            assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
+            assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)
 
-        seqs = dataset[1]
-        assert len(seqs[0]) == 270
-        assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
-        assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)
+            seqs = dataset[1]
+            assert len(seqs[0]) == 270
+            assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
+            assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)

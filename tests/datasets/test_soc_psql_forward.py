@@ -2,6 +2,8 @@ import os
 import unittest
 import pandas as pd
 import numpy as np
+from hydra.experimental import initialize, compose
+from hydra.core.config_store import ConfigStore
 from unittest.mock import MagicMock
 from soc import datasets
 
@@ -25,6 +27,9 @@ class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cs = ConfigStore.instance()
+        cs.store(name="config", node=datasets.PSQLForwardConfig)
+
         states = [pd.read_csv(file) for file in cls.obs_files]
         actions = [pd.read_csv(file) for file in cls.actions_files]
 
@@ -44,16 +49,20 @@ class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
         cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_dataset_index(self):
-        config = {'no_db': True, 'history_length': 3, 'future_length': 2, 'first_index': 0}
-        dataset = datasets.SocPSQLForwardSAToSADataset(config)
-        dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
-        dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-        dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+        with initialize():
+            config = compose(
+                config_name="config",
+                overrides=["no_db=true", "history_length=3", "future_length=2", "first_index=0"]
+            )
+            dataset = datasets.SocPSQLForwardSAToSADataset(config)
+            dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
+            dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
+            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
 
-        input_size = dataset.get_input_size()
-        output_size = dataset.get_output_size()
+            input_size = dataset.get_input_size()
+            output_size = dataset.get_output_size()
 
-        inputs, outputs = dataset[0]
+            inputs, outputs = dataset[0]
 
-        np.testing.assert_array_equal(inputs.shape, input_size)
-        np.testing.assert_array_equal(outputs.shape, output_size)
+            np.testing.assert_array_equal(inputs.shape, input_size)
+            np.testing.assert_array_equal(outputs.shape, output_size)

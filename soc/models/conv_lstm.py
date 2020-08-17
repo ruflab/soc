@@ -4,13 +4,13 @@
 import torch.nn as nn
 import torch
 from dataclasses import dataclass, field
-from omegaconf import MISSING, DictConfig, OmegaConf
+from omegaconf import MISSING, OmegaConf, DictConfig
 from typing import List, Any
 from .hexa_conv import HexaConv2d
 
 
 @dataclass
-class ConvLSTMConfig(DictConfig):
+class ConvLSTMConfig:
     data_input_size: List[int] = MISSING
     data_output_size: List[int] = MISSING
 
@@ -110,7 +110,7 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, omegaConf: ConvLSTMConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(ConvLSTM, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf

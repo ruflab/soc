@@ -136,9 +136,6 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
-    def get_training_type(self) -> str:
-        return 'supervised_forward'
-
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
             'hexlayout': [0, 1],
@@ -195,9 +192,6 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         )  # [S, C_ls]
 
         return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
-
-    def get_training_type(self) -> str:
-        return 'resnet18policy'
 
     def get_output_metadata(self):
         spatial_metadata: SocDataMetadata = {

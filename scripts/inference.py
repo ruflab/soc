@@ -2,9 +2,9 @@ import os
 import pprint
 import torch
 import pytorch_lightning as pl
-from soc.training import Runner
 from soc.val import compute_accs
 from soc.losses import compute_losses
+from soc.runners import make_runner
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 _DATA_FOLDER = os.path.join(cfd, '..', 'data')
@@ -16,7 +16,7 @@ ckpt['hyper_parameters']['dataset']['dataset_path'] = _DATASET_PATH
 
 pl.seed_everything(ckpt['hyper_parameters']['seed'])
 
-runner = Runner(ckpt['hyper_parameters'])
+runner = make_runner(ckpt['hyper_parameters'])
 runner.setup('fit')
 runner.load_state_dict(ckpt['state_dict'])
 runner.eval()

@@ -149,10 +149,6 @@ class ConvLSTMPolicy(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
-        if not self.return_all_layers:
-            layer_output_list = layer_output_list[-1:]
-            last_state_list = last_state_list[-1:]
-
         y = layer_output_list[-1]
         y_linear = y.reshape(bs * S, -1)
 
@@ -166,9 +162,12 @@ class ConvLSTMPolicy(nn.Module):
         y_action_logits = self.policy_head(y_linear)
         y_action_logits_seq = y_action_logits.reshape([bs, S] + self.action_output_size[1:])
 
-        outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
+        model_outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
 
-        return outputs, layer_output_list, last_state_list
+        if self.return_all_layers:
+            return model_outputs, last_state_list, layer_output_list
+        else:
+            return model_outputs, last_state_list, None
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

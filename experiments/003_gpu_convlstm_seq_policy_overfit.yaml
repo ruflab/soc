@@ -5,7 +5,7 @@ generic:
     lr: 0.0003
     optimizer: adamw
     scheduler: null
-    batch_size: 2
+    batch_size: 1 # to build a small batch we use the trainer truncated_bptt_steps option
     weight_decay: 0.01
     amsgrad: true
     dataset:
@@ -22,7 +22,9 @@ generic:
         return_all_layers: false
         data_input_size: ???
         data_output_size: ???
+    runner_name: SOCSeqPolicyRunner
 trainer:
+    truncated_bptt_steps: 16
     logger: neptune
     deterministic: true
     terminate_on_nan: true

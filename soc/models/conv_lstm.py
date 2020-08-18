@@ -20,7 +20,7 @@ class ConvLSTMConfig:
     kernel_size: List[Any] = field(default_factory=lambda: [(3, 3)] * 2)
     batch_first: bool = True
     bias: bool = True
-    return_all_layers: bool = False
+    return_all_layers: bool = True
 
 
 class ConvLSTMCell(nn.Module):
@@ -193,16 +193,15 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
-        if not self.return_all_layers:
-            layer_output_list = layer_output_list[-1:]
-            last_state_list = last_state_list[-1:]
-
         last_outputs = layer_output_list[-1]
         _, _, chan, _, _ = last_outputs.shape
         outs = self.head(last_outputs.view((b * s, chan, height, width)))
         model_outputs = outs.view((b, s, -1, height, width))
 
-        return model_outputs, layer_output_list, last_state_list
+        if self.return_all_layers:
+            return model_outputs, last_state_list, layer_output_list
+        else:
+            return model_outputs, last_state_list, None
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

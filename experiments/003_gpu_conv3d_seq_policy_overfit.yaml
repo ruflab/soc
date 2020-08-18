@@ -2,11 +2,11 @@
 generic:
     seed: 1
     verbose: true
-    lr: 0.0005
+    lr: 0.0003
     optimizer: adamw
     scheduler: null
-    batch_size: 1
-    weight_decay: 0.0
+    batch_size: 1 # to build a small batch we use the trainer truncated_bptt_steps option
+    weight_decay: 0.01
     amsgrad: true
     dataset:
         name: SocPreprocessedSeqSAToSAPolicyDataset
@@ -21,13 +21,16 @@ generic:
         paddings: [[1, 1, 1, 1, 2, 0]]
         data_input_size: ???
         data_output_size: ???
+    runner_name: SOCSeqPolicyRunner
 trainer:
+    truncated_bptt_steps: 16
     logger: neptune
     deterministic: true
     terminate_on_nan: true
     gpus: 1
-    overfit_batches: 2
+    overfit_batches: 4
     row_log_interval: 2
+    max_epochs: 1001
 other:
-    save_top_k: 0
+    save_top_k: 1
     period: 500

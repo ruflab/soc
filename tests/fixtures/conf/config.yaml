@@ -5,6 +5,7 @@ defaults:
 generic:
   seed: 1
   verbose: False
+  runner_name: ???
   lr: 1e-3
   optimizer: adam
   scheduler:

@@ -76,7 +76,7 @@ class Conv3dModel(nn.Module):
 
         self.m = nn.Sequential(*layers)
 
-    def forward(self, input_tensor):
+    def forward(self, input_tensor, hidden=None):
         """
             Input for 3D convolution should be like this:
                 (Bs, C_in, Depth, H, W)
@@ -97,7 +97,7 @@ class Conv3dModel(nn.Module):
 
         output_tensor = out.permute(0, 2, 1, 3, 4)
 
-        return (output_tensor, )
+        return output_tensor, None, None
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""

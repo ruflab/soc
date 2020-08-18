@@ -165,9 +165,6 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
 
-    def get_training_type(self):
-        return 'supervised_seq'
-
     def get_output_metadata(self) -> SocDataMetadata:
         return {
             'hexlayout': [0, 1],
@@ -226,9 +223,6 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
-
-    def get_training_type(self):
-        return 'supervised_seq'
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {

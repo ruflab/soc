@@ -184,9 +184,6 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     def get_collate_fn(self):
         return None
 
-    def get_training_type(self):
-        return 'supervised_forward'
-
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
             'hexlayout': [0, 1],

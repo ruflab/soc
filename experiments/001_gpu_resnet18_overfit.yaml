@@ -18,6 +18,7 @@ generic:
         n_core_planes: 32
         data_input_size: ???
         data_output_size: ???
+    runner_name: SOCSupervisedForwardRunner
 trainer:
     logger: neptune
     deterministic: true

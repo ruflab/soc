@@ -50,10 +50,7 @@ class TestUtils(unittest.TestCase):
 
     def test_seq_data_loading_pipeline(self):
         with initialize():
-            config = compose(
-                config_name="config",
-                overrides=["no_db=true"]
-            )
+            config = compose(config_name="config", overrides=["no_db=true"])
             dataset = soc.datasets.SocPSQLSeqSAToSDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)

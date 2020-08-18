@@ -106,7 +106,7 @@ class Conv3dModelPolicy(nn.Module):
             nn.Linear(self.head_hidden_size, self.n_actions),
         )
 
-    def forward(self, input_tensor):
+    def forward(self, input_tensor, hidden_state=None):
         """
             Input for 3D convolution should be like this:
                 (Bs, C_in, Depth, H, W)
@@ -141,7 +141,7 @@ class Conv3dModelPolicy(nn.Module):
 
         outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
 
-        return (outputs, )
+        return outputs, None, None
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""

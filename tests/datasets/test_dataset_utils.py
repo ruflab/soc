@@ -47,10 +47,7 @@ class TestUtils(unittest.TestCase):
 
     def test_pad_seq_sas(self):
         with initialize():
-            config = compose(
-                config_name="config",
-                overrides=["no_db=true"]
-            )
+            config = compose(config_name="config", overrides=["no_db=true"])
             dataset = datasets.SocPSQLSeqSAToSDataset(config)
 
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)

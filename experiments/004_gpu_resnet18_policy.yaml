@@ -35,4 +35,4 @@ trainer:
     max_epochs: 1001
 other:
     save_top_k: 3
-    period: 50
+    period: 5

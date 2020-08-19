@@ -1,3 +1,6 @@
+import os
+import zipfile
+import shutil
 import sqlalchemy
 import numpy as np
 import pandas as pd
@@ -98,27 +101,71 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return df_states
 
-    def dump_preprocessed_dataset(self, folder: str, testing: bool = False):
-        utils.check_folder(folder)
-
+    def dump_preprocessed_dataset(
+        self,
+        folder: str,
+        testing: bool = False,
+        separate_seq: bool = False
+    ):
         if testing is True:
             limit = 5
         else:
             limit = len(self)
 
-        path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+        if separate_seq:
+            folder = "{}/soc_{}_fullseq".format(folder, limit)
+
+        utils.check_folder(folder)
+
         seqs = []
         for i in range(limit):
             data = self[i]
+
             state_seq_t = data[0]  # SxC_sxHxW
             action_seq_t = data[1]  # SxC_axHxW
             if testing is True:
                 state_seq_t = state_seq_t[:8]
                 action_seq_t = action_seq_t[:8]
-            input_t = torch.cat([state_seq_t, action_seq_t], dim=1)
-            seqs.append(input_t)
 
-        torch.save(seqs, path)
+            input_seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+
+            if separate_seq:
+                path = "{}/{}.pt".format(folder, i)
+                torch.save(input_seq_t, path)
+            else:
+                seqs.append(input_seq_t)
+
+        if separate_seq:
+            def zipdir(path, zip_filename):
+                ziph = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
+
+                for root, dirs, files in os.walk(path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        ziph.write(file_path, os.path.basename(file_path))
+
+                ziph.close()
+            zip_filename = "{}/../soc_{}_fullseq.zip".format(folder, limit)
+            zipdir(folder, zip_filename)
+            shutil.rmtree(folder)
+        else:
+            path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+            torch.save(seqs, path)
+
+    def dump_raw_dataset(self, folder: str):
+        utils.check_folder(folder)
+
+        limit = len(self)
+
+        data = []
+        for i in range(limit):
+            df_states = self._get_states_from_db(i)
+            df_actions = self._get_actions_from_db(i)
+
+            data.append([df_states, df_actions])
+
+        path = "{}/soc_{}_raw.pt".format(folder, limit)
+        torch.save(data, path)
 
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):

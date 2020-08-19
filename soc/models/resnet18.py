@@ -55,16 +55,23 @@ class BasicBlock(nn.Module):
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
             norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
         if groups != 1 or base_width != 64:
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = norm_layer(planes)
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, planes)
+        else:
+            self.bn1 = norm_layer(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
-        self.bn2 = norm_layer(planes)
+        if norm_layer == nn.GroupNorm:
+            self.bn2 = norm_layer(4, planes)
+        else:
+            self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -111,15 +118,25 @@ class Bottleneck(nn.Module):
         if norm_layer is None:
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
-            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.InstanceNorm2d
+            norm_layer = nn.GroupNorm
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
-        self.bn1 = norm_layer(width)
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, width)
+        else:
+            self.bn1 = norm_layer(width)
         self.conv2 = conv3x3(width, width, stride, groups, dilation)
-        self.bn2 = norm_layer(width)
+        if norm_layer == nn.GroupNorm:
+            self.bn2 = norm_layer(4, width)
+        else:
+            self.bn2 = norm_layer(width)
         self.conv3 = conv1x1(width, planes * self.expansion)
-        self.bn3 = norm_layer(planes * self.expansion)
+        if norm_layer == nn.GroupNorm:
+            self.bn3 = norm_layer(4, planes * self.expansion)
+        else:
+            self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
@@ -163,7 +180,8 @@ class ResNet(nn.Module):
         if norm_layer is None:
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
-            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.InstanceNorm2d
+            norm_layer = nn.GroupNorm
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf
@@ -192,9 +210,15 @@ class ResNet(nn.Module):
         self.conv1 = HexaConv2d(
             self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn1 = norm_layer(32 * self.n_core_planes)
+
         self.inplanes = 32 * self.n_core_planes
+
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, self.inplanes)
+        else:
+            self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
+
         self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
         self.layer2 = self._make_layer(
             block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
@@ -234,9 +258,13 @@ class ResNet(nn.Module):
             self.dilation *= stride
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
+            if norm_layer == nn.GroupNorm:
+                n1 = norm_layer(4, planes * block.expansion)
+            else:
+                n1 = norm_layer(planes * block.expansion)
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+                n1,
             )
 
         layers = []

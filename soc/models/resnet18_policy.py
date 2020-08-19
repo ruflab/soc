@@ -21,6 +21,7 @@ class ResNet18Policy(nn.Module):
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
             norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf
@@ -59,9 +60,14 @@ class ResNet18Policy(nn.Module):
         self.conv1 = HexaConv2d(
             self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn1 = norm_layer(32 * self.n_core_planes)
         self.inplanes = 32 * self.n_core_planes
+
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, self.inplanes)
+        else:
+            self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
+
         self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
         self.layer2 = self._make_layer(
             block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
@@ -126,9 +132,13 @@ class ResNet18Policy(nn.Module):
             self.dilation *= stride
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
+            if norm_layer == nn.GroupNorm:
+                n1 = norm_layer(4, planes * block.expansion)
+            else:
+                n1 = norm_layer(planes * block.expansion)
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+                n1,
             )
 
         layers = []

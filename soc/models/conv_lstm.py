@@ -20,7 +20,7 @@ class ConvLSTMConfig:
     kernel_size: List[Any] = field(default_factory=lambda: [(3, 3)] * 2)
     batch_first: bool = True
     bias: bool = True
-    return_all_layers: bool = True
+    return_all_layers: bool = False
 
 
 class ConvLSTMCell(nn.Module):
@@ -56,7 +56,10 @@ class ConvLSTMCell(nn.Module):
             padding=self.padding,
             bias=self.bias
         )
-        self.norm = nn.InstanceNorm2d(4 * self.h_chan_dim)
+        self.norm = nn.GroupNorm(
+            num_groups=4,
+            num_channels=4 * self.h_chan_dim
+        )
 
     def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
@@ -64,7 +67,7 @@ class ConvLSTMCell(nn.Module):
         combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
 
         combined_conv = self.conv(combined)
-        # combined_conv = self.norm(combined_conv)
+        combined_conv = self.norm(combined_conv)
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.h_chan_dim, dim=1)
         i = torch.sigmoid(cc_i)
         f = torch.sigmoid(cc_f)

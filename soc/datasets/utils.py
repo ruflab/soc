@@ -147,6 +147,10 @@ def preprocess_actions(df_actions: pd.DataFrame) -> pd.DataFrame:
     del df_actions['value']
 
     df_actions['type'] = df_actions['type'].apply(ju.parse_actions)
+    # The first action is igniting the first state so we remove it
+    df_actions = df_actions[1:]
+    # and we duplicate the last one to keep the same numbers of state-actions
+    df_actions = df_actions.append(df_actions.iloc[-1])
 
     return df_actions
 

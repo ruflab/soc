@@ -7,7 +7,6 @@ from . import utils as ds_utils
 from . import soc_data
 from ..typing import SocDataMetadata
 
-
 SOCShape = Union[Tuple[List[int], ...], List[int]]
 
 

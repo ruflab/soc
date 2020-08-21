@@ -49,6 +49,8 @@ ACTIONS = {
     'WIN': 10.0,
 }
 
+ACTIONS_NAMES = list(ACTIONS.keys())
+
 ML_TYPE = {
     'regression': 0,
     'binary': 1,

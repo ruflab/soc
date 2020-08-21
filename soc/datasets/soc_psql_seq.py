@@ -102,10 +102,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         return df_states
 
     def dump_preprocessed_dataset(
-        self,
-        folder: str,
-        testing: bool = False,
-        separate_seq: bool = False
+        self, folder: str, testing: bool = False, separate_seq: bool = False
     ):
         if testing is True:
             limit = 5
@@ -136,6 +133,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                 seqs.append(input_seq_t)
 
         if separate_seq:
+
             def zipdir(path, zip_filename):
                 ziph = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
 
@@ -145,6 +143,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                         ziph.write(file_path, os.path.basename(file_path))
 
                 ziph.close()
+
             zip_filename = "{}/../soc_{}_fullseq.zip".format(folder, limit)
             zipdir(folder, zip_filename)
             shutil.rmtree(folder)

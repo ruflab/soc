@@ -56,10 +56,7 @@ class ConvLSTMCell(nn.Module):
             padding=self.padding,
             bias=self.bias
         )
-        self.norm = nn.GroupNorm(
-            num_groups=4,
-            num_channels=4 * self.h_chan_dim
-        )
+        self.norm = nn.GroupNorm(num_groups=4, num_channels=4 * self.h_chan_dim)
 
     def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state

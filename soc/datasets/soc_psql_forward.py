@@ -39,6 +39,13 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
 
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+        self.output_shape = [
+            self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+
     def __len__(self) -> int:
         return self._get_length()
 
@@ -87,13 +94,14 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         """
         df_states, df_actions = self._get_data_from_db(idx)
-        assert len(df_states.index) == len(df_actions.index)
+        game_length = len(df_states)
 
         df_states = ds_utils.preprocess_states(df_states)
         df_actions = ds_utils.preprocess_actions(df_actions)
 
-        to_concat = []
-        for i in range(len(df_states)):
+        state_seq = []
+        action_seq = []
+        for i in range(game_length):
             current_state_df = df_states.iloc[i]
             current_action_df = df_actions.iloc[i]
 
@@ -102,17 +110,15 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             )  # yapf: ignore
             current_action_np = current_action_df['type']
 
-            to_concat.append(current_state_np)
-            to_concat.append(current_action_np)
+            state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
+            action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
 
-        history_l = to_concat[:self.history_length * 2]
-        future_l = to_concat[self.history_length * 2:]
+        state_seq_t = torch.stack(state_seq)
+        action_seq_t = torch.stack(action_seq)
+        seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
-        history_np = np.concatenate(history_l, axis=0).reshape(self.get_input_size())
-        future_np = np.concatenate(future_l, axis=0).reshape(self.get_output_size())
-
-        history_t = torch.tensor(history_np, dtype=torch.float32)
-        future_t = torch.tensor(future_np, dtype=torch.float32)
+        history_t = seq_t[:self.history_length]
+        future_t = seq_t[self.history_length:]
 
         return history_t, future_t
 
@@ -162,24 +168,19 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         return df_states
 
-    def get_input_size(self) -> List:
+    def get_input_size(self):
         """
             Return the input dimension
         """
 
-        return [
-            self.history_length,
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
+        return self.input_shape
 
-    def get_output_size(self) -> List:
+    def get_output_size(self):
         """
             Return the output dimension
         """
-        return [
-            self.future_length,
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
+
+        return self.output_shape
 
     def get_collate_fn(self):
         return None
@@ -201,3 +202,70 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         }
 
         return metadata
+
+
+class SocPSQLForwardSAToSAPolicyDataset(SocPSQLForwardSAToSADataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S_h, (C_states + C_actions), H, W]
+
+        Output: Tuple of next state and next actions
+            Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
+    """
+    def _set_props(self, config):
+        self.history_length = config['history_length']
+        self.future_length = config['future_length']
+        self.seq_len_per_datum = self.history_length + self.future_length
+
+        self.input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+
+        output_shape_spatial = [
+            self.future_length, soc_data.SPATIAL_STATE_SIZE
+        ] + soc_data.BOARD_SIZE
+        output_shape = [self.future_length, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
+
+    def __getitem__(self, idx: int):
+        history_t, future_t = super(
+            SocPSQLForwardSAToSAPolicyDataset, self
+        ).__getitem__(idx)
+
+        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
+                                            dim=1)  # [S, C_ss, H, W]
+        future_lin_states_t = torch.cat(
+            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
+        )  # [S, C_ls]
+
+        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+
+    def get_output_metadata(self):
+        spatial_metadata: SocDataMetadata = {
+            'hexlayout': [0, 1],
+            'numberlayout': [1, 2],
+            'robberhex': [2, 3],
+            'piecesonboard': [3, 75],
+        }
+
+        linear_metadata: SocDataMetadata = {
+            'gamestate': [0, 24],
+            'diceresult': [24, 37],
+            'startingplayer': [37, 41],
+            'currentplayer': [41, 45],
+            'devcardsleft': [45, 46],
+            'playeddevcard': [46, 47],
+            'players': [47, 211],
+        }
+
+        actions_metadata: SocDataMetadata = {
+            'actions': [0, soc_data.ACTION_SIZE],
+        }
+
+        return (spatial_metadata, linear_metadata, actions_metadata)

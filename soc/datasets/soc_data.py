@@ -1,6 +1,7 @@
 DICE_RESULTS = {a: b for a, b in enumerate(range(2, 13))}
-DICE_RESULTS[11] = -1  # Beofre the game start
+DICE_RESULTS[11] = -1  # Before the game start
 DICE_RESULTS[12] = 0  # after the user start a turn, before he actually roll the dice
+DICE_RESULT_SIZE = len(DICE_RESULTS)
 
 GAME_PHASES = {
     'NEW': 0,
@@ -28,6 +29,8 @@ GAME_PHASES = {
     'SPECIAL_BUILDING': 100,
     'OVER': 1000,
 }
+GAME_PHASES_NAMES = list(GAME_PHASES.keys())
+GAME_PHASE_SIZE = len(GAME_PHASES)
 
 ACTIONS = {
     'TRADE': 1.0,
@@ -48,8 +51,8 @@ ACTIONS = {
     'PLAYROAD': 9.4,
     'WIN': 10.0,
 }
-
 ACTIONS_NAMES = list(ACTIONS.keys())
+ACTION_SIZE = len(ACTIONS)
 
 ML_TYPE = {
     'regression': 0,
@@ -78,9 +81,10 @@ STATE_COLS_SIZE = {
     'hexlayout': 1,
     'numberlayout': 1,
     'robberhex': 1,
-    'piecesonboard': 4 * 18,  # Linear
-    'gamestate': len(GAME_PHASES),
-    'diceresult': len(DICE_RESULTS),
+    'piecesonboard': 4 * 18,
+    # Linear
+    'gamestate': GAME_PHASE_SIZE,
+    'diceresult': DICE_RESULT_SIZE,
     'startingplayer': 4,
     'currentplayer': 4,
     'devcardsleft': 1,
@@ -89,6 +93,7 @@ STATE_COLS_SIZE = {
 }
 
 BOARD_SIZE = [7, 7]
+
 SPATIAL_STATE_SIZE = sum([
     STATE_COLS_SIZE['hexlayout'],
     STATE_COLS_SIZE['numberlayout'],
@@ -96,4 +101,3 @@ SPATIAL_STATE_SIZE = sum([
     STATE_COLS_SIZE['piecesonboard'],
 ])
 STATE_SIZE = sum(STATE_COLS_SIZE.values())
-ACTION_SIZE = len(ACTIONS)

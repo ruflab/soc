@@ -218,7 +218,7 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
         return (spatial_metadata, linear_metadata, actions_metadata)
 
 
-class SocFilePreprocessedForwardSAToSADataset(Dataset):
+class SocLazyPreprocessedForwardSAToSADataset(Dataset):
     """
         Returns a completely formatted dataset:
 
@@ -238,7 +238,7 @@ class SocFilePreprocessedForwardSAToSADataset(Dataset):
     output_shape: SOCShape
 
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
-        super(SocFilePreprocessedForwardSAToSADataset, self).__init__()
+        super(SocLazyPreprocessedForwardSAToSADataset, self).__init__()
 
         self.path = omegaConf['dataset_path']
         if not os.path.isdir(self.path):
@@ -356,7 +356,7 @@ class SocFilePreprocessedForwardSAToSADataset(Dataset):
         return metadata
 
 
-class SocFilePreprocessedForwardSAToSAPolicyDataset(SocFilePreprocessedForwardSAToSADataset):
+class SocLazyPreprocessedForwardSAToSAPolicyDataset(SocLazyPreprocessedForwardSAToSADataset):
     """
         Returns a completely formatted dataset:
 
@@ -381,7 +381,7 @@ class SocFilePreprocessedForwardSAToSAPolicyDataset(SocFilePreprocessedForwardSA
 
     def __getitem__(self, idx: int):
         history_t, future_t = super(
-            SocFilePreprocessedForwardSAToSAPolicyDataset, self
+            SocLazyPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
 
         future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]

@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 from torch.utils.data import Dataset
 from dataclasses import dataclass
 from omegaconf import MISSING, DictConfig
@@ -51,10 +52,15 @@ class SocPSQLDataset(Dataset):
         if self.no_db:
             self.engine = None
         else:
+            # We are not using a pool of connections
+            # because it does not work well with multiprocessing
+            # see https://stackoverflow.com/questions/41279157/connection-problems-with-sqlalchemy-and-multiple-processes  # noqa
+            # TODO: Find a way to use a pool with multiprocessing
             self.engine = create_engine(
                 'postgresql://{}@{}:{}/{}'.format(
                     self.psql_username, self.psql_host, self.psql_port, self.psql_db_name
-                )
+                ),
+                poolclass=NullPool
             )
 
         self._set_props(omegaConf)

@@ -134,8 +134,8 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
                 break
             prev_seq_steps = seq_steps
         r = idx - prev_seq_steps
-        start_row_id = r
-        end_row_id = r + self.seq_len_per_datum
+        start_row_id = r + 1  # We add 1 because indices in the PosGreSQL DB start at 1 and not 0
+        end_row_id = start_row_id + self.seq_len_per_datum
 
         states = self._get_states_from_db(table_id, start_row_id, end_row_id)
         actions = self._get_actions_from_db(table_id, start_row_id, end_row_id)
@@ -148,10 +148,14 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM obsgamestates_{}
-            WHERE id > {} AND id < {}
+            WHERE id >= {} AND id < {}
         """.format(table_id, start_row_id, end_row_id)
 
-        df_states = pd.read_sql_query(query, con=self.engine)
+        if self.engine is not None:
+            with self.engine.connect() as conn:
+                df_states = pd.read_sql_query(query, con=conn)
+        else:
+            raise Exception('No engine detected')
 
         return df_states
 
@@ -161,10 +165,14 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM gameactions_{}
-            WHERE id > {} AND id < {}
+            WHERE id >= {} AND id < {}
         """.format(table_id, start_row_id, end_row_id)
 
-        df_states = pd.read_sql_query(query, con=self.engine)
+        if self.engine is not None:
+            with self.engine.connect() as conn:
+                df_states = pd.read_sql_query(query, con=conn)
+        else:
+            raise Exception('No engine detected')
 
         return df_states
 

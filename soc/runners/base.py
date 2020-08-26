@@ -66,6 +66,7 @@ class SOCRunner(LightningModule):
             shuffle=shuffle,
             num_workers=multiprocessing.cpu_count(),
             collate_fn=self.collate_fn,
+            pin_memory=True
         )
 
         return dataloader
@@ -76,6 +77,7 @@ class SOCRunner(LightningModule):
             batch_size=self.hparams['batch_size'],
             num_workers=multiprocessing.cpu_count(),
             collate_fn=self.collate_fn,
+            pin_memory=True
         )
 
         return dataloader

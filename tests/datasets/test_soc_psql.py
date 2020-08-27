@@ -44,7 +44,10 @@ class TestSocPSQLDataset(unittest.TestCase):
 
     def test_soc_psql_seq_dataset(self):
         with initialize():
-            config = compose(config_name="config", overrides=["no_db=true"])
+            config = compose(
+                config_name="config",
+                overrides=["no_db=true", "psql_password=dummy"]
+            )
             dataset = datasets.SocPSQLSeqDataset(config)
 
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)

@@ -86,7 +86,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             FROM obsgamestates_{}
         """.format(db_id)
 
-        df_states = pd.read_sql_query(query, con=self.engine)
+        if self.engine is not None:
+            with self.engine.connect() as conn:
+                df_states = pd.read_sql_query(query, con=conn)
+        else:
+            raise Exception('No engine detected')
 
         return df_states
 
@@ -97,9 +101,13 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             FROM gameactions_{}
         """.format(db_id)
 
-        df_states = pd.read_sql_query(query, con=self.engine)
+        if self.engine is not None:
+            with self.engine.connect() as conn:
+                df_actions = pd.read_sql_query(query, con=conn)
+        else:
+            raise Exception('No engine detected')
 
-        return df_states
+        return df_actions
 
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
@@ -116,15 +124,10 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         seqs = []
         for i in range(limit):
-            data = self[i]
+            input_seq_t = self._load_input_seq(i)
 
-            state_seq_t = data[0]  # SxC_sxHxW
-            action_seq_t = data[1]  # SxC_axHxW
             if testing is True:
-                state_seq_t = state_seq_t[:8]
-                action_seq_t = action_seq_t[:8]
-
-            input_seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+                input_seq_t = input_seq_t[:8]
 
             if separate_seq:
                 path = "{}/{}.pt".format(folder, i)
@@ -133,7 +136,6 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                 seqs.append(input_seq_t)
 
         if separate_seq:
-
             def zipdir(path, zip_filename):
                 ziph = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
 
@@ -150,6 +152,16 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         else:
             path = "{}/soc_{}_fullseq.pt".format(folder, limit)
             torch.save(seqs, path)
+
+    def _load_input_seq(self, idx: int):
+        data = self[idx]
+
+        state_seq_t = data[0]  # SxC_sxHxW
+        action_seq_t = data[1]  # SxC_axHxW
+
+        input_seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
+
+        return input_seq_t
 
     def dump_raw_dataset(self, folder: str):
         utils.check_folder(folder)

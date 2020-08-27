@@ -90,7 +90,12 @@ class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
         with initialize():
             config = compose(
                 config_name="config",
-                overrides=["no_db=true", "history_length=3", "future_length=2", "first_index=0"]
+                overrides=[
+                    "no_db=true",
+                    "history_length=3",
+                    "future_length=2",
+                    "first_index=0",
+                    "psql_password=dummy"]
             )
             dataset = datasets.SocPSQLForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)

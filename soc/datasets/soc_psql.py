@@ -15,6 +15,7 @@ class PSQLConfig:
     psql_host: str = 'localhost'
     psql_port: int = 5432
     psql_db_name: str = 'soc'
+    psql_password: str = MISSING
 
     first_index: int = 100  # Due to the java implementation
     shuffle: bool = True
@@ -45,6 +46,7 @@ class SocPSQLDataset(Dataset):
         self.psql_host = omegaConf['psql_host']
         self.psql_port = omegaConf['psql_port']
         self.psql_db_name = omegaConf['psql_db_name']
+        self.psql_password = omegaConf['psql_password']
 
         self._length = -1
         self._first_index = omegaConf['first_index']
@@ -57,8 +59,12 @@ class SocPSQLDataset(Dataset):
             # see https://stackoverflow.com/questions/41279157/connection-problems-with-sqlalchemy-and-multiple-processes  # noqa
             # TODO: Find a way to use a pool with multiprocessing
             self.engine = create_engine(
-                'postgresql://{}@{}:{}/{}'.format(
-                    self.psql_username, self.psql_host, self.psql_port, self.psql_db_name
+                'postgresql://{}:{}@{}:{}/{}'.format(
+                    self.psql_username,
+                    self.psql_password,
+                    self.psql_host,
+                    self.psql_port,
+                    self.psql_db_name
                 ),
                 poolclass=NullPool
             )

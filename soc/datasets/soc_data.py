@@ -1,3 +1,28 @@
+ML_TYPE = {
+    'regression': 0,
+    'binary': 1,
+    'categories': 2,
+    'spatial_categories': 3,
+}
+
+###
+# Fields
+###
+
+FIELDS = [
+    'hexlayout',
+    'numberlayout',
+    'robberhex',
+    'piecesonboard',
+    'gamestate',
+    'diceresult',
+    'startingplayer',
+    'currentplayer',
+    'devcardsleft',
+    'playeddevcard',
+    'players',
+]
+
 DICE_RESULTS = {a: b for a, b in enumerate(range(2, 13))}
 DICE_RESULTS[11] = -1  # Before the game start
 DICE_RESULTS[12] = 0  # after the user start a turn, before he actually roll the dice
@@ -53,13 +78,6 @@ ACTIONS = {
 }
 ACTIONS_NAMES = list(ACTIONS.keys())
 ACTION_SIZE = len(ACTIONS)
-
-ML_TYPE = {
-    'regression': 0,
-    'binary': 1,
-    'categories': 2,
-    'spatial_categories': 3,
-}
 
 STATE_COLS = {
     # Spatial

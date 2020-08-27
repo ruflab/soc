@@ -75,7 +75,7 @@ def pad_seq_policy(inputs: SocSeqPolicyList) -> SocSeqPolicyBatch:
     return xs_t, ys_t, mask_t
 
 
-def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
+def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
     """
         This function applies the preprocessing steps necessary to move from the raw
         observation to a spatial representation.
@@ -103,76 +103,73 @@ def preprocess_states(df_states: pd.DataFrame) -> pd.DataFrame:
 
         State shape: 245x7x7
     """
-    df_states = df_states.copy()
-    del df_states['touchingnumbers']
-    del df_states['name']
-    del df_states['id']
+    states_df = states_df.copy()
+    del states_df['touchingnumbers']
+    del states_df['name']
+    del states_df['id']
 
-    df_states['hexlayout'] = df_states['hexlayout'].apply(ju.parse_layout) \
+    states_df['hexlayout'] = states_df['hexlayout'].apply(ju.parse_layout) \
                                                    .apply(ju.mapping_1d_2d) \
                                                    .apply(normalize_hexlayout)
-    df_states['numberlayout'] = df_states['numberlayout'].apply(ju.parse_layout) \
+    states_df['numberlayout'] = states_df['numberlayout'].apply(ju.parse_layout) \
                                                          .apply(ju.mapping_1d_2d) \
                                                          .apply(normalize_numberlayout)
 
-    df_states['robberhex'] = df_states['robberhex'].apply(ju.get_1d_id_from_hex) \
+    states_df['robberhex'] = states_df['robberhex'].apply(ju.get_1d_id_from_hex) \
                                                    .apply(ju.get_2d_id) \
                                                    .apply(ju.get_one_hot_plan)
 
-    df_states['piecesonboard'] = df_states['piecesonboard'].apply(ju.parse_pieces)
+    states_df['piecesonboard'] = states_df['piecesonboard'].apply(ju.parse_pieces)
 
-    df_states['players'] = df_states['players'].apply(ju.parse_player_infos)
+    states_df['players'] = states_df['players'].apply(ju.parse_player_infos)
 
-    df_states['gamestate'] = df_states['gamestate'].apply(ju.parse_game_phases)
+    states_df['gamestate'] = states_df['gamestate'].apply(ju.parse_game_phases)
 
-    df_states['devcardsleft'] = df_states['devcardsleft'].apply(ju.get_replicated_plan) \
+    states_df['devcardsleft'] = states_df['devcardsleft'].apply(ju.get_replicated_plan) \
                                                          .apply(normalize_devcardsleft)
 
-    df_states['diceresult'] = df_states['diceresult'].apply(ju.parse_dice_result)
+    states_df['diceresult'] = states_df['diceresult'].apply(ju.parse_dice_result)
 
-    df_states['startingplayer'] = df_states['startingplayer'].apply(ju.parse_starting_player)
+    states_df['startingplayer'] = states_df['startingplayer'].apply(ju.parse_starting_player)
 
-    df_states['currentplayer'] = df_states['currentplayer'].apply(ju.parse_current_player)
+    states_df['currentplayer'] = states_df['currentplayer'].apply(ju.parse_current_player)
 
-    df_states['playeddevcard'] = df_states['playeddevcard'].apply(ju.get_replicated_plan)
+    states_df['playeddevcard'] = states_df['playeddevcard'].apply(ju.get_replicated_plan)
 
-    return df_states
+    return states_df
 
 
-def preprocess_actions(df_actions: pd.DataFrame) -> pd.DataFrame:
-    df_actions = df_actions.copy()
-    del df_actions['id']
-    del df_actions['beforestate']
-    del df_actions['afterstate']
-    del df_actions['value']
+def preprocess_actions(actions_df: pd.DataFrame) -> pd.DataFrame:
+    actions_df = actions_df.copy()
+    del actions_df['id']
+    del actions_df['beforestate']
+    del actions_df['afterstate']
+    del actions_df['value']
 
-    df_actions['type'] = df_actions['type'].apply(ju.parse_actions)
+    actions_df['type'] = actions_df['type'].apply(ju.parse_actions)
     # The first action is igniting the first state so we remove it
-    df_actions = df_actions[1:]
+    actions_df = actions_df[1:]
     # and we duplicate the last one to keep the same numbers of state-actions
-    df_actions = df_actions.append(df_actions.iloc[-1])
+    actions_df = actions_df.append(actions_df.iloc[-1])
 
-    return df_actions
+    return actions_df
 
 
-def preprocess_chats(df_chats: pd.DataFrame, game_length: int) -> pd.DataFrame:
-    data: Dict[str, List] = {
-        'message': [[] for i in range(game_length)]
-    }
+def preprocess_chats(chats_df: pd.DataFrame, game_length: int) -> pd.DataFrame:
+    data: Dict[str, List] = {'message': [[] for i in range(game_length)]}
 
-    for _, row in df_chats.iterrows():
+    for _, row in chats_df.iterrows():
         db_state = row['current_state']
         mess = "{}: {}".format(row['sender'], row['message'])
 
         data['message'][db_state].append(mess)
-    data['message'] = list(map(
-        lambda x: '<void>' if len(x) == 0 else '\n'.join(x),
-        data['message']
-    ))
+    data['message'] = list(
+        map(lambda x: '<void>' if len(x) == 0 else '\n'.join(x), data['message'])
+    )
     breakpoint()
-    df_chats_preproc = pd.DataFrame(data)
+    chats_preproc_df = pd.DataFrame(data)
 
-    return df_chats_preproc
+    return chats_preproc_df
 
 
 def normalize_hexlayout(data: DataTensor) -> DataTensor:

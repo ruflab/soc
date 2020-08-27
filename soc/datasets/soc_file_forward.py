@@ -103,15 +103,15 @@ class SocFileForwardSAToSAPolicyDataset:
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        df_states, df_actions = self._get_data(idx)
+        states_df, actions_df = self._get_data(idx)
 
-        df_states = ds_utils.preprocess_states(df_states)
-        df_actions = ds_utils.preprocess_actions(df_actions)
+        states_df = ds_utils.preprocess_states(states_df)
+        actions_df = ds_utils.preprocess_actions(actions_df)
 
         to_concat = []
-        for i in range(len(df_states)):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
+        for i in range(len(states_df)):
+            current_state_df = states_df.iloc[i]
+            current_action_df = actions_df.iloc[i]
 
             current_state_np = np.concatenate(
                 [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
@@ -157,9 +157,9 @@ class SocFileForwardSAToSAPolicyDataset:
         start_row_id = r
         end_row_id = r + self.seq_len_per_datum
 
-        df_states, df_actions = self.data[table_id]
+        states_df, actions_df = self.data[table_id]
 
-        return df_states[start_row_id:end_row_id], df_actions[start_row_id:end_row_id]
+        return states_df[start_row_id:end_row_id], actions_df[start_row_id:end_row_id]
 
     def get_input_size(self) -> SOCShape:
         """

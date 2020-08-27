@@ -12,8 +12,8 @@ fixture_dir = os.path.join(cfd, 'fixtures')
 
 class TestLosses(unittest.TestCase):
 
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
+    states_df: pd.DataFrame
+    actions_df: pd.DataFrame
 
     obs_files = [
         os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),

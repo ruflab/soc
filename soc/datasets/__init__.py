@@ -22,8 +22,7 @@ __all__ = [
     'PSQLConfig',
     'PSQLForwardConfig',
     'PreprocessedSeqConfig',
-    'PreprocessedForwardConfig',
-    # Soc Datasets
+    'PreprocessedForwardConfig',  # Soc Datasets
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',
     'SocPSQLSeqSAToSADataset',
@@ -36,8 +35,7 @@ __all__ = [
     'SocPreprocessedForwardSAToSADataset',
     'SocPreprocessedForwardSAToSAPolicyDataset',
     'SocLazyPreprocessedForwardSAToSADataset',
-    'SocLazyPreprocessedForwardSAToSAPolicyDataset',
-    # Soc Dataset with text
+    'SocLazyPreprocessedForwardSAToSAPolicyDataset',  # Soc Dataset with text
     'SocPSQLTextSeqDataset'
 ]
 

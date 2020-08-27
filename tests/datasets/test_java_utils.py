@@ -18,8 +18,8 @@ class TestJavaUtils(unittest.TestCase):
 
     def test_mapping_1d_2d(self):
         obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df_states = pd.read_csv(obs_file)
-        hexlayout = df_states['hexlayout'].iloc[0]
+        states_df = pd.read_csv(obs_file)
+        hexlayout = states_df['hexlayout'].iloc[0]
 
         data_2d = ju.mapping_1d_2d(ju.parse_layout(hexlayout))
         x = np.array(data_2d)

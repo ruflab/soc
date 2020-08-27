@@ -51,20 +51,20 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        df_states = self._get_states_from_db(idx)
-        df_actions = self._get_actions_from_db(idx)
+        states_df = self._get_states_from_db(idx)
+        actions_df = self._get_actions_from_db(idx)
 
-        assert len(df_states.index) == len(df_actions.index)
-        game_length = len(df_states)
+        assert len(states_df.index) == len(actions_df.index)
+        game_length = len(states_df)
 
-        df_states = ds_utils.preprocess_states(df_states)
-        df_actions = ds_utils.preprocess_actions(df_actions)
+        states_df = ds_utils.preprocess_states(states_df)
+        actions_df = ds_utils.preprocess_actions(actions_df)
 
         state_seq = []
         action_seq = []
         for i in range(game_length):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
+            current_state_df = states_df.iloc[i]
+            current_action_df = actions_df.iloc[i]
 
             current_state_np = np.concatenate(
                 [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
@@ -88,11 +88,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_states = pd.read_sql_query(query, con=conn)
+                states_df = pd.read_sql_query(query, con=conn)
         else:
             raise Exception('No engine detected')
 
-        return df_states
+        return states_df
 
     def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
         db_id = self._first_index + idx
@@ -103,11 +103,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_actions = pd.read_sql_query(query, con=conn)
+                actions_df = pd.read_sql_query(query, con=conn)
         else:
             raise Exception('No engine detected')
 
-        return df_actions
+        return actions_df
 
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
@@ -136,6 +136,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                 seqs.append(input_seq_t)
 
         if separate_seq:
+
             def zipdir(path, zip_filename):
                 ziph = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
 
@@ -170,10 +171,10 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         data = []
         for i in range(limit):
-            df_states = self._get_states_from_db(i)
-            df_actions = self._get_actions_from_db(i)
+            states_df = self._get_states_from_db(i)
+            actions_df = self._get_actions_from_db(i)
 
-            data.append([df_states, df_actions])
+            data.append([states_df, actions_df])
 
         path = "{}/soc_{}_raw.pt".format(folder, limit)
         torch.save(data, path)

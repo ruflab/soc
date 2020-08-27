@@ -93,17 +93,17 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        df_states, df_actions = self._get_data_from_db(idx)
-        game_length = len(df_states)
+        states_df, actions_df = self._get_data_from_db(idx)
+        game_length = len(states_df)
 
-        df_states = ds_utils.preprocess_states(df_states)
-        df_actions = ds_utils.preprocess_actions(df_actions)
+        states_df = ds_utils.preprocess_states(states_df)
+        actions_df = ds_utils.preprocess_actions(actions_df)
 
         state_seq = []
         action_seq = []
         for i in range(game_length):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
+            current_state_df = states_df.iloc[i]
+            current_action_df = actions_df.iloc[i]
 
             current_state_np = np.concatenate(
                 [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
@@ -153,11 +153,11 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_states = pd.read_sql_query(query, con=conn)
+                states_df = pd.read_sql_query(query, con=conn)
         else:
             raise Exception('No engine detected')
 
-        return df_states
+        return states_df
 
     def _get_actions_from_db(
         self, table_id: int, start_row_id: int, end_row_id: int
@@ -170,11 +170,11 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_states = pd.read_sql_query(query, con=conn)
+                states_df = pd.read_sql_query(query, con=conn)
         else:
             raise Exception('No engine detected')
 
-        return df_states
+        return states_df
 
     def get_input_size(self):
         """
@@ -240,9 +240,7 @@ class SocPSQLForwardSAToSAPolicyDataset(SocPSQLForwardSAToSADataset):
         self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
     def __getitem__(self, idx: int):
-        history_t, future_t = super(
-            SocPSQLForwardSAToSAPolicyDataset, self
-        ).__getitem__(idx)
+        history_t, future_t = super(SocPSQLForwardSAToSAPolicyDataset, self).__getitem__(idx)
 
         future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
         future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]

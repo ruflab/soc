@@ -20,8 +20,8 @@ _DATASET_PATH = os.path.join(fixture_dir, 'soc_5_fullseq.pt')
 
 class TestTraining(unittest.TestCase):
 
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
+    states_df: pd.DataFrame
+    actions_df: pd.DataFrame
 
     obs_files = [
         os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),

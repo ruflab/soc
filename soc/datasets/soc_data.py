@@ -99,8 +99,7 @@ STATE_COLS_SIZE = {
     'hexlayout': 1,
     'numberlayout': 1,
     'robberhex': 1,
-    'piecesonboard': 4 * 18,
-    # Linear
+    'piecesonboard': 4 * 18,  # Linear
     'gamestate': GAME_PHASE_SIZE,
     'diceresult': DICE_RESULT_SIZE,
     'startingplayer': 4,

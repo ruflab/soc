@@ -25,7 +25,6 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
     def __getitem__(self, idx: int):
         """
             Return one datapoint from the dataset
@@ -49,7 +48,9 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
         #     chat_seq.append(torch.tensor(current_chat_np, dtype=torch.int64))
         # chat_seq_t = torch.stack(chat_seq)
 
-        return (state_seq_t, action_seq_t), chats_df['message'].tolist()
+        chats_l = chats_df['message'].tolist()
+
+        return (state_seq_t, action_seq_t), chats_l
 
     def _get_chats_from_db(self, idx: int) -> pd.DataFrame:
         db_id = self._first_index + idx

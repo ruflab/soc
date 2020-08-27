@@ -16,8 +16,8 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 class TestUtils(unittest.TestCase):
 
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
+    states_df: pd.DataFrame
+    actions_df: pd.DataFrame
 
     obs_files = [
         os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
@@ -47,10 +47,7 @@ class TestUtils(unittest.TestCase):
 
     def test_pad_seq_sas(self):
         with initialize():
-            config = compose(
-                config_name="config",
-                overrides=["no_db=true", "psql_password=dummy"]
-            )
+            config = compose(config_name="config", overrides=["no_db=true", "psql_password=dummy"])
             dataset = datasets.SocPSQLSeqSAToSDataset(config)
 
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)

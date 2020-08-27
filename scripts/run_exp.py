@@ -16,7 +16,7 @@ _SOC10_FOLDER_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_10_fullseq')
 
 if 'NEPTUNE_API_TOKEN' not in os.environ:
     home = expanduser("~")
-    os.environ['NEPTUNE_API_TOKEN'] = open(home + "~/.neptune.txt", "r").read().rstrip()
+    os.environ['NEPTUNE_API_TOKEN'] = open(home + "/.neptune.txt", "r").read().rstrip()
 os.environ['NEPTUNE_PROJECT_NAME'] = 'morgangiraud/soc'
 
 # config_name = "002_gpu_resnet18_policy_overfit_reg_adamw"

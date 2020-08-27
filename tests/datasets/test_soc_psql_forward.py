@@ -13,8 +13,8 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
 
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
+    states_df: pd.DataFrame
+    actions_df: pd.DataFrame
 
     obs_files = [
         os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
@@ -51,8 +51,8 @@ class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
 
 class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
 
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
+    states_df: pd.DataFrame
+    actions_df: pd.DataFrame
 
     obs_files = [
         os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
@@ -95,7 +95,8 @@ class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
                     "history_length=3",
                     "future_length=2",
                     "first_index=0",
-                    "psql_password=dummy"]
+                    "psql_password=dummy"
+                ]
             )
             dataset = datasets.SocPSQLForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)

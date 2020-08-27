@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 import numpy as np
 from torch.nn.utils import rnn as rnn_utils
-from typing import TypeVar
+from typing import TypeVar, Dict, List
 from ..typing import SocSeqList, SocSeqBatch, SocSeqPolicyBatch, SocSeqPolicyList
 from . import java_utils as ju
 
@@ -153,6 +153,26 @@ def preprocess_actions(df_actions: pd.DataFrame) -> pd.DataFrame:
     df_actions = df_actions.append(df_actions.iloc[-1])
 
     return df_actions
+
+
+def preprocess_chats(df_chats: pd.DataFrame, game_length: int) -> pd.DataFrame:
+    data: Dict[str, List] = {
+        'message': [[] for i in range(game_length)]
+    }
+
+    for _, row in df_chats.iterrows():
+        db_state = row['current_state']
+        mess = "{}: {}".format(row['sender'], row['message'])
+
+        data['message'][db_state].append(mess)
+    data['message'] = list(map(
+        lambda x: '<void>' if len(x) == 0 else '\n'.join(x),
+        data['message']
+    ))
+    breakpoint()
+    df_chats_preproc = pd.DataFrame(data)
+
+    return df_chats_preproc
 
 
 def normalize_hexlayout(data: DataTensor) -> DataTensor:

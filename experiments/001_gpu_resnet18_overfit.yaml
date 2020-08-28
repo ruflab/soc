@@ -2,10 +2,10 @@
 generic:
     seed: 1
     verbose: true
-    lr: 0.0005
+    lr: 0.0003
     optimizer: adam
     scheduler: null
-    batch_size: 32
+    batch_size: 8
     weight_decay: 0.0
     dataset:
         name: SocPreprocessedForwardSAToSADataset
@@ -15,13 +15,17 @@ generic:
         dataset_path: ???
     model:
         name: resnet18
+        n_core_planes: 32
         data_input_size: ???
         data_output_size: ???
+    runner_name: SOCSupervisedForwardRunner
 trainer:
     logger: neptune
     deterministic: true
     terminate_on_nan: true
     gpus: 1
-    overfit_batches: 2
+    overfit_batches: 8
+    row_log_interval: 2
 other:
     save_top_k: 0
+    period: 500

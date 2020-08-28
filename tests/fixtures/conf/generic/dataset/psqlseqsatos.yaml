@@ -1,3 +1,4 @@
 # @package _group_
 name: SocPSQLSeqSAToSDataset
 no_db: True
+psql_password: "dummy"

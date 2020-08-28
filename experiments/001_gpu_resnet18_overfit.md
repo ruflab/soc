@@ -13,12 +13,12 @@ Note:
 - Input and output states are represented as a tensor of size `[batch_size, seq * (C_s + C_a), H, W]`
 
 ### Hypothesis
-A resnet 18 can learn the mapping between past and future states for a small batch of data of the game settlers of catan for a fixed set of 4 robot players using a very generic L2 loss (no specialization based on the type of inputs).
+A resnet 18 can learn the mapping between past and future states for a small batch of data of the game settlers of catan for a fixed set of 4 robot players using a very generic MSE loss (no specialization based on the type of inputs).
 
 ### Results
 Hypothesis false.
 
-The learning is indeed happening but the current network barely improve on chance for some states part. I believe this is due to the fact that the (state, action) tuple is very sparse and contains a lot of 0. The network will then achieve quite a high accuracy by predicting zero everywhere for those part.
+The learning is indeed happening but the current network barely improve on chance for some states part. I believe this is due to the fact that the (state, action) tuple is very sparse and contains a lot of 0. The network will then achieve quite a high accuracy by predicting zero everywhere for those parts.
 Investigation shows that it is the case, the network learn to predict only zeros for the sparse parts. It also struggles to learn to copy the map from the input to the output.
 
 To address those issues:

@@ -1,13 +1,13 @@
 from torch import nn
-from omegaconf import OmegaConf
-from .resnet18 import conv1x1, Bottleneck, BasicBlock, ResNetConfig
+from omegaconf import OmegaConf, DictConfig
+from .resnet18 import conv1x1, Bottleneck, BasicBlock
 from .hexa_conv import HexaConv2d
 
 
 class ResNet18Policy(nn.Module):
     def __init__(
         self,
-        omegaConf: ResNetConfig,
+        omegaConf: DictConfig,
         block=BasicBlock,
         layers=[2, 2, 2, 2],
         zero_init_residual=False,
@@ -18,7 +18,10 @@ class ResNet18Policy(nn.Module):
     ):
         super(ResNet18Policy, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf
@@ -29,7 +32,7 @@ class ResNet18Policy(nn.Module):
         self.data_input_size = conf['data_input_size']
         self.inplanes = self.data_input_size[0] * self.data_input_size[1]
 
-        self.n_core_planes = 32
+        self.n_core_planes = conf['n_core_planes']
         self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
 
         data_output_size = conf['data_output_size']
@@ -55,13 +58,23 @@ class ResNet18Policy(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = HexaConv2d(
-            self.inplanes, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False
+            self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.bn1 = norm_layer(self.inplanes)
+        self.inplanes = 32 * self.n_core_planes
+
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, self.inplanes)
+        else:
+            self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 256, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1, dilate=False)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=1, dilate=False)
+
+        self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
+        self.layer2 = self._make_layer(
+            block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
+        )
+        self.layer3 = self._make_layer(
+            block, 2 * self.n_core_planes, layers[2], stride=1, dilate=False
+        )
         self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
         self.spatial_state_head = nn.Sequential(
             nn.Conv2d(
@@ -119,9 +132,13 @@ class ResNet18Policy(nn.Module):
             self.dilation *= stride
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
+            if norm_layer == nn.GroupNorm:
+                n1 = norm_layer(4, planes * block.expansion)
+            else:
+                n1 = norm_layer(planes * block.expansion)
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+                n1,
             )
 
         layers = []

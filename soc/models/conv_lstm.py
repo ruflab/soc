@@ -4,13 +4,13 @@
 import torch.nn as nn
 import torch
 from dataclasses import dataclass, field
-from omegaconf import MISSING, DictConfig, OmegaConf
+from omegaconf import MISSING, OmegaConf, DictConfig
 from typing import List, Any
 from .hexa_conv import HexaConv2d
 
 
 @dataclass
-class ConvLSTMConfig(DictConfig):
+class ConvLSTMConfig:
     data_input_size: List[int] = MISSING
     data_output_size: List[int] = MISSING
 
@@ -56,6 +56,7 @@ class ConvLSTMCell(nn.Module):
             padding=self.padding,
             bias=self.bias
         )
+        self.norm = nn.GroupNorm(num_groups=4, num_channels=4 * self.h_chan_dim)
 
     def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
@@ -63,6 +64,7 @@ class ConvLSTMCell(nn.Module):
         combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
 
         combined_conv = self.conv(combined)
+        combined_conv = self.norm(combined_conv)
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.h_chan_dim, dim=1)
         i = torch.sigmoid(cc_i)
         f = torch.sigmoid(cc_f)
@@ -108,7 +110,7 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, omegaConf: ConvLSTMConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(ConvLSTM, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf
@@ -191,16 +193,15 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
-        if not self.return_all_layers:
-            layer_output_list = layer_output_list[-1:]
-            last_state_list = last_state_list[-1:]
-
         last_outputs = layer_output_list[-1]
         _, _, chan, _, _ = last_outputs.shape
         outs = self.head(last_outputs.view((b * s, chan, height, width)))
         model_outputs = outs.view((b, s, -1, height, width))
 
-        return model_outputs, layer_output_list, last_state_list
+        if self.return_all_layers:
+            return model_outputs, last_state_list, layer_output_list
+        else:
+            return model_outputs, last_state_list, None
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

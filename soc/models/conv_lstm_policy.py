@@ -3,68 +3,8 @@
 ###
 import torch.nn as nn
 import torch
-from omegaconf import OmegaConf
-from .hexa_conv import HexaConv2d
-from .conv_lstm import ConvLSTMConfig
-
-
-class ConvLSTMCell(nn.Module):
-    def __init__(self, input_dim, h_chan_dim, kernel_size, bias):
-        """
-        Initialize ConvLSTM cell.
-
-        Parameters
-        ----------
-        input_dim: int
-            Number of channels of input tensor.
-        h_chan_dim: int
-            Number of channels of hidden state.
-        kernel_size: (int, int)
-            Size of the convolutional kernel.
-        bias: bool
-            Whether or not to add the bias.
-        """
-
-        super(ConvLSTMCell, self).__init__()
-
-        self.input_dim = input_dim
-        self.h_chan_dim = h_chan_dim
-
-        self.kernel_size = kernel_size
-        self.padding = kernel_size[0] // 2, kernel_size[1] // 2
-        self.bias = bias
-
-        self.conv = HexaConv2d(
-            in_channels=self.input_dim + self.h_chan_dim,
-            out_channels=4 * self.h_chan_dim,
-            kernel_size=self.kernel_size,
-            padding=self.padding,
-            bias=self.bias
-        )
-
-    def forward(self, input_tensor, cur_state):
-        h_cur, c_cur = cur_state
-
-        combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
-
-        combined_conv = self.conv(combined)
-        cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.h_chan_dim, dim=1)
-        i = torch.sigmoid(cc_i)
-        f = torch.sigmoid(cc_f)
-        o = torch.sigmoid(cc_o)
-        g = torch.tanh(cc_g)
-
-        c_next = f * c_cur + i * g
-        h_next = o * torch.tanh(c_next)
-
-        return h_next, c_next
-
-    def init_hidden(self, batch_size, image_size):
-        height, width = image_size
-        return (
-            torch.zeros(batch_size, self.h_chan_dim, height, width, device=self.conv.weight.device),
-            torch.zeros(batch_size, self.h_chan_dim, height, width, device=self.conv.weight.device)
-        )
+from omegaconf import OmegaConf, DictConfig
+from .conv_lstm import ConvLSTMCell
 
 
 class ConvLSTMPolicy(nn.Module):
@@ -93,7 +33,7 @@ class ConvLSTMPolicy(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-    def __init__(self, omegaConf: ConvLSTMConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(ConvLSTMPolicy, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf
@@ -209,10 +149,6 @@ class ConvLSTMPolicy(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
-        if not self.return_all_layers:
-            layer_output_list = layer_output_list[-1:]
-            last_state_list = last_state_list[-1:]
-
         y = layer_output_list[-1]
         y_linear = y.reshape(bs * S, -1)
 
@@ -226,9 +162,12 @@ class ConvLSTMPolicy(nn.Module):
         y_action_logits = self.policy_head(y_linear)
         y_action_logits_seq = y_action_logits.reshape([bs, S] + self.action_output_size[1:])
 
-        outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
+        model_outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
 
-        return outputs, layer_output_list, last_state_list
+        if self.return_all_layers:
+            return model_outputs, last_state_list, layer_output_list
+        else:
+            return model_outputs, last_state_list, None
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

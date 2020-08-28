@@ -19,17 +19,42 @@ def mse_loss(
     return loss
 
 
-def map_loss(
+def hexlayout_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    map_logits = t1_logits_seq[:, :, start_i:end_i]
-    map_true = t2_true_seq[:, :, start_i:end_i]
+    hexlayout_logits = t1_logits_seq[:, :, start_i:end_i]
+    hexlayout_true = t2_true_seq[:, :, start_i:end_i]
 
-    loss = F.mse_loss(map_logits, map_true)
+    # Regression losses need to be balanced with cross_entropy losses
+    # To do so we add a coefficient for thos losses
+    # The coefficient depends on the normalization applied
+    # which defines how precise the output should be to make the right prediction
+    coef = 20
+    loss = coef * F.mse_loss(hexlayout_logits, hexlayout_true)
+
+    return loss
+
+
+def numberlayout_loss(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    numberlayout_logits = t1_logits_seq[:, :, start_i:end_i]
+    numberlayout_true = t2_true_seq[:, :, start_i:end_i]
+
+    # Regression losses need to be balanced with cross_entropy losses
+    # To do so we add a coefficient for thos losses
+    # The coefficient depends on the normalization applied
+    # which defines how precise the output should be to make the right prediction
+    coef = 20
+    loss = coef * F.mse_loss(numberlayout_logits, numberlayout_true)
 
     return loss
 
@@ -154,7 +179,12 @@ def devcardsleft_loss(
     devcardsleft_logits = t1_logits_seq[:, :, start_i]
     devcardsleft_true = t2_true_seq[:, :, start_i]
 
-    loss = F.mse_loss(devcardsleft_logits, devcardsleft_true)
+    # Regression losses need to be balanced with cross_entropy losses
+    # To do so we add a coefficient for thos losses
+    # The coefficient depends on the normalization applied
+    # which defines how precise the output should be to make the right prediction
+    coef = 100
+    loss = coef * F.mse_loss(devcardsleft_logits, devcardsleft_true)
 
     return loss
 
@@ -222,8 +252,8 @@ def compute_losses(
 
 
 loss_mapping = {
-    'hexlayout': map_loss,
-    'numberlayout': map_loss,
+    'hexlayout': hexlayout_loss,
+    'numberlayout': numberlayout_loss,
     'robberhex': robber_loss,
     'piecesonboard': pieces_loss,  # Linear
     'gamestate': gamestate_loss,

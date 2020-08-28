@@ -1,9 +1,8 @@
 import math
 import torch.nn as nn
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 from typing import List, Tuple
 from .hexa_conv import HexaConv3d
-from .conv3d import Conv3dModelConfig
 
 
 class Conv3dModelPolicy(nn.Module):
@@ -16,7 +15,7 @@ class Conv3dModelPolicy(nn.Module):
                 This is achieved with padding (left, right, top, bottom, 2, 0)
 
     """
-    def __init__(self, omegaConf: Conv3dModelConfig):
+    def __init__(self, omegaConf: DictConfig):
         super(Conv3dModelPolicy, self).__init__()
 
         # When we are here, the config has already been checked by OmegaConf
@@ -107,7 +106,7 @@ class Conv3dModelPolicy(nn.Module):
             nn.Linear(self.head_hidden_size, self.n_actions),
         )
 
-    def forward(self, input_tensor):
+    def forward(self, input_tensor, hidden_state=None):
         """
             Input for 3D convolution should be like this:
                 (Bs, C_in, Depth, H, W)
@@ -142,7 +141,7 @@ class Conv3dModelPolicy(nn.Module):
 
         outputs = (y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq)
 
-        return (outputs, )
+        return outputs, None, None
 
     def get_output_dim(self, input_dim: List) -> Tuple:
         """Return the output shape for a given input shape."""

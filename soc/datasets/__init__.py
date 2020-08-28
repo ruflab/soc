@@ -4,11 +4,15 @@ from .soc_preprocessed_seq import PreprocessedSeqConfig
 from .soc_preprocessed_forward import PreprocessedForwardConfig
 from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset, SocPSQLSeqSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
+from .soc_psql_forward import SocPSQLForwardSAToSAPolicyDataset
+from .soc_file_forward import SocFileForwardSAToSAPolicyDataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSDataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSADataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSAPolicyDataset
 from .soc_preprocessed_forward import SocPreprocessedForwardSAToSADataset
 from .soc_preprocessed_forward import SocPreprocessedForwardSAToSAPolicyDataset
+from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSADataset
+from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSAPolicyDataset
 
 __all__ = [
     'PSQLConfig',
@@ -19,11 +23,15 @@ __all__ = [
     'SocPSQLSeqSAToSDataset',
     'SocPSQLSeqSAToSADataset',
     'SocPSQLForwardSAToSADataset',
+    'SocPSQLForwardSAToSAPolicyDataset',
+    'SocFileForwardSAToSAPolicyDataset',
     'SocPreprocessedSeqSAToSDataset',
     'SocPreprocessedSeqSAToSADataset',
     'SocPreprocessedSeqSAToSAPolicyDataset',
     'SocPreprocessedForwardSAToSADataset',
     'SocPreprocessedForwardSAToSAPolicyDataset',
+    'SocLazyPreprocessedForwardSAToSADataset',
+    'SocLazyPreprocessedForwardSAToSAPolicyDataset'
 ]
 
 

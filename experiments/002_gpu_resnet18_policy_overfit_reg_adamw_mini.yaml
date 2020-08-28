@@ -5,31 +5,27 @@ generic:
     lr: 0.0003
     optimizer: adamw
     scheduler: null
-    batch_size: 1 # to build a small batch we use the trainer truncated_bptt_steps option
+    batch_size: 8
     weight_decay: 0.01
     amsgrad: true
     dataset:
-        name: SocPreprocessedSeqSAToSAPolicyDataset
+        name: SocPreprocessedForwardSAToSAPolicyDataset
+        history_length: 16
+        future_length: 4
         shuffle: false
         dataset_path: ???
     model:
-        name: ConvLSTMPolicy
-        num_layers: 8
-        h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
-        kernel_size: [[3, 3]]
-        batch_first: true
-        bias: true
-        return_all_layers: false
+        name: ResNet18Policy
+        n_core_planes: 4
         data_input_size: ???
         data_output_size: ???
-    runner_name: SOCSeqPolicyRunner
+    runner_name: SOCForwardPolicyRunner
 trainer:
-    truncated_bptt_steps: 16
     logger: neptune
     deterministic: true
     terminate_on_nan: true
     gpus: 1
-    overfit_batches: 4
+    overfit_batches: 8
     row_log_interval: 2
     max_epochs: 1001
 other:

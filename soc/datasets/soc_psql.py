@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 from torch.utils.data import Dataset
 from dataclasses import dataclass
 from omegaconf import MISSING, DictConfig
@@ -7,15 +8,16 @@ from ..typing import SocCollateFn
 
 
 @dataclass
-class PSQLConfig(DictConfig):
+class PSQLConfig:
     name: str = MISSING
     no_db: bool = False
     psql_username: str = 'deepsoc'
     psql_host: str = 'localhost'
     psql_port: int = 5432
     psql_db_name: str = 'soc'
+    psql_password: str = MISSING
 
-    first_index: int = 100
+    first_index: int = 100  # Due to the java implementation
     shuffle: bool = True
 
 
@@ -36,30 +38,40 @@ class SocPSQLDataset(Dataset):
 
     _length: int
 
-    def __init__(self, omegaConf: PSQLConfig) -> None:
+    def __init__(self, omegaConf: DictConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
-        self.no_db = omegaConf.get('no_db', False)
-        self.psql_username = omegaConf.get('psql_username', 'deepsoc')
-        self.psql_host = omegaConf.get('psql_host', 'localhost')
-        self.psql_port = omegaConf.get('psql_port', 5432)
-        self.psql_db_name = omegaConf.get('psql_db_name', 'soc')
+        self.no_db = omegaConf['no_db']
+        self.psql_username = omegaConf['psql_username']
+        self.psql_host = omegaConf['psql_host']
+        self.psql_port = omegaConf['psql_port']
+        self.psql_db_name = omegaConf['psql_db_name']
+        self.psql_password = omegaConf['psql_password']
 
         self._length = -1
-        self._first_index = omegaConf.get('first_index', 100)  # Due to the java implementation
+        self._first_index = omegaConf['first_index']
 
         if self.no_db:
             self.engine = None
         else:
+            # We are not using a pool of connections
+            # because it does not work well with multiprocessing
+            # see https://stackoverflow.com/questions/41279157/connection-problems-with-sqlalchemy-and-multiple-processes  # noqa
+            # TODO: Find a way to use a pool with multiprocessing
             self.engine = create_engine(
-                'postgresql://{}@{}:{}/{}'.format(
-                    self.psql_username, self.psql_host, self.psql_port, self.psql_db_name
-                )
+                'postgresql://{}:{}@{}:{}/{}'.format(
+                    self.psql_username,
+                    self.psql_password,
+                    self.psql_host,
+                    self.psql_port,
+                    self.psql_db_name
+                ),
+                poolclass=NullPool
             )
 
         self._set_props(omegaConf)
 
-    def _set_props(self, omegaConf):
+    def _set_props(self, omegaConf: DictConfig):
         pass
 
     def __len__(self) -> int:

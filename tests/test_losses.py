@@ -32,7 +32,7 @@ class TestLosses(unittest.TestCase):
         cls.states = [pd.read_csv(file) for file in cls.obs_files]
         cls.actions = [pd.read_csv(file) for file in cls.actions_files]
 
-    def test_map_loss(self):
+    def test_hexlayout_loss(self):
         state = self.states[0]
         state = utils.preprocess_states(state)
         state = state.iloc[7]
@@ -44,8 +44,8 @@ class TestLosses(unittest.TestCase):
 
         indexes = [0, 2]
 
-        loss = losses.map_loss(indexes, state_t, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t, state_t)
         assert loss == 0
 
-        loss = losses.map_loss(indexes, state_t + 0.2, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t + 0.2, state_t)
         assert loss != 0

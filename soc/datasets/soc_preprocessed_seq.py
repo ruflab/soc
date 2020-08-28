@@ -15,9 +15,10 @@ OutputShape = Union[List[int], Tuple[List[int], ...]]
 
 
 @dataclass
-class PreprocessedSeqConfig(DictConfig):
+class PreprocessedSeqConfig:
     name: str = MISSING
     dataset_path: str = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
+    max_seq_length: int = -1
 
     shuffle: bool = True
 
@@ -36,13 +37,12 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
     output_shape: OutputShape
 
-    def __init__(self, config={}):
+    def __init__(self, config: DictConfig):
         super(SocPreprocessedSeqSAToSDataset, self).__init__()
 
-        default_path = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
-        self.path = config.get('dataset_path', default_path)
-        self.data = torch.load(self.path)
+        self.path = config['dataset_path']
 
+        self.data = torch.load(self.path)
         self._set_props(config)
 
     def _set_props(self, config):
@@ -78,9 +78,6 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
 
     def get_collate_fn(self) -> Callable:
         return ds_utils.pad_seq_sas
-
-    def get_training_type(self) -> str:
-        return 'supervised_seq'
 
     def get_output_metadata(self) -> SocDataMetadata:
         metadata: SocDataMetadata = {
@@ -173,9 +170,6 @@ class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
 
         return (y_t, [y_spatial_states_t, y_lin_states_t, y_actions_t])
 
-    def get_training_type(self) -> str:
-        return 'supervised_seq_policy'
-
     def get_collate_fn(self) -> Callable:
         return ds_utils.pad_seq_policy
 
@@ -202,3 +196,41 @@ class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
         }
 
         return (spatial_metadata, linear_metadata, actions_metadata)
+
+
+class SocPreprocessedTruncSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSAPolicyDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [-1, (C_states + C_actions), H, W]
+
+        Output: Tuple of next state and next actions
+            Dims: ( [-1, C_ss, H, W], [-1, C_ls], [-1, C_actions] )
+    """
+    def _set_props(self, config):
+        self.max_seq_length = config['max_seq_length']
+
+        self.input_shape = [-1, soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+
+        output_shape_spatial = [-1, soc_data.SPATIAL_STATE_SIZE] + soc_data.BOARD_SIZE
+        output_shape = [-1, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [-1, soc_data.ACTION_SIZE]
+
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
+
+    def __getitem__(self, idx: int):
+        x_t, y_t = super(SocPreprocessedSeqSAToSAPolicyDataset, self).__getitem__(idx)
+
+        y_states_t = y_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        y_actions_t = y_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        y_spatial_states_t = torch.cat([y_states_t[:, 0:3], y_states_t[:, 9:81]],
+                                       dim=1)  # [S, C_ss, H, W]
+        y_lin_states_t = torch.cat([y_states_t[:, 3:9, 0, 0], y_states_t[:, 81:, 0, 0]],
+                                   dim=1)  # [S, C_ls]
+
+        return (y_t, [y_spatial_states_t, y_lin_states_t, y_actions_t])
+
+    def get_collate_fn(self) -> Callable:
+        return ds_utils.pad_seq_policy

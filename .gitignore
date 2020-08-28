@@ -1,7 +1,11 @@
 # App
 scripts/results
+scripts/*.ckpt
 data/
 tmp/
+
+# hydra
+outputs/
 
 # Python
 __pycache__

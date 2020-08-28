@@ -142,30 +142,6 @@ class TestTraining(unittest.TestCase):
             trainer.fit(runner)
 
     def test_training_socforward_resnet(self):
-        states = self.states
-        actions = self.actions
-
-        def _get_states_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = states[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def _get_actions_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = actions[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def setup_dataset(hparams):
-            dataset = make_dataset(hparams.dataset)
-            dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-            dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=2)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
-
-            return dataset, None
-
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -180,35 +156,10 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
-            runner.setup_dataset = setup_dataset
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
     def test_training_socforward_resnet_policy(self):
-        states = self.states
-        actions = self.actions
-
-        def _get_states_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = states[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def _get_actions_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = actions[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def setup_dataset(hparams):
-            dataset = make_dataset(hparams.dataset)
-            dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-            dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=4)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
-
-            return dataset, None
-
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -223,35 +174,10 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
-            runner.setup_dataset = setup_dataset
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
     def test_training_socseq_conv3d_policy(self):
-        states = self.states
-        actions = self.actions
-
-        def _get_states_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = states[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def _get_actions_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = actions[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def setup_dataset(hparams):
-            dataset = make_dataset(hparams.dataset)
-            dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-            dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=4)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
-
-            return dataset, None
-
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -266,35 +192,10 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
-            runner.setup_dataset = setup_dataset
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
     def test_training_socseq_convlstm_policy(self):
-        states = self.states
-        actions = self.actions
-
-        def _get_states_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = states[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def _get_actions_from_db_se_f(
-            table_id: int, start_row_id: int, end_row_id: int
-        ) -> pd.DataFrame:
-            seq = actions[table_id]
-            return seq[start_row_id:end_row_id]
-
-        def setup_dataset(hparams):
-            dataset = make_dataset(hparams.dataset)
-            dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
-            dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=4)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9, 9, 9])
-
-            return dataset, None
-
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -309,6 +210,5 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
-            runner.setup_dataset = setup_dataset
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)

@@ -164,20 +164,36 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return input_seq_t
 
-    def dump_raw_dataset(self, folder: str):
+    def dump_raw_dataset(
+        self,
+        folder: str,
+        testing: bool = False,
+    ):
         utils.check_folder(folder)
 
-        limit = len(self)
+        if testing is True:
+            limit = 3
+        else:
+            limit = len(self)
 
         data = []
         for i in range(limit):
-            states_df = self._get_states_from_db(i)
-            actions_df = self._get_actions_from_db(i)
+            df_list = self._load_input_df_list(i, testing)
+            data.append(df_list)
 
-            data.append([states_df, actions_df])
-
-        path = "{}/soc_{}_raw.pt".format(folder, limit)
+        path = "{}/soc_{}_raw_df.pt".format(folder, limit)
         torch.save(data, path)
+
+    def _load_input_df_list(self, idx: int, testing: bool = False) -> List:
+        states_df = self._get_states_from_db(idx)
+        actions_df = self._get_actions_from_db(idx)
+
+        if testing is True:
+            df_list = [states_df[:8], actions_df[:8]]
+        else:
+            df_list = [states_df, actions_df]
+
+        return df_list
 
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):

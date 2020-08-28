@@ -15,14 +15,16 @@ from .soc_preprocessed_forward import SocPreprocessedForwardSAToSAPolicyDataset
 from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSADataset
 from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSAPolicyDataset
 
-from .soc_psql_text_seq import SocPSQLTextSeqDataset
+from .soc_psql_text_seq import SocPSQLTextBertSeqDataset
 
+# yapf: disable
 __all__ = [
     # Configurations
     'PSQLConfig',
     'PSQLForwardConfig',
     'PreprocessedSeqConfig',
-    'PreprocessedForwardConfig',  # Soc Datasets
+    'PreprocessedForwardConfig',
+    # Soc Datasets
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',
     'SocPSQLSeqSAToSADataset',
@@ -35,9 +37,11 @@ __all__ = [
     'SocPreprocessedForwardSAToSADataset',
     'SocPreprocessedForwardSAToSAPolicyDataset',
     'SocLazyPreprocessedForwardSAToSADataset',
-    'SocLazyPreprocessedForwardSAToSAPolicyDataset',  # Soc Dataset with text
-    'SocPSQLTextSeqDataset'
+    'SocLazyPreprocessedForwardSAToSAPolicyDataset',
+    # Soc Dataset with text
+    'SocPSQLTextBertSeqDataset'
 ]
+# yapf: enable
 
 
 def make_dataset(config):

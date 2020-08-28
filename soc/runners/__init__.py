@@ -1,13 +1,15 @@
 from .base import SOCRunner
 from .policy import SOCForwardPolicyRunner, SOCSeqPolicyRunner
 from .supervised import SOCSupervisedSeqRunner, SOCSupervisedForwardRunner
+from .text_policy import SOCTextForwardPolicyRunner
 
 __all__ = [
     "SOCRunner",
     "SOCSupervisedSeqRunner",
     "SOCSupervisedForwardRunner",
     "SOCSeqPolicyRunner",
-    "SOCForwardPolicyRunner",
+    "SOCForwardPolicyRunner",  # With Text
+    'SOCTextForwardPolicyRunner',
 ]
 
 

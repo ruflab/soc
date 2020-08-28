@@ -125,7 +125,9 @@ class SocFileForwardSAToSAPolicyDataset:
         future_l = to_concat[self.history_length * 2:]
 
         input_shape = self.get_input_size()
+        # yapf: disable
         output_shape = [self.future_length, ] + input_shape[1:]  # type:ignore
+        # yapf: enable
         history_np = np.concatenate(history_l, axis=0).reshape(input_shape)
         future_np = np.concatenate(future_l, axis=0).reshape(output_shape)
 

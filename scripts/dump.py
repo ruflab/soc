@@ -2,19 +2,24 @@ import os
 import soc
 from dataclasses import dataclass
 import hydra
+from typing import Optional
+# from omegaconf import MISSING
 from hydra.core.config_store import ConfigStore
 from soc.datasets import PSQLConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 data_folder = os.path.join(cfd, '..', 'data')
-fixture_dir = os.path.join(cfd, '..', 'tests', 'qfixtures')
+fixture_dir = os.path.join(cfd, '..', 'tests', 'fixtures')
 
 
 @dataclass
 class DumpConfig(PSQLConfig):
+    folder: Optional[str] = None
+
     raw: bool = False
     testing: bool = False
     separate_seq: bool = False
+    dump_text: bool = False
 
 
 cs = ConfigStore.instance()
@@ -23,17 +28,21 @@ cs.store(name="config", node=DumpConfig)
 
 @hydra.main(config_name='config')
 def dump(config):
-    if config.testing:
-        folder = fixture_dir
-    else:
-        folder = data_folder
+    if config.folder is None:
+        if config.testing:
+            config.folder = fixture_dir
+        else:
+            config.folder = data_folder
 
-    ds = soc.datasets.SocPSQLSeqDataset(config)
+    if config.dump_text:
+        ds = soc.datasets.SocPSQLTextBertSeqDataset(config)
+    else:
+        ds = soc.datasets.SocPSQLSeqDataset(config)
 
     if config.raw:
-        ds.dump_raw_dataset(folder)
+        ds.dump_raw_dataset(config.folder, config.testing)
     else:
-        ds.dump_preprocessed_dataset(folder, config.testing, config.separate_seq)
+        ds.dump_preprocessed_dataset(config.folder, config.testing, config.separate_seq)
 
 
 if __name__ == "__main__":

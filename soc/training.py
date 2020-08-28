@@ -38,7 +38,7 @@ class SocConfig:
 def train(omegaConf: DictConfig) -> LightningModule:
     # Misc part
     if omegaConf['generic']['verbose'] is True:
-        print(omegaConf.pretty())
+        print(OmegaConf.to_yaml(omegaConf))
 
     pl.seed_everything(omegaConf['generic']['seed'])
 

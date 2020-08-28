@@ -166,7 +166,6 @@ def preprocess_chats(chats_df: pd.DataFrame, game_length: int) -> pd.DataFrame:
     data['message'] = list(
         map(lambda x: '<void>' if len(x) == 0 else '\n'.join(x), data['message'])
     )
-    breakpoint()
     chats_preproc_df = pd.DataFrame(data)
 
     return chats_preproc_df

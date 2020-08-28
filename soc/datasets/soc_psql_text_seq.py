@@ -1,14 +1,13 @@
 import pandas as pd
 import torch
-# from typing import Tuple, List
-
+from transformers import BertModel, BertTokenizer
+from typing import List
 from .soc_psql_seq import SocPSQLSeqDataset
 from . import utils as ds_utils
-from .. import utils
 # from ..typing import SocDatasetItem
 
 
-class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
+class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
     """
         Defines a Settlers of Catan postgresql dataset for sequence models.
         One datapoint is a tuple (states, actions):
@@ -25,6 +24,13 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
+    def _set_props(self, config):
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+        self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
+        self.tokenizer.add_tokens(['<void>'], special_tokens=True)
+        self.bert = BertModel.from_pretrained('bert-base-cased')
+        self.bert.resize_token_embeddings(len(self.tokenizer))
+
     def __getitem__(self, idx: int):
         """
             Return one datapoint from the dataset
@@ -32,7 +38,7 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        state_seq_t, action_seq_t = super(SocPSQLTextSeqDataset, self).__getitem__(idx)
+        state_seq_t, action_seq_t = super(SocPSQLTextBertSeqDataset, self).__getitem__(idx)
         game_length = state_seq_t.shape[0]
 
         chats_df = self._get_chats_from_db(idx)
@@ -40,17 +46,12 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
 
         assert game_length == len(chats_df)
 
-        # chat_seq = []
-        # for i in range(game_length):
-        #     current_chat_df = chats_df.iloc[i]
-        #     current_chat_np = current_chat_df['message']
+        encoded_inputs = self.tokenizer(
+            chats_df['message'].tolist(), padding=True, truncation=True, return_tensors="pt"
+        )
+        chat_seq_t = self.bert(**encoded_inputs)
 
-        #     chat_seq.append(torch.tensor(current_chat_np, dtype=torch.int64))
-        # chat_seq_t = torch.stack(chat_seq)
-
-        chats_l = chats_df['message'].tolist()
-
-        return (state_seq_t, action_seq_t), chats_l
+        return state_seq_t, action_seq_t, chat_seq_t
 
     def _get_chats_from_db(self, idx: int) -> pd.DataFrame:
         db_id = self._first_index + idx
@@ -78,18 +79,18 @@ class SocPSQLTextSeqDataset(SocPSQLSeqDataset):
 
         return input_seq_t
 
-    def dump_raw_dataset(self, folder: str):
-        utils.check_folder(folder)
+    def _load_input_df_list(self, idx: int, testing: bool = False) -> List:
+        states_df = self._get_states_from_db(idx)
+        actions_df = self._get_actions_from_db(idx)
+        chats_df = self._get_chats_from_db(idx)
 
-        limit = len(self)
+        if testing is True:
+            chats_gb = chats_df.groupby('current_state')
+            key = list(chats_gb.indices.keys())[0]
+            chats_df = chats_gb.get_group(key).copy()
+            chats_df['current_state'] = 5
+            df_list = [states_df[:8], actions_df[:8], chats_df[:8]]
+        else:
+            df_list = [states_df, actions_df, chats_df]
 
-        data = []
-        for i in range(limit):
-            states_df = self._get_states_from_db(i)
-            actions_df = self._get_actions_from_db(i)
-            chats_df = self._get_chats_from_db(i)
-
-            data.append([states_df, actions_df, chats_df])
-
-        path = "{}/soc_{}_raw.pt".format(folder, limit)
-        torch.save(data, path)
+        return df_list

@@ -71,7 +71,7 @@ class SocPSQLDataset(Dataset):
 
         self._set_props(omegaConf)
 
-    def _set_props(self, omegaConf: DictConfig):
+    def _set_props(self, config):
         pass
 
     def __len__(self) -> int:

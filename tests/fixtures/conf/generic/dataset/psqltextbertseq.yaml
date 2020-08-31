@@ -1,4 +1,4 @@
 # @package _group_
-name: SocPSQLTextSeqDataset
+name: SocPSQLTextBertSeqDataset
 no_db: True
 psql_password: "dummy"

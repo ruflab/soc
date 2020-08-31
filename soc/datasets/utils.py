@@ -155,11 +155,13 @@ def preprocess_actions(actions_df: pd.DataFrame) -> pd.DataFrame:
     return actions_df
 
 
-def preprocess_chats(chats_df: pd.DataFrame, game_length: int) -> pd.DataFrame:
+def preprocess_chats(
+    chats_df: pd.DataFrame, game_length: int, first_state_idx: int = 0
+) -> pd.DataFrame:
     data: Dict[str, List] = {'message': [[] for i in range(game_length)]}
 
     for _, row in chats_df.iterrows():
-        db_state = row['current_state']
+        db_state = row['current_state'] - first_state_idx
         mess = "{}: {}".format(row['sender'], row['message'])
 
         data['message'][db_state].append(mess)

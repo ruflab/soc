@@ -11,7 +11,6 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestJavaUtils(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))

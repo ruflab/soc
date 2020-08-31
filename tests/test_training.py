@@ -18,10 +18,11 @@ fixture_dir = os.path.join(cfd, 'fixtures')
 
 _DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_fullseq.pt')
 _RAW_DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt')
+_TEXT_BERT_DATASET_PATH = os.path.join(fixture_dir, 'soc_text_bert_3_fullseq.pt')
+_RAW_TEXT_BERT_DATASET_PATH = os.path.join(fixture_dir, 'soc_text_bert_3_raw_df.pt')
 
 
 class TestTraining(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()
@@ -32,6 +33,7 @@ class TestTraining(unittest.TestCase):
         cs.store(group="generic/model", name="conv3dpolicy", node=models.Conv3dModelConfig)
         cs.store(group="generic/model", name="resnet18", node=models.ResNetConfig)
         cs.store(group="generic/model", name="resnet18policy", node=models.ResNetConfig)
+        cs.store(group="generic/model", name="resnet18fusionpolicy", node=models.ResNetConfig)
         cs.store(group="generic/dataset", name="psqlseqsatos", node=datasets.PSQLConfig)
         cs.store(
             group="generic/dataset",
@@ -45,11 +47,17 @@ class TestTraining(unittest.TestCase):
         )
         cs.store(
             group="generic/dataset",
+            name="psqltextbertforwardsatosapolicy",
+            node=datasets.PSQLTextForwardConfig
+        )
+        cs.store(
+            group="generic/dataset",
             name="preprocessedseqsatosapolicy",
             node=datasets.PreprocessedSeqConfig
         )
 
         cls.data = torch.load(_RAW_DATASET_PATH)
+        cls.data_text_bert = torch.load(_RAW_TEXT_BERT_DATASET_PATH)
 
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
@@ -57,7 +65,7 @@ class TestTraining(unittest.TestCase):
     def tearDown(self):
         return shutil.rmtree(self.folder)
 
-    def test_training_socseqsas_convlstm(self):
+    def test_training_soc_psql_seq_sas_convlstm(self):
         data = self.data
 
         def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
@@ -66,11 +74,14 @@ class TestTraining(unittest.TestCase):
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
             return data[idx][1]
 
+        def _get_length_se_f() -> int:
+            return len(data)
+
         def setup_dataset(hparams):
             dataset = make_dataset(hparams.dataset)
             dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=2)
+            dataset._get_length = MagicMock(side_effect=_get_length_se_f)
 
             return dataset, None
 
@@ -91,7 +102,7 @@ class TestTraining(unittest.TestCase):
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
-    def test_training_socseqsas_conv3dmodel(self):
+    def test_training_soc_psql_seq_sas_conv3d(self):
         data = self.data
 
         def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
@@ -100,11 +111,14 @@ class TestTraining(unittest.TestCase):
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
             return data[idx][1]
 
+        def _get_length_se_f() -> int:
+            return len(data)
+
         def setup_dataset(hparams):
             dataset = make_dataset(hparams.dataset)
             dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
-            dataset._get_length = MagicMock(return_value=2)
+            dataset._get_length = MagicMock(side_effect=_get_length_se_f)
 
             return dataset, None
 
@@ -125,43 +139,7 @@ class TestTraining(unittest.TestCase):
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
-    def test_training_socforward_resnet(self):
-        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
-            config = compose(
-                config_name="config",
-                overrides=[
-                    "generic/model=resnet18",
-                    "generic/dataset=preprocessedforwardsatosa",
-                    "generic.runner_name=SOCSupervisedForwardRunner"
-                ]
-            )
-            config.generic.dataset.dataset_path = _DATASET_PATH
-            config.trainer.default_root_dir = self.folder
-
-            seed_everything(config['generic']['seed'])
-            runner = make_runner(config['generic'])
-            trainer = Trainer(**config['trainer'], deterministic=True)
-            trainer.fit(runner)
-
-    def test_training_socforward_resnet_policy(self):
-        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
-            config = compose(
-                config_name="config",
-                overrides=[
-                    "generic/model=resnet18policy",
-                    "generic/dataset=preprocessedforwardsatosapolicy",
-                    "generic.runner_name=SOCForwardPolicyRunner"
-                ]
-            )
-            config.generic.dataset.dataset_path = _DATASET_PATH
-            config.trainer.default_root_dir = self.folder
-
-            seed_everything(config['generic']['seed'])
-            runner = make_runner(config['generic'])
-            trainer = Trainer(**config['trainer'], deterministic=True)
-            trainer.fit(runner)
-
-    def test_training_socseq_conv3d_policy(self):
+    def test_training_soc_preprocessed_seq_conv3dpolicy(self):
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -179,7 +157,7 @@ class TestTraining(unittest.TestCase):
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
-    def test_training_socseq_convlstm_policy(self):
+    def test_training_soc_preprocessed_seq_convlstmpolicy(self):
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
             config = compose(
                 config_name="config",
@@ -196,3 +174,111 @@ class TestTraining(unittest.TestCase):
             runner = make_runner(config['generic'])
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
+
+    def test_training_soc_preprocessed_forward_resnet(self):
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18",
+                    "generic/dataset=preprocessedforwardsatosa",
+                    "generic.runner_name=SOCSupervisedForwardRunner"
+                ]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
+
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
+
+    def test_training_soc_preprocessed_forward_resnetpolicy(self):
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18policy",
+                    "generic/dataset=preprocessedforwardsatosapolicy",
+                    "generic.runner_name=SOCForwardPolicyRunner"
+                ]
+            )
+            config.generic.dataset.dataset_path = _DATASET_PATH
+            config.trainer.default_root_dir = self.folder
+
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
+
+    def test_training_soc_psql_forward_resnetfusionpolicy(self):
+        data = self.data_text_bert
+
+        def _get_states_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = data[table_id][0]
+            return seq[start_row_id:end_row_id]
+
+        def _get_actions_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = data[table_id][1]
+            return seq[start_row_id:end_row_id]
+
+        def _get_chats_from_db_se_f(
+            table_id: int, start_row_id: int, end_row_id: int
+        ) -> pd.DataFrame:
+            seq = data[table_id][2]
+            return seq[start_row_id:end_row_id]
+
+        def _get_nb_steps_se_f():
+            return [len(data[i][0]) for i in range(len(data))]
+
+        def _get_length_se_f() -> int:
+            return len(data)
+
+        def setup_dataset(hparams):
+            dataset = make_dataset(hparams.dataset)
+            dataset._get_states_from_db = MagicMock(side_effect=_get_states_from_db_se_f)
+            dataset._get_actions_from_db = MagicMock(side_effect=_get_actions_from_db_se_f)
+            dataset._get_chats_from_db = MagicMock(side_effect=_get_chats_from_db_se_f)
+            dataset._get_nb_steps = MagicMock(side_effect=_get_nb_steps_se_f)
+            dataset._get_length = MagicMock(side_effect=_get_length_se_f)
+
+            return dataset, None
+
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18fusionpolicy",
+                    "generic/dataset=psqltextbertforwardsatosapolicy",
+                    "generic.runner_name=SOCTextForwardPolicyRunner"
+                ]
+            )
+            config.trainer.default_root_dir = self.folder
+
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
+            runner.setup_dataset = setup_dataset
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
+
+    # def test_training_soc_preprocessed_forward_resnetfusionpolicy(self):
+    #     with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+    #         config = compose(
+    #             config_name="config",
+    #             overrides=[
+    #                 "generic/model=resnet18fusionpolicy",
+    #                 "generic/dataset=preprocessedforwardtextbertsatosapolicy",
+    #                 "generic.runner_name=SOCTextForwardPolicyRunner"
+    #             ]
+    #         )
+    #         config.generic.dataset.dataset_path = _TEXT_BERT_DATASET_PATH
+    #         config.trainer.default_root_dir = self.folder
+
+    #         seed_everything(config['generic']['seed'])
+    #         runner = make_runner(config['generic'])
+    #         trainer = Trainer(**config['trainer'], deterministic=True)
+    #         trainer.fit(runner)

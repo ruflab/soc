@@ -15,7 +15,6 @@ _DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_fullseq.pt')
 
 
 class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()
@@ -86,7 +85,6 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
 
 
 class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         data = torch.load(_DATASET_PATH)

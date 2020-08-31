@@ -23,7 +23,7 @@ class SOCTextForwardPolicyRunner(SOCRunner):
                 - metadata: (Dict) metadata to compute losses
         """
         x_seq, x_text_seq = batch[0]
-        y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+        y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq, _ = batch[1]
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
 
@@ -57,7 +57,7 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         """
 
         x_seq, x_text_seq = batch[0]
-        y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]
+        y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq, _ = batch[1]
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
 

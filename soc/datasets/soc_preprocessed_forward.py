@@ -69,7 +69,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
             total_steps = 0
             nb_games = len(self.data)
             for i in range(nb_games):
-                total_steps += self.data[i].shape[0]
+                seq = self.data[i]
+                if isinstance(seq, list):
+                    seq = seq[0]
+                total_steps += seq.shape[0]
 
             self._length = total_steps - nb_games * self.seq_len_per_datum
 
@@ -89,7 +92,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         nb_games = len(self.data)
         nb_steps = []
         for i in range(nb_games):
-            nb_steps.append(self.data[i].shape[0])
+            seq = self.data[i]
+            if isinstance(seq, list):
+                seq = seq[0]
+            nb_steps.append(seq.shape[0])
 
         return nb_steps
 
@@ -117,7 +123,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         start_row_id = r
         end_row_id = r + self.seq_len_per_datum
 
-        return self.data[table_id][start_row_id:end_row_id]
+        return self.data[table_id][0][start_row_id:end_row_id]
 
     def get_input_size(self) -> SOCShape:
         """
@@ -317,6 +323,8 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         end_row_id = r + self.seq_len_per_datum
 
         data = torch.load("{}/{}.pt".format(self.path, table_id))
+        if isinstance(data, list):
+            data = data[0]
 
         return data[start_row_id:end_row_id]
 

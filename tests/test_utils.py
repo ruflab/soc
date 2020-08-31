@@ -16,7 +16,6 @@ fixture_dir = os.path.join(cfd, 'fixtures')
 
 
 class TestUtils(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()

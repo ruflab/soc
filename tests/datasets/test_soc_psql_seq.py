@@ -12,7 +12,6 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestSocPSQLSeqSAToSDataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()

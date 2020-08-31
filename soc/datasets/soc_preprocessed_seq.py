@@ -60,7 +60,10 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         return x_t, y_t
 
     def _get_data(self, idx: int) -> torch.Tensor:
-        return self.data[idx]
+        seq = self.data[idx]
+        if isinstance(seq, list):
+            seq = seq[0]
+        return seq
 
     def get_input_size(self) -> List[int]:
         """

@@ -12,7 +12,6 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestSocPSQLTextSeqDataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()

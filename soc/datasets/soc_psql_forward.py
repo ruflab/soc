@@ -93,7 +93,11 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        states_df, actions_df = self._get_data_from_db(idx)
+
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+        states_df = self._get_states_from_db(table_id, start_row_id, end_row_id)
+        actions_df = self._get_actions_from_db(table_id, start_row_id, end_row_id)
+
         game_length = len(states_df)
 
         states_df = ds_utils.preprocess_states(states_df)
@@ -122,7 +126,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         return history_t, future_t
 
-    def _get_data_from_db(self, idx: int) -> Tuple:
+    def _get_db_idxs(self, idx: int) -> Tuple:
         if len(self._inc_seq_steps) == 0:
             self._set_stats()
 
@@ -137,10 +141,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         start_row_id = r + 1  # We add 1 because indices in the PosGreSQL DB start at 1 and not 0
         end_row_id = start_row_id + self.seq_len_per_datum
 
-        states = self._get_states_from_db(table_id, start_row_id, end_row_id)
-        actions = self._get_actions_from_db(table_id, start_row_id, end_row_id)
-
-        return states, actions
+        return table_id, start_row_id, end_row_id
 
     def _get_states_from_db(
         self, table_id: int, start_row_id: int, end_row_id: int

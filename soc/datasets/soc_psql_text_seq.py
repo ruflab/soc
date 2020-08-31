@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 import pandas as pd
 import torch
+from torch import Tensor
 from transformers import BertModel, BertTokenizer
 from typing import List, Optional
 from .soc_psql import PSQLConfig
@@ -68,7 +69,12 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
         encoded_inputs = self.tokenizer(
             chats_df['message'].tolist(), padding=True, truncation=True, return_tensors="pt"
         )
-        chat_seq_t = self.bert(**encoded_inputs)
+        # For now, we will use the pooler_output, but HuggingFace advise against it
+        # https://huggingface.co/transformers/model_doc/bert.html
+        with torch.no_grad():
+            # I have to check if the no_grad call does not create problems with pytorch_lightning
+            last_hidden_state, pooler_output = self.bert(**encoded_inputs)
+        chat_seq_t = pooler_output
 
         return state_seq_t, action_seq_t, chat_seq_t
 
@@ -87,18 +93,18 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
 
         return chats_df
 
-    def _load_input_seq(self, idx: int):
+    def _load_input_seq(self, idx: int) -> List[Tensor]:
         data = self[idx]
 
         state_seq_t = data[0]  # SxC_sxHxW
         action_seq_t = data[1]  # SxC_axHxW
-        chat_seq_t = data[2]  # SxC_cxHxW
+        chat_seq_t = data[2]  # SxF_c
 
-        input_seq_t = torch.cat([state_seq_t, action_seq_t, chat_seq_t], dim=1)
+        input_seq_t = [torch.cat([state_seq_t, action_seq_t], dim=1), chat_seq_t]
 
         return input_seq_t
 
-    def _load_input_df_list(self, idx: int, testing: bool = False) -> List:
+    def _load_input_df_list(self, idx: int, testing: bool = False) -> List[pd.DataFrame]:
         states_df = self._get_states_from_db(idx)
         actions_df = self._get_actions_from_db(idx)
         chats_df = self._get_chats_from_db(idx)

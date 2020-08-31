@@ -5,7 +5,8 @@ import sqlalchemy
 import numpy as np
 import pandas as pd
 import torch
-from typing import List
+from torch import Tensor
+from typing import List, Optional
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
@@ -115,28 +116,30 @@ class SocPSQLSeqDataset(SocPSQLDataset):
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
     ):
+        sec_trunc_idx: Optional[int] = None
         if testing is True:
-            limit = 3
+            nb_games = 3
+            sec_trunc_idx = 8
         else:
-            limit = len(self)
+            nb_games = len(self)
 
+        prefix = "{}/soc_{}_{}_fullseq".format(folder, self.infix, nb_games)
         if separate_seq:
-            folder = "{}/soc_{}_{}_fullseq".format(folder, self.infix, limit)
+            folder = prefix
 
         utils.check_folder(folder)
 
         seqs = []
-        for i in range(limit):
-            input_seq_t = self._load_input_seq(i)
-
-            if testing is True:
-                input_seq_t = input_seq_t[:8]
+        for i in range(nb_games):
+            inputs_l = self._load_input_seq(i)
+            for input_idx, input_t in enumerate(inputs_l):
+                inputs_l[input_idx] = input_t[:sec_trunc_idx]
 
             if separate_seq:
-                path = "{}_{}/{}.pt".format(folder, self.infix, i)
-                torch.save(input_seq_t, path)
+                path = "{}/{}.pt".format(folder, i)
+                torch.save(inputs_l, path)
             else:
-                seqs.append(input_seq_t)
+                seqs.append(inputs_l)
 
         if separate_seq:
 
@@ -150,14 +153,14 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
                 ziph.close()
 
-            zip_filename = "{}/../soc_{}_{}_fullseq.zip".format(folder, self.infix, limit)
+            zip_filename = "{}.zip".format(prefix)
             zipdir(folder, zip_filename)
             shutil.rmtree(folder)
         else:
-            path = "{}/soc_{}_{}_fullseq.pt".format(folder, self.infix, limit)
+            path = "{}.pt".format(prefix)
             torch.save(seqs, path)
 
-    def _load_input_seq(self, idx: int):
+    def _load_input_seq(self, idx: int) -> List[Tensor]:
         data = self[idx]
 
         state_seq_t = data[0]  # SxC_sxHxW
@@ -165,7 +168,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         input_seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
-        return input_seq_t
+        return [input_seq_t]
 
     def dump_raw_dataset(
         self,
@@ -175,19 +178,19 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         utils.check_folder(folder)
 
         if testing is True:
-            limit = 3
+            nb_games = 3
         else:
-            limit = len(self)
+            nb_games = len(self)
 
         data = []
-        for i in range(limit):
+        for i in range(nb_games):
             df_list = self._load_input_df_list(i, testing)
             data.append(df_list)
 
-        path = "{}/soc_{}_{}_raw_df.pt".format(folder, self.infix, limit)
+        path = "{}/soc_{}_{}_raw_df.pt".format(folder, self.infix, nb_games)
         torch.save(data, path)
 
-    def _load_input_df_list(self, idx: int, testing: bool = False) -> List:
+    def _load_input_df_list(self, idx: int, testing: bool = False) -> List[pd.DataFrame]:
         states_df = self._get_states_from_db(idx)
         actions_df = self._get_actions_from_db(idx)
 

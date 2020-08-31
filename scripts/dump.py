@@ -14,6 +14,8 @@ fixture_dir = os.path.join(cfd, '..', 'tests', 'fixtures')
 
 @dataclass
 class DumpConfig(PSQLConfig):
+    psql_password: str = 'dummy'
+
     folder: Optional[str] = None
 
     raw: bool = False

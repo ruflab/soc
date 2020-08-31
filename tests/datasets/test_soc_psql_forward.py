@@ -13,7 +13,6 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()
@@ -65,7 +64,6 @@ class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
 
 
 class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()

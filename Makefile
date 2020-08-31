@@ -58,7 +58,7 @@ dump_training_set:
 	python scripts/dump.py
 
 dump_fixtures:
-	python scripts/dump.py --testing 1
+	python scripts/dump.py --multirun testing=1 raw=0,1 dump_text=0,1
 
 .PHONY: dump_fixtures dump_training_set
 

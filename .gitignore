@@ -3,6 +3,7 @@ scripts/results
 scripts/*.ckpt
 data/
 tmp/
+tests/fixtures/*.pt
 
 # hydra
 outputs/

@@ -75,8 +75,14 @@ lint:
 yapf:
 	yapf --style tox.ini -r -i soc/. tests/. scripts/.
 
+TEST_FIXTURE_FILE=$(CURRENT_DIR)/tests/fixtures/soc_seq_3_fullseq.pt
+FIXTURES_ZIP_FILE=$(CURRENT_DIR)/tests/fixtures/fixtures_data.zip
+FIXTURES_FOLDER=$(CURRENT_DIR)/tests/fixtures
 test:
-	 PYTHONWARNINGS="ignore" pytest .
+ifeq ("$(wildcard $(TEST_FIXTURE_FILE))","")
+	unzip $(FIXTURES_ZIP_FILE) -d $(FIXTURES_FOLDER)
+endif
+	PYTHONWARNINGS="ignore" pytest .
 
 ci: lint typecheck test
 

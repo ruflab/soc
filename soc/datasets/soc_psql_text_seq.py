@@ -1,10 +1,20 @@
+import os
+from dataclasses import dataclass
 import pandas as pd
 import torch
 from transformers import BertModel, BertTokenizer
-from typing import List
+from typing import List, Optional
+from .soc_psql import PSQLConfig
 from .soc_psql_seq import SocPSQLSeqDataset
 from . import utils as ds_utils
+from .. import utils
 # from ..typing import SocDatasetItem
+
+
+@dataclass
+class PSQLTextConfig(PSQLConfig):
+    tokenizer_path: Optional[str] = None
+    bert_model_path: Optional[str] = None
 
 
 class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
@@ -25,11 +35,20 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
 
     """
     def _set_props(self, config):
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-        self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
-        self.tokenizer.add_tokens(['<void>'], special_tokens=True)
-        self.bert = BertModel.from_pretrained('bert-base-cased')
-        self.bert.resize_token_embeddings(len(self.tokenizer))
+        if config['tokenizer_path'] is not None:
+            self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
+        else:
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+            self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
+            self.tokenizer.add_tokens(['<void>'], special_tokens=True)
+
+        if config['bert_model_path'] is not None:
+            self.bert = BertModel.from_pretrained(config['bert_model_path'])
+        else:
+            self.bert = BertModel.from_pretrained('bert-base-cased')
+            self.bert.resize_token_embeddings(len(self.tokenizer))
+
+        self.infix = 'text_bert'
 
     def __getitem__(self, idx: int):
         """
@@ -94,3 +113,9 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
             df_list = [states_df, actions_df, chats_df]
 
         return df_list
+
+    def save_assets(self, folder: str):
+        utils.check_folder(folder)
+
+        self.tokenizer.save_pretrained(os.path.join(folder, 'soc_tokenizer'))
+        self.bert.save_pretrained(os.path.join(folder, 'soc_bert_model'))

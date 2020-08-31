@@ -3,6 +3,8 @@ from .soc_psql_forward import PSQLForwardConfig
 from .soc_preprocessed_seq import PreprocessedSeqConfig
 from .soc_preprocessed_forward import PreprocessedForwardConfig
 
+from .soc_psql_text_seq import PSQLTextConfig
+
 from .soc_psql_seq import SocPSQLSeqDataset, SocPSQLSeqSAToSDataset, SocPSQLSeqSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSAPolicyDataset
@@ -24,6 +26,7 @@ __all__ = [
     'PSQLForwardConfig',
     'PreprocessedSeqConfig',
     'PreprocessedForwardConfig',
+    'PSQLTextConfig',
     # Soc Datasets
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',

@@ -1,5 +1,6 @@
 import os
 import unittest
+import torch
 import pandas as pd
 import numpy as np
 from hydra.experimental import initialize, compose
@@ -10,41 +11,28 @@ from soc import datasets
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
-_DATASET_PATH = os.path.join(fixture_dir, 'soc_5_fullseq.pt')
+_DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_fullseq.pt')
 
 
 class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
-
-    states_df: pd.DataFrame
-    actions_df: pd.DataFrame
-
-    obs_files = [
-        os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
-        os.path.join(fixture_dir, 'small_obsgamestates_101.csv'),
-    ]
-    actions_files = [
-        os.path.join(fixture_dir, 'small_gameactions_100.csv'),
-        os.path.join(fixture_dir, 'small_gameactions_101.csv'),
-    ]
 
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()
         cs.store(name="config", node=datasets.PreprocessedForwardConfig)
 
-        states = [pd.read_csv(file) for file in cls.obs_files]
-        actions = [pd.read_csv(file) for file in cls.actions_files]
+        data = torch.load(_DATASET_PATH)
 
         def _get_states_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = states[table_id]
+            seq = data[table_id][0]
             return seq[start_row_id:end_row_id]
 
         def _get_actions_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = actions[table_id]
+            seq = data[table_id][1]
             return seq[start_row_id:end_row_id]
 
         cls._get_states_from_db_se_f = _get_states_from_db_se_f
@@ -99,33 +87,20 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
 
 class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
 
-    states_df: pd.DataFrame
-    actions_df: pd.DataFrame
-
-    obs_files = [
-        os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
-        os.path.join(fixture_dir, 'small_obsgamestates_101.csv'),
-    ]
-    actions_files = [
-        os.path.join(fixture_dir, 'small_gameactions_100.csv'),
-        os.path.join(fixture_dir, 'small_gameactions_101.csv'),
-    ]
-
     @classmethod
     def setUpClass(cls):
-        states = [pd.read_csv(file) for file in cls.obs_files]
-        actions = [pd.read_csv(file) for file in cls.actions_files]
+        data = torch.load(_DATASET_PATH)
 
         def _get_states_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = states[table_id]
+            seq = data[table_id][0]
             return seq[start_row_id:end_row_id]
 
         def _get_actions_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = actions[table_id]
+            seq = data[table_id][1]
             return seq[start_row_id:end_row_id]
 
         cls._get_states_from_db_se_f = _get_states_from_db_se_f

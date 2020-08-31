@@ -1,5 +1,6 @@
 import os
 import unittest
+import torch
 import numpy as np
 import pandas as pd
 from soc.datasets import java_utils as ju
@@ -10,6 +11,20 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 
 
 class TestJavaUtils(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
+
+        def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
+            return data[idx][0]
+
+        def _get_actions_from_db_se_f(self, idx: int) -> pd.DataFrame:
+            return data[idx][1]
+
+        cls._get_states_from_db_se_f = _get_states_from_db_se_f
+        cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
+
     def test_parse_layout(self):
         data = '{1,2,3,4,54}'
         formatted_data = ju.parse_layout(data)
@@ -17,8 +32,7 @@ class TestJavaUtils(unittest.TestCase):
         np.testing.assert_array_equal(formatted_data, [1, 2, 3, 4, 54])
 
     def test_mapping_1d_2d(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        states_df = pd.read_csv(obs_file)
+        states_df = self._get_states_from_db_se_f(0)
         hexlayout = states_df['hexlayout'].iloc[0]
 
         data_2d = ju.mapping_1d_2d(ju.parse_layout(hexlayout))
@@ -84,18 +98,16 @@ class TestJavaUtils(unittest.TestCase):
         np.testing.assert_array_equal(x, y)
 
     def test_parse_player_infos(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df = pd.read_csv(obs_file)
-        p_infos = df['players'].iloc[50]
+        states_df = self._get_states_from_db_se_f(0)
+        p_infos = states_df['players'].iloc[-1]
 
         players_plans = ju.parse_player_infos(p_infos)
 
         assert players_plans.shape == (4 * 41, 7, 7)
 
     def test_parse_actions(self):
-        action_file = os.path.join(fixture_dir, 'gameactions_100.csv')
-        df = pd.read_csv(action_file)
-        actions = df['type'].iloc[[0, 1, 2, 9, -1]]
+        actions_df = self._get_actions_from_db_se_f(0)
+        actions = actions_df['type'].iloc[[0, 1, 2, 5, -1]]
 
         x = np.stack(actions.apply(ju.parse_actions))
 
@@ -104,56 +116,54 @@ class TestJavaUtils(unittest.TestCase):
         y[1, 5] = 1
         y[2, 4] = 1
         y[3, 5] = 1
-        y[4, -1] = 1
+        y[4, 5] = 1
 
         np.testing.assert_array_equal(x, y)
 
     def test_parse_dice_result(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df = pd.read_csv(obs_file)
-        diceresults = df['diceresult'].iloc[[0, 1, 9, 18, 83, -1]]
+        states_df = self._get_states_from_db_se_f(0)
+        diceresults = states_df['diceresult'].iloc[[0, 1, 2, 5, -1]]
 
         x = np.stack(diceresults.apply(ju.parse_dice_result))
 
-        y = np.zeros([6, soc_data.STATE_COLS_SIZE['diceresult'], 7, 7])
+        y = np.zeros([5, soc_data.STATE_COLS_SIZE['diceresult'], 7, 7])
 
         y[0, -2] = 1
         y[1, -2] = 1
         y[2, -2] = 1
-        y[3, 5] = 1
-        y[4, 7] = 1
-        y[5, 5] = 1
+        y[3, -2] = 1
+        y[4, -2] = 1
 
         np.testing.assert_array_equal(x, y)
 
     def test_parse_game_phases(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df = pd.read_csv(obs_file)
-        gamestates = df['gamestate'].iloc[[0, 1, 2, 9, -1]]
+        states_df = self._get_states_from_db_se_f(0)
+        gamestates = states_df['gamestate'].iloc[[0, 1, 2, 5, -1]]
 
         x = np.stack(gamestates.apply(ju.parse_game_phases))
 
         y = np.zeros([5, soc_data.STATE_COLS_SIZE['gamestate'], 7, 7])
+
         y[0, 5] = 1
         y[1, 6] = 1
         y[2, 5] = 1
-        y[3, 8] = 1
-        y[4, -1] = 1
+        y[3, 6] = 1
+        y[4, 6] = 1
 
         np.testing.assert_array_equal(x, y)
 
     def test_parse_current_player(self):
-        obs_file = os.path.join(fixture_dir, 'obsgamestates_100.csv')
-        df = pd.read_csv(obs_file)
-        currentplayers = df['currentplayer'].iloc[[0, 1, 2, 9, -1]]
+        states_df = self._get_states_from_db_se_f(0)
+        currentplayers = states_df['currentplayer'].iloc[[0, 1, 2, 5, -1]]
 
         x = np.stack(currentplayers.apply(ju.parse_current_player))
 
         y = np.zeros([5, 4, 7, 7])
-        y[0, 3] = 1
-        y[1, 3] = 1
-        y[2, 0] = 1
-        y[3, 2] = 1
-        y[4, 3] = 1
+
+        y[0, 1] = 1
+        y[1, 1] = 1
+        y[2, 2] = 1
+        y[3, 3] = 1
+        y[4, 0] = 1
 
         np.testing.assert_array_equal(x, y)

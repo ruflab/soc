@@ -16,9 +16,9 @@ class TestSocPSQLTextSeqDataset(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cs = ConfigStore.instance()
-        cs.store(name="config", node=datasets.PSQLConfig)
+        cs.store(name="config", node=datasets.PSQLTextConfig)
 
-        data = torch.load(os.path.join(fixture_dir, 'soc_3_raw_df.pt'))
+        data = torch.load(os.path.join(fixture_dir, 'soc_text_bert_3_raw_df.pt'))
 
         def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
             return data[idx][0]

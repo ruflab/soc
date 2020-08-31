@@ -3,6 +3,7 @@ import time
 import shutil
 import unittest
 import pandas as pd
+import torch
 from unittest.mock import MagicMock
 from pytorch_lightning import seed_everything, Trainer
 from hydra.experimental import initialize, compose
@@ -15,25 +16,11 @@ from soc.runners import make_runner
 cfd = os.path.dirname(os.path.realpath(__file__))
 fixture_dir = os.path.join(cfd, 'fixtures')
 
-_DATASET_PATH = os.path.join(fixture_dir, 'soc_5_fullseq.pt')
+_DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_fullseq.pt')
+_RAW_DATASET_PATH = os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt')
 
 
 class TestTraining(unittest.TestCase):
-
-    states_df: pd.DataFrame
-    actions_df: pd.DataFrame
-
-    obs_files = [
-        os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
-        os.path.join(fixture_dir, 'small_obsgamestates_101.csv'),
-    ]
-    actions_files = [
-        os.path.join(fixture_dir, 'small_gameactions_100.csv'),
-        os.path.join(fixture_dir, 'small_gameactions_101.csv'),
-    ]
-
-    _get_states_from_db_se_f = None
-    _get_actions_from_db_se_f = None
 
     @classmethod
     def setUpClass(cls):
@@ -62,8 +49,7 @@ class TestTraining(unittest.TestCase):
             node=datasets.PreprocessedSeqConfig
         )
 
-        cls.states = [pd.read_csv(file) for file in cls.obs_files]
-        cls.actions = [pd.read_csv(file) for file in cls.actions_files]
+        cls.data = torch.load(_RAW_DATASET_PATH)
 
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
@@ -72,14 +58,13 @@ class TestTraining(unittest.TestCase):
         return shutil.rmtree(self.folder)
 
     def test_training_socseqsas_convlstm(self):
-        states = self.states
-        actions = self.actions
+        data = self.data
 
         def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
-            return states[idx]
+            return data[idx][0]
 
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
-            return actions[idx]
+            return data[idx][1]
 
         def setup_dataset(hparams):
             dataset = make_dataset(hparams.dataset)
@@ -107,14 +92,13 @@ class TestTraining(unittest.TestCase):
             trainer.fit(runner)
 
     def test_training_socseqsas_conv3dmodel(self):
-        states = self.states
-        actions = self.actions
+        data = self.data
 
         def _get_states_from_db_se_f(idx: int) -> pd.DataFrame:
-            return states[idx]
+            return data[idx][0]
 
         def _get_actions_from_db_se_f(idx: int) -> pd.DataFrame:
-            return actions[idx]
+            return data[idx][1]
 
         def setup_dataset(hparams):
             dataset = make_dataset(hparams.dataset)

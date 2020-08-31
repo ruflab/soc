@@ -30,6 +30,9 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
+    def _set_props(self, config):
+        self.infix = 'seq'
+
     def __len__(self) -> int:
         return self._get_length()
 
@@ -113,12 +116,12 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         self, folder: str, testing: bool = False, separate_seq: bool = False
     ):
         if testing is True:
-            limit = 5
+            limit = 3
         else:
             limit = len(self)
 
         if separate_seq:
-            folder = "{}/soc_{}_fullseq".format(folder, limit)
+            folder = "{}/soc_{}_{}_fullseq".format(folder, self.infix, limit)
 
         utils.check_folder(folder)
 
@@ -130,7 +133,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
                 input_seq_t = input_seq_t[:8]
 
             if separate_seq:
-                path = "{}/{}.pt".format(folder, i)
+                path = "{}_{}/{}.pt".format(folder, self.infix, i)
                 torch.save(input_seq_t, path)
             else:
                 seqs.append(input_seq_t)
@@ -147,11 +150,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
                 ziph.close()
 
-            zip_filename = "{}/../soc_{}_fullseq.zip".format(folder, limit)
+            zip_filename = "{}/../soc_{}_{}_fullseq.zip".format(folder, self.infix, limit)
             zipdir(folder, zip_filename)
             shutil.rmtree(folder)
         else:
-            path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+            path = "{}/soc_{}_{}_fullseq.pt".format(folder, self.infix, limit)
             torch.save(seqs, path)
 
     def _load_input_seq(self, idx: int):
@@ -181,7 +184,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             df_list = self._load_input_df_list(i, testing)
             data.append(df_list)
 
-        path = "{}/soc_{}_raw_df.pt".format(folder, limit)
+        path = "{}/soc_{}_{}_raw_df.pt".format(folder, self.infix, limit)
         torch.save(data, path)
 
     def _load_input_df_list(self, idx: int, testing: bool = False) -> List:

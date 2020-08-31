@@ -21,6 +21,9 @@ class DumpConfig(PSQLConfig):
     separate_seq: bool = False
     dump_text: bool = False
 
+    tokenizer_path: Optional[str] = None
+    bert_model_path: Optional[str] = None
+
 
 cs = ConfigStore.instance()
 cs.store(name="config", node=DumpConfig)

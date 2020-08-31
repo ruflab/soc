@@ -19,7 +19,7 @@ class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
         cs = ConfigStore.instance()
         cs.store(name="config", node=datasets.PSQLForwardConfig)
 
-        data = torch.load(os.path.join(fixture_dir, 'soc_3_raw_df.pt'))
+        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
 
         def _get_states_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int
@@ -71,7 +71,7 @@ class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
         cs = ConfigStore.instance()
         cs.store(name="config", node=datasets.PSQLForwardConfig)
 
-        data = torch.load(os.path.join(fixture_dir, 'soc_3_raw_df.pt'))
+        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
 
         def _get_states_from_db_se_f(
             self, table_id: int, start_row_id: int, end_row_id: int

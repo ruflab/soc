@@ -22,7 +22,7 @@ class TestUtils(unittest.TestCase):
         cs = ConfigStore.instance()
         cs.store(name="config", node=datasets.PSQLConfig)
 
-        data = torch.load(os.path.join(fixture_dir, 'soc_3_raw_df.pt'))
+        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
 
         def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
             return data[idx][0]

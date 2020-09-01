@@ -1,22 +1,25 @@
 from .resnet18 import resnet18, ResNetConfig
 from .resnet18_policy import ResNet18Policy
-from .resnet18_fusion_policy import ResNet18FusionPolicy
+from .resnet18_fusion_policy import ResNet18FusionPolicy, ResNetFusionConfig
 from .conv_lstm import ConvLSTM, ConvLSTMConfig
 from .conv_lstm_policy import ConvLSTMPolicy
 from .conv3d import Conv3dModel, Conv3dModelConfig
 from .conv3d_policy import Conv3dModelPolicy
 from .hexa_conv import HexaConv2d
+from .hopfield import Hopfield
 
 __all__ = [
+    "ResNetConfig",
+    "ConvLSTMConfig",
+    "Conv3dModelConfig",
+    "ResNetFusionConfig",
+    "Hopfield",
     "resnet18",
     "ResNet18Policy",
     "ResNet18FusionPolicy",
-    "ResNetConfig",
     "ConvLSTM",
-    "ConvLSTMConfig",
     "ConvLSTMPolicy",
     "Conv3dModel",
-    "Conv3dModelConfig",
     "Conv3dModelPolicy",
     "HexaConv2d",
 ]

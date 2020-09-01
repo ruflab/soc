@@ -33,7 +33,7 @@ class TestTraining(unittest.TestCase):
         cs.store(group="generic/model", name="conv3dpolicy", node=models.Conv3dModelConfig)
         cs.store(group="generic/model", name="resnet18", node=models.ResNetConfig)
         cs.store(group="generic/model", name="resnet18policy", node=models.ResNetConfig)
-        cs.store(group="generic/model", name="resnet18fusionpolicy", node=models.ResNetConfig)
+        cs.store(group="generic/model", name="resnet18fusionpolicy", node=models.ResNetFusionConfig)
         cs.store(group="generic/dataset", name="psqlseqsatos", node=datasets.PSQLConfig)
         cs.store(
             group="generic/dataset",
@@ -63,7 +63,8 @@ class TestTraining(unittest.TestCase):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
 
     def tearDown(self):
-        return shutil.rmtree(self.folder)
+        if os.path.isdir(self.folder):
+            shutil.rmtree(self.folder)
 
     def test_training_soc_psql_seq_sas_convlstm(self):
         data = self.data
@@ -271,7 +272,7 @@ class TestTraining(unittest.TestCase):
     #             config_name="config",
     #             overrides=[
     #                 "generic/model=resnet18fusionpolicy",
-    #                 "generic/dataset=preprocessedforwardtextbertsatosapolicy",
+    #                 "generic/dataset=preprocessedtextbertforwardsatosapolicy",
     #                 "generic.runner_name=SOCTextForwardPolicyRunner"
     #             ]
     #         )

@@ -72,5 +72,4 @@ with torch.no_grad():
         if last_action_name == 'ROLL':
             dice_values = [-1, 0] + list(range(2, 13))
             sns.barplot(x=dice_values, y=dice_distrib_preds)
-            # breakpoint()
             # plt.show()

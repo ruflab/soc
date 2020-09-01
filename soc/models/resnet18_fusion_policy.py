@@ -1,7 +1,17 @@
+from dataclasses import dataclass
 from torch import nn
 from omegaconf import OmegaConf, DictConfig
 from .resnet18 import conv1x1, Bottleneck, BasicBlock
+from .resnet18 import ResNetConfig
 from .hexa_conv import HexaConv2d
+from .hopfield import Hopfield
+
+
+@dataclass
+class ResNetFusionConfig(ResNetConfig):
+    fusion_num_heads: int = 8
+    beta: float = 0.3
+    update_steps_max: int = 0
 
 
 class ResNet18FusionPolicy(nn.Module):
@@ -29,11 +39,14 @@ class ResNet18FusionPolicy(nn.Module):
         conf = OmegaConf.to_container(omegaConf)
         assert isinstance(conf, dict)
 
-        self.data_input_size = conf['data_input_size']
-        self.inplanes = self.data_input_size[0] * self.data_input_size[1]
+        data_input_size = conf['data_input_size']
+        self.game_data_input_size = data_input_size[0]
+        self.text_data_input_size = data_input_size[1]
+        self.inplanes = self.game_data_input_size[0] * self.game_data_input_size[1]
 
         self.n_core_planes = conf['n_core_planes']
-        self.n_core_outputs = self.n_core_planes * self.data_input_size[2] * self.data_input_size[3]
+        self.n_core_outputs = self.n_core_planes * self.game_data_input_size[
+            2] * self.game_data_input_size[3]
 
         data_output_size = conf['data_output_size']
         self.spatial_state_output_size = data_output_size[0]
@@ -78,6 +91,22 @@ class ResNet18FusionPolicy(nn.Module):
         self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
 
         # Fusion module
+        # Our state that we want to change is the CNN state
+        self.hopfield = Hopfield(
+            input_size=self.n_core_outputs,
+            output_size=self.n_core_outputs,
+            stored_pattern_size=1,
+            pattern_projection_size=1,
+            pattern_projection_as_connected=True,
+            hidden_size=2 * self.n_core_outputs,
+            num_heads=conf['fusion_num_heads'],
+            scaling=conf['beta'
+                         ],  # Beta parameter, can be set as a tensor to assign different betas
+            update_steps_max=conf['update_steps_max'],
+            dropout=0.,
+            batch_first=True,
+            association_activation=None,
+        )
 
         # Heads
         self.spatial_state_head = nn.Sequential(
@@ -184,16 +213,23 @@ class ResNet18FusionPolicy(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        z = self.layer4(x)
-        z_linear = z.view(bs, -1)
+        z_spatial = self.layer4(x)
 
-        # Find a way to push data into the hopfield layer
-        # z are the keys and the values
-        # x_text are the queries
-        # We project the keys/queries into an associative space
-        # Compute the attention on the values
+        # Fusion
+        n_states = 1
+        z_linear = z_spatial.view(bs, n_states, self.n_core_outputs)
 
-        y_spatial_state_logits = self.spatial_state_head(z)
+        d_y = 1
+        N = S * self.text_data_input_size[1]
+        x_text_reshaped = x_text.reshape([bs, N, d_y])
+
+        input_data = (x_text_reshaped, z_linear, x_text_reshaped)
+        z_linear = self.hopfield(input_data)
+
+        # Heads
+        z_spatial = z_linear.contiguous().view(z_spatial.shape)
+        z_linear = z_linear.squeeze()
+        y_spatial_state_logits = self.spatial_state_head(z_spatial)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
@@ -222,11 +258,10 @@ class ResNet18FusionPolicy(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        z = self.layer4(x)
+        z_spatial = self.layer4(x)
+        z_linear = z_spatial.view(bs, -1)
 
-        z_linear = z.view(bs, -1)
-
-        y_spatial_state_logits = self.spatial_state_head(z)
+        y_spatial_state_logits = self.spatial_state_head(z_spatial)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)

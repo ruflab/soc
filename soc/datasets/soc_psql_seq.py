@@ -11,7 +11,7 @@ from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
 from .. import utils
-from ..typing import SocDatasetItem, SocDataMetadata
+from ..typing import SocDatasetItem, SocDataMetadata, SocSize
 
 
 class SocPSQLSeqDataset(SocPSQLDataset):
@@ -32,6 +32,11 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
     """
     def _set_props(self, config):
+        state_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
+        action_shape = [soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.input_shape = [state_shape, action_shape]
+        self.output_shape = [state_shape, action_shape]
+
         self.infix = 'seq'
 
     def __len__(self) -> int:
@@ -112,6 +117,20 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             raise Exception('No engine detected')
 
         return actions_df
+
+    def get_input_size(self) -> SocSize:
+        """
+            Return the input dimension
+        """
+
+        return self.input_shape
+
+    def get_output_size(self) -> SocSize:
+        """
+            Return the output dimension
+        """
+
+        return self.output_shape
 
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
@@ -213,6 +232,10 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         Output: Next state
             Dims: S x C_states x H x W
     """
+    def _set_props(self, config):
+        self.input_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
+
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSDataset, self).__getitem__(idx)
 
@@ -224,24 +247,6 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         y_t = state_seq_t[1:]
 
         return x_t, y_t
-
-    def get_input_size(self) -> List[int]:
-        """
-            Return the input dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
-
-    def get_output_size(self) -> List[int]:
-        """
-            Return the output dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE,
-        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
@@ -273,6 +278,10 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
+    def _set_props(self, config):
+        self.input_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSADataset, self).__getitem__(idx)
 
@@ -284,23 +293,6 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         y_t = cat_seq[1:]
 
         return x_t, y_t
-
-    def get_input_size(self) -> List[int]:
-        """
-            Return the input dimension
-        """
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
-
-    def get_output_size(self) -> List:
-        """
-            Return the output dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
 
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas

@@ -3,8 +3,8 @@ import pandas as pd
 import torch
 from omegaconf import MISSING
 from transformers import BertModel, BertTokenizer
-from typing import List, Optional
-from .soc_psql import PSQLConfig
+from typing import List
+from .soc_psql_text_seq import PSQLTextConfig
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from . import utils as ds_utils
 from . import soc_data
@@ -12,11 +12,9 @@ from ..typing import SocDataMetadata
 
 
 @dataclass
-class PSQLTextForwardConfig(PSQLConfig):
+class PSQLTextForwardConfig(PSQLTextConfig):
     history_length: int = MISSING
     future_length: int = MISSING
-    tokenizer_path: Optional[str] = None
-    bert_model_path: Optional[str] = None
 
 
 class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
@@ -40,13 +38,7 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
-
-        self.input_shape = [
-            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
-        ] + soc_data.BOARD_SIZE
-        self.output_shape = [
-            self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
-        ] + soc_data.BOARD_SIZE
+        self.use_pooler_features = config['use_pooler_features']
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -60,6 +52,21 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
             self.bert.resize_token_embeddings(len(self.tokenizer))
+
+        game_input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+        if self.use_pooler_features:
+            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
+        else:
+            text_input_shape = [
+                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
+            ]
+        self.input_shape = [game_input_shape, text_input_shape]
+
+        self.output_shape = [
+            self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
 
     def __getitem__(self, idx: int):
         """
@@ -84,7 +91,10 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
         with torch.no_grad():
             # I have to check if the no_grad call does not create problems with pytorch_lightning
             last_hidden_state, pooler_output = self.bert(**encoded_inputs)
-        chat_seq_t = pooler_output
+        if self.use_pooler_features:
+            chat_seq_t = pooler_output
+        else:
+            raise NotImplementedError('Using all Bert hidden states is not implemented yet')
         chat_history_t = chat_seq_t[:self.history_length]
         chat_future_t = chat_seq_t[self.history_length:]
 
@@ -124,17 +134,7 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
-
-        self.input_shape = [
-            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
-        ] + soc_data.BOARD_SIZE
-
-        output_shape_spatial = [
-            self.future_length, soc_data.SPATIAL_STATE_SIZE
-        ] + soc_data.BOARD_SIZE
-        output_shape = [self.future_length, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
-        output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
-        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
+        self.use_pooler_features = config['use_pooler_features']
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -148,6 +148,24 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
             self.bert.resize_token_embeddings(len(self.tokenizer))
+
+        game_input_shape = [
+            self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
+        ] + soc_data.BOARD_SIZE
+        if self.use_pooler_features:
+            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
+        else:
+            text_input_shape = [
+                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
+            ]
+        self.input_shape = [game_input_shape, text_input_shape]
+
+        output_shape_spatial = [
+            self.future_length, soc_data.SPATIAL_STATE_SIZE
+        ] + soc_data.BOARD_SIZE
+        output_shape = [self.future_length, soc_data.STATE_SIZE - soc_data.SPATIAL_STATE_SIZE]
+        output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
+        self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
     def __getitem__(self, idx: int):
         history_l, future_l = super(

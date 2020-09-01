@@ -9,6 +9,7 @@ from .soc_psql import PSQLConfig
 from .soc_psql_seq import SocPSQLSeqDataset
 from . import utils as ds_utils
 from .. import utils
+from . import soc_data
 # from ..typing import SocDatasetItem
 
 
@@ -16,6 +17,7 @@ from .. import utils
 class PSQLTextConfig(PSQLConfig):
     tokenizer_path: Optional[str] = None
     bert_model_path: Optional[str] = None
+    use_pooler_features: bool = True
 
 
 class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
@@ -36,6 +38,8 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
 
     """
     def _set_props(self, config):
+        self.use_pooler_features = config['use_pooler_features']
+
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
         else:
@@ -48,6 +52,15 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
             self.bert.resize_token_embeddings(len(self.tokenizer))
+
+        state_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
+        action_shape = [soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        if self.use_pooler_features:
+            chat_shape = [self.bert.pooler.dense.out_features]
+        else:
+            chat_shape = [self.bert.encoder.layer[-1].output.dense.out_features]
+        self.input_shape = [state_shape, action_shape, chat_shape]
+        self.output_shape = [state_shape, action_shape, chat_shape]
 
         self.infix = 'text_bert'
 
@@ -74,7 +87,10 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
         with torch.no_grad():
             # I have to check if the no_grad call does not create problems with pytorch_lightning
             last_hidden_state, pooler_output = self.bert(**encoded_inputs)
-        chat_seq_t = pooler_output
+        if self.use_pooler_features:
+            chat_seq_t = pooler_output
+        else:
+            raise NotImplementedError('Using all Bert hidden states is not implemented yet')
 
         return state_seq_t, action_seq_t, chat_seq_t
 

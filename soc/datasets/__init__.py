@@ -2,6 +2,7 @@ from .soc_psql import PSQLConfig
 from .soc_psql_forward import PSQLForwardConfig
 from .soc_preprocessed_seq import PreprocessedSeqConfig
 from .soc_preprocessed_forward import PreprocessedForwardConfig
+from .soc_preprocessed_text_forward import PreprocessedTextForwardConfig
 
 from .soc_psql_text_seq import PSQLTextConfig
 from .soc_psql_text_forward import PSQLTextForwardConfig
@@ -23,6 +24,8 @@ from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSAPolicyData
 from .soc_psql_text_seq import SocPSQLTextBertSeqDataset
 from .soc_psql_text_forward import SocPSQLTextBertForwardSAToSADataset
 from .soc_psql_text_forward import SocPSQLTextBertForwardSAToSAPolicyDataset
+from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSADataset
+from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSAPolicyDataset
 
 # yapf: disable
 __all__ = [
@@ -33,6 +36,7 @@ __all__ = [
     'PreprocessedForwardConfig',
     'PSQLTextConfig',
     'PSQLTextForwardConfig',
+    'PreprocessedTextForwardConfig',
     # Soc Datasets
     'SocPSQLSeqDataset',
     'SocPSQLSeqSAToSDataset',
@@ -50,7 +54,9 @@ __all__ = [
     # Soc Dataset with text
     'SocPSQLTextBertSeqDataset',
     'SocPSQLTextBertForwardSAToSADataset',
-    'SocPSQLTextBertForwardSAToSAPolicyDataset'
+    'SocPSQLTextBertForwardSAToSAPolicyDataset',
+    'SocPreprocessedTextBertForwardSAToSADataset',
+    'SocPreprocessedTextBertForwardSAToSAPolicyDataset'
 ]
 # yapf: enable
 

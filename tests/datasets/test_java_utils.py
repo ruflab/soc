@@ -102,7 +102,7 @@ class TestJavaUtils(unittest.TestCase):
 
         players_plans = ju.parse_player_infos(p_infos)
 
-        assert players_plans.shape == (4 * 41, 7, 7)
+        assert players_plans.shape == (4 * 35, 7, 7)
 
     def test_parse_actions(self):
         actions_df = self._get_actions_from_db_se_f(0)
@@ -125,7 +125,7 @@ class TestJavaUtils(unittest.TestCase):
 
         x = np.stack(diceresults.apply(ju.parse_dice_result))
 
-        y = np.zeros([5, soc_data.STATE_COLS_SIZE['diceresult'], 7, 7])
+        y = np.zeros([5, soc_data.STATE_FIELDS_SIZE['diceresult'], 7, 7])
 
         y[0, -2] = 1
         y[1, -2] = 1
@@ -141,7 +141,7 @@ class TestJavaUtils(unittest.TestCase):
 
         x = np.stack(gamestates.apply(ju.parse_game_phases))
 
-        y = np.zeros([5, soc_data.STATE_COLS_SIZE['gamestate'], 7, 7])
+        y = np.zeros([5, soc_data.STATE_FIELDS_SIZE['gamestate'], 7, 7])
 
         y[0, 5] = 1
         y[1, 6] = 1
@@ -159,10 +159,10 @@ class TestJavaUtils(unittest.TestCase):
 
         y = np.zeros([5, 4, 7, 7])
 
-        y[0, 1] = 1
-        y[1, 1] = 1
-        y[2, 2] = 1
-        y[3, 3] = 1
-        y[4, 0] = 1
+        y[0, 2] = 1
+        y[1, 2] = 1
+        y[2, 3] = 1
+        y[3, 0] = 1
+        y[4, 1] = 1
 
         np.testing.assert_array_equal(x, y)

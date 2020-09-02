@@ -108,6 +108,8 @@ def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
     del states_df['name']
     del states_df['id']
 
+    states_df['gameturn'] = states_df['gameturn'].apply(ju.get_replicated_plan)
+
     states_df['hexlayout'] = states_df['hexlayout'].apply(ju.parse_layout) \
                                                    .apply(ju.mapping_1d_2d) \
                                                    .apply(normalize_hexlayout)
@@ -121,12 +123,9 @@ def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
 
     states_df['piecesonboard'] = states_df['piecesonboard'].apply(ju.parse_pieces)
 
-    states_df['players'] = states_df['players'].apply(ju.parse_player_infos)
-
     states_df['gamestate'] = states_df['gamestate'].apply(ju.parse_game_phases)
 
-    states_df['devcardsleft'] = states_df['devcardsleft'].apply(ju.get_replicated_plan) \
-                                                         .apply(normalize_devcardsleft)
+    states_df['devcardsleft'] = states_df['devcardsleft'].apply(ju.parse_devcardsleft)
 
     states_df['diceresult'] = states_df['diceresult'].apply(ju.parse_dice_result)
 
@@ -135,6 +134,10 @@ def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
     states_df['currentplayer'] = states_df['currentplayer'].apply(ju.parse_current_player)
 
     states_df['playeddevcard'] = states_df['playeddevcard'].apply(ju.get_replicated_plan)
+
+    states_df['playersresources'] = states_df['playersresources'].apply(ju.parse_player_resources)
+
+    states_df['players'] = states_df['players'].apply(ju.parse_player_infos)
 
     return states_df
 
@@ -181,11 +184,11 @@ def normalize_hexlayout(data: DataTensor) -> DataTensor:
         # We make sure all the values are between 1 and 257 so that
         # All log values are between 0 and 257
         val = torch.tensor(255 + 1 + 1, dtype=data.dtype)
-        data = torch.log(data + 1) / torch.log(val)
+        data = torch.sqrt(data + 1) / torch.sqrt(val)
     else:
         data = data.copy()
         data += 1
-        data = np.log(data + 1) / np.log(255 + 1 + 1)
+        data = np.sqrt(data + 1) / np.sqrt(255 + 1 + 1)
 
     return data
 
@@ -194,11 +197,11 @@ def unnormalize_hexlayout(data: DataTensor) -> DataTensor:
     if isinstance(data, torch.Tensor):
         data = data.clone()
         val = torch.tensor(255 + 1 + 1, dtype=data.dtype)
-        data = torch.exp(data * torch.log(val)) - 1
+        data = torch.square(data * torch.sqrt(val)) - 1
         data = torch.round(data).type(torch.int64)  # type:ignore
     else:
         data = data.copy()
-        data = np.exp(data * np.log(255 + 1 + 1)) - 1
+        data = np.square(data * np.sqrt(255 + 1 + 1)) - 1
         data = np.round(data).astype(np.int64)
 
     data -= 1
@@ -232,29 +235,5 @@ def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
         data = data * 12
         data = np.round(data).astype(np.int64)
         data[data == 0] = -1
-
-    return data
-
-
-def normalize_devcardsleft(data: DataTensor) -> DataTensor:
-    if isinstance(data, torch.Tensor):
-        data = data.clone().type(torch.float32)  # type:ignore
-        data = data / 25.
-    else:
-        data = data.copy()
-        data = data / 25.
-
-    return data
-
-
-def unnormalize_devcardsleft(data: DataTensor) -> DataTensor:
-    if isinstance(data, torch.Tensor):
-        data = data.clone()
-        data = data * 25.
-        data = torch.round(data).type(torch.int64)  # type:ignore
-    else:
-        data = data.copy()
-        data = data * 25.
-        data = np.round(data).astype(np.int64)
 
     return data

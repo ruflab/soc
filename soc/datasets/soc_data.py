@@ -1,15 +1,18 @@
 ML_TYPE = {
     'regression': 0,
     'binary': 1,
-    'categories': 2,
-    'spatial_categories': 3,
+    'category': 2,
+    'spatial_regression': 3,
+    'spatial_binary': 4,
+    'spatial_category': 5,
 }
 
 ###
 # Fields
 ###
 
-FIELDS = [
+STATE_FIELDS = [
+    'gameturn',
     'hexlayout',
     'numberlayout',
     'robberhex',
@@ -20,6 +23,7 @@ FIELDS = [
     'currentplayer',
     'devcardsleft',
     'playeddevcard',
+    'playersresources',
     'players',
 ]
 
@@ -79,42 +83,44 @@ ACTIONS = {
 ACTIONS_NAMES = list(ACTIONS.keys())
 ACTION_SIZE = len(ACTIONS)
 
-STATE_COLS = {
-    # Spatial
-    'hexlayout': ML_TYPE['regression'],
-    'numberlayout': ML_TYPE['regression'],
-    'robberhex': ML_TYPE['spatial_categories'],
-    'piecesonboard': ML_TYPE['binary'],  # Linear
-    'gamestate': ML_TYPE['categories'],
-    'diceresult': ML_TYPE['categories'],
-    'startingplayer': ML_TYPE['categories'],
-    'currentplayer': ML_TYPE['categories'],
+STATE_FIELDS_TYPE = {
+    'gameturn': ML_TYPE['regression'],
+    'hexlayout': ML_TYPE['spatial_regression'],
+    'numberlayout': ML_TYPE['spatial_regression'],
+    'robberhex': ML_TYPE['spatial_category'],
+    'piecesonboard': ML_TYPE['spatial_binary'],
+    'gamestate': ML_TYPE['category'],
+    'diceresult': ML_TYPE['category'],
+    'startingplayer': ML_TYPE['category'],
+    'currentplayer': ML_TYPE['category'],
     'devcardsleft': ML_TYPE['regression'],
     'playeddevcard': ML_TYPE['binary'],
+    'playersresources': ML_TYPE['regression'],
     'players': ML_TYPE['regression'],
 }
 
-STATE_COLS_SIZE = {
-    # Spatial
+STATE_FIELDS_SIZE = {
+    'gameturn': 1,
     'hexlayout': 1,
     'numberlayout': 1,
     'robberhex': 1,
-    'piecesonboard': 4 * 18,  # Linear
+    'piecesonboard': 4 * 18,
     'gamestate': GAME_PHASE_SIZE,
     'diceresult': DICE_RESULT_SIZE,
     'startingplayer': 4,
     'currentplayer': 4,
-    'devcardsleft': 1,
+    'devcardsleft': 26,
     'playeddevcard': 1,
-    'players': 4 * 41,
+    'playersresources': 4 * 6,
+    'players': 4 * 35,
 }
 
 BOARD_SIZE = [7, 7]
 
 SPATIAL_STATE_SIZE = sum([
-    STATE_COLS_SIZE['hexlayout'],
-    STATE_COLS_SIZE['numberlayout'],
-    STATE_COLS_SIZE['robberhex'],
-    STATE_COLS_SIZE['piecesonboard'],
+    STATE_FIELDS_SIZE['hexlayout'],
+    STATE_FIELDS_SIZE['numberlayout'],
+    STATE_FIELDS_SIZE['robberhex'],
+    STATE_FIELDS_SIZE['piecesonboard'],
 ])
-STATE_SIZE = sum(STATE_COLS_SIZE.values())
+STATE_SIZE = sum(STATE_FIELDS_SIZE.values())

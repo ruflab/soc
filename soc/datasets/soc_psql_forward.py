@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from dataclasses import dataclass
 from omegaconf import MISSING
-from typing import Tuple, List
+from typing import Tuple, List, Union
 from .soc_psql import SocPSQLDataset, PSQLConfig
 from . import utils as ds_utils
 from . import soc_data
@@ -110,7 +110,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             current_action_df = actions_df.iloc[i]
 
             current_state_np = np.concatenate(
-                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+                [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
             )  # yapf: ignore
             current_action_np = current_action_df['type']
 
@@ -194,21 +194,18 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
     def get_collate_fn(self):
         return None
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-            'actions': [284, 301],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [
+                last_idx,
+                last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -253,23 +250,27 @@ class SocPSQLForwardSAToSAPolicyDataset(SocPSQLForwardSAToSADataset):
 
         return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx,
+                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx,
+                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],

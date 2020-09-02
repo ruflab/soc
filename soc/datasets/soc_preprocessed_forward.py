@@ -142,21 +142,18 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'mean_robberhex': [2, 3],
-            'mean_piecesonboard': [3, 75],
-            'mean_gamestate': [75, 99],
-            'mean_diceresult': [99, 112],
-            'mean_startingplayer': [112, 116],
-            'mean_currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'mean_playeddevcard': [121, 122],
-            'players': [122, 286],
-            'mean_actions': [286, 303],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata['mean_' + field] = [
+                last_idx,
+                last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -199,23 +196,27 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
 
         return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx,
+                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx,
+                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],
@@ -345,21 +346,18 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'mean_robberhex': [2, 3],
-            'mean_piecesonboard': [3, 75],
-            'mean_gamestate': [75, 99],
-            'mean_diceresult': [99, 112],
-            'mean_startingplayer': [112, 116],
-            'mean_currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'mean_playeddevcard': [121, 122],
-            'players': [122, 286],
-            'mean_actions': [286, 303],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata['mean_' + field] = [
+                last_idx,
+                last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -402,23 +400,27 @@ class SocLazyPreprocessedForwardSAToSAPolicyDataset(SocLazyPreprocessedForwardSA
 
         return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx,
+                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx,
+                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],

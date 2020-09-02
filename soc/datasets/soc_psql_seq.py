@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
@@ -76,7 +76,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             current_action_df = actions_df.iloc[i]
 
             current_state_np = np.concatenate(
-                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
+                [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
             )  # yapf: ignore
             current_action_np = current_action_df['type']
 
@@ -138,7 +138,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         sec_trunc_idx: Optional[int] = None
         if testing is True:
             nb_games = 3
-            sec_trunc_idx = 8
+            sec_trunc_idx = 20
         else:
             nb_games = len(self)
 
@@ -251,20 +251,18 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        return {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [
+                last_idx,
+                last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
 
 
 class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
@@ -297,20 +295,17 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-            'actions': [284, 301],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [
+                last_idx,
+                last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata

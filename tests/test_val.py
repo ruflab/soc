@@ -81,7 +81,7 @@ class TestVal(unittest.TestCase):
         state = utils.preprocess_states(state)
         state = state.iloc[6]
         state_t = torch.tensor(
-            np.concatenate([state[col] for col in soc_data.STATE_COLS.keys()], axis=0),
+            np.concatenate([state[col] for col in soc_data.STATE_FIELDS], axis=0),
             dtype=torch.float32
         )  # yapf: ignore
         state_t = state_t.unsqueeze(0).unsqueeze(0)

@@ -19,6 +19,26 @@ def mse_loss(
     return loss
 
 
+def gameturn_loss(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    gameturn_logits = t1_logits_seq[:, :, start_i]
+    gameturn_true = t2_true_seq[:, :, start_i]
+
+    # Regression losses need to be balanced with cross_entropy losses
+    # To do so we add a coefficient for thos losses
+    # The coefficient depends on the normalization applied
+    # which defines how precise the output should be to make the right prediction
+    coef = 20
+    loss = coef * F.mse_loss(gameturn_logits, gameturn_true)
+
+    return loss
+
+
 def hexlayout_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
@@ -174,17 +194,14 @@ def devcardsleft_loss(
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
 ) -> torch.Tensor:
+    bs = t1_logits_seq.shape[0]
+    S = t1_logits_seq.shape[1]
     start_i, end_i = indexes
 
-    devcardsleft_logits = t1_logits_seq[:, :, start_i]
-    devcardsleft_true = t2_true_seq[:, :, start_i]
+    devcardsleft_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
+    devcardsleft_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    # Regression losses need to be balanced with cross_entropy losses
-    # To do so we add a coefficient for thos losses
-    # The coefficient depends on the normalization applied
-    # which defines how precise the output should be to make the right prediction
-    coef = 100
-    loss = coef * F.mse_loss(devcardsleft_logits, devcardsleft_true)
+    loss = F.cross_entropy(devcardsleft_logits, devcardsleft_true)
 
     return loss
 
@@ -200,6 +217,21 @@ def playeddevcard_loss(
     playeddevcard_true = t2_true_seq[:, :, start_i]
 
     loss = F.binary_cross_entropy_with_logits(playeddevcard_logits, playeddevcard_true)
+
+    return loss
+
+
+def playersresources_loss(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    players_logits = t1_logits_seq[:, :, start_i:end_i]
+    players_true = t2_true_seq[:, :, start_i:end_i]
+
+    loss = F.mse_loss(players_logits, players_true)
 
     return loss
 
@@ -252,6 +284,7 @@ def compute_losses(
 
 
 loss_mapping = {
+    'gameturn': gameturn_loss,
     'hexlayout': hexlayout_loss,
     'numberlayout': numberlayout_loss,
     'robberhex': robber_loss,
@@ -263,5 +296,6 @@ loss_mapping = {
     'devcardsleft': devcardsleft_loss,
     'playeddevcard': playeddevcard_loss,
     'players': players_loss,
+    'playersresources': playersresources_loss,
     'actions': actions_loss,
 }

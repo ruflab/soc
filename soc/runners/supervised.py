@@ -31,7 +31,7 @@ class SOCSupervisedSeqRunner(SOCRunner):
         y_logits_raw = outputs[0]
         y_logits = y_logits_raw * mask
 
-        train_dict = compute_losses(self.metadata, y_logits, y_true)
+        train_dict = compute_losses(self.output_metadata, y_logits, y_true)
 
         loss = torch.tensor(0., device=y_logits.device)
         for k, l in train_dict.items():
@@ -55,7 +55,7 @@ class SOCSupervisedSeqRunner(SOCRunner):
         y_logits_raw = outputs[0]
         y_logits = y_logits_raw * mask
 
-        val_dict = compute_accs(self.metadata, y_logits, y_true)
+        val_dict = compute_accs(self.output_metadata, y_logits, y_true)
 
         val_acc = torch.tensor(0., device=y_logits.device)
         for k, acc in val_dict.items():
@@ -63,9 +63,9 @@ class SOCSupervisedSeqRunner(SOCRunner):
         val_acc = val_acc / len(val_dict)
         val_dict['val_accuracy'] = val_acc
 
-        one_meta = {'piecesonboard_one_mean': self.metadata['piecesonboard']}
-        if 'actions' in self.metadata.keys():
-            one_meta['actions_one_mean'] = self.metadata['actions']
+        one_meta = {'piecesonboard_one_mean': self.output_metadata['piecesonboard']}
+        if 'actions' in self.output_metadata.keys():
+            one_meta['actions_one_mean'] = self.output_metadata['actions']
         val_dict.update(get_stats(one_meta, torch.round(y_logits), 1))
 
         return val_dict
@@ -93,7 +93,7 @@ class SOCSupervisedForwardRunner(SOCRunner):
 
         y_logits = self.model(x)
 
-        train_dict = compute_losses(self.metadata, y_logits, y_true)
+        train_dict = compute_losses(self.output_metadata, y_logits, y_true)
 
         loss = torch.tensor(0., device=y_logits.device)
         for k, l in train_dict.items():
@@ -112,7 +112,7 @@ class SOCSupervisedForwardRunner(SOCRunner):
 
         y_logits = self.model(x)
 
-        val_dict = compute_accs(self.metadata, y_logits, y_true)
+        val_dict = compute_accs(self.output_metadata, y_logits, y_true)
 
         val_acc = torch.tensor(0., device=y_logits.device)
         for k, acc in val_dict.items():
@@ -120,13 +120,14 @@ class SOCSupervisedForwardRunner(SOCRunner):
         val_acc = val_acc / len(val_dict)
         val_dict['val_accuracy'] = val_acc
 
-        if 'mean_piecesonboard' in self.metadata.keys():
+        out_meta_keys = self.output_metadata.keys()
+        if 'mean_piecesonboard' in out_meta_keys:
             prefix = 'mean_'
         else:
             prefix = ''
-        one_meta = {'piecesonboard_one_mean': self.metadata[prefix + 'piecesonboard']}
-        if 'actions' in self.metadata.keys() or 'mean_actions' in self.metadata.keys():
-            one_meta['actions_one_mean'] = self.metadata[prefix + 'actions']
+        one_meta = {'piecesonboard_one_mean': self.output_metadata[prefix + 'piecesonboard']}
+        if 'actions' in out_meta_keys or 'mean_actions' in out_meta_keys:
+            one_meta['actions_one_mean'] = self.output_metadata[prefix + 'actions']
         val_dict.update(get_stats(one_meta, torch.round(y_logits), 1))
 
         return val_dict

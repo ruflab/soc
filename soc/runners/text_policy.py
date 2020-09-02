@@ -27,7 +27,7 @@ class SOCTextForwardPolicyRunner(SOCRunner):
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         train_dict = {}
         train_dict.update(
@@ -61,7 +61,7 @@ class SOCTextForwardPolicyRunner(SOCRunner):
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         val_dict = {}
         val_dict.update(

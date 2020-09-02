@@ -1,7 +1,9 @@
 import multiprocessing
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Dataset
 from pytorch_lightning import LightningModule
+from typing import Union, Tuple, Optional, Callable
+from ..typing import SocDataMetadata
 from ..datasets import make_dataset
 from ..models import make_model
 
@@ -14,6 +16,11 @@ class SOCRunner(LightningModule):
         Args:
             - config: Hyper parameters configuration
     """
+    output_metadata: Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]
+    val_dataset: Optional[Dataset] = None
+    train_dataset: Dataset
+    collate_fn: Optional[Callable]
+
     def __init__(self, config):
         super(SOCRunner, self).__init__()
         self.hparams = config
@@ -26,7 +33,7 @@ class SOCRunner(LightningModule):
     def setup(self, stage):
         self.train_dataset, self.val_dataset = self.setup_dataset(self.hparams)
 
-        self.metadata = self.train_dataset.get_output_metadata()
+        self.output_metadata = self.train_dataset.get_output_metadata()
         self.collate_fn = self.train_dataset.get_collate_fn()
         self.hparams.model['data_input_size'] = self.train_dataset.get_input_size()
         self.hparams.model['data_output_size'] = self.train_dataset.get_output_size()

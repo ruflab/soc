@@ -6,13 +6,13 @@ generic:
   seed: 1
   verbose: False
   runner_name: ???
-  lr: 1e-3
+  lr: 1.
   optimizer: adam
   scheduler:
   batch_size: 2 # Data
 trainer:
-  fast_dev_run: True
   default_root_dir: ???
   logger: False
+  max_steps: 2
 other:
   save_top_k: 0

@@ -13,6 +13,21 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         Args:
             - config: Hyper parameters configuration
     """
+
+    def get_parameters(self):
+        parameters = []
+        if self.hparams['train_cnn'] is True:
+            parameters += list(self.model.cnn.parameters())
+        if self.hparams['train_heads'] is True:
+            parameters += list(self.model.spatial_state_head.parameters())
+            parameters += list(self.model.linear_state_head.parameters())
+            parameters += list(self.model.policy_head.parameters())
+        if self.hparams['train_fusion'] is True:
+            parameters += list(self.model.fusion.parameters())
+        # param2 = list(self.model.parameters())
+
+        return parameters
+
     def training_step(self, batch, batch_nb):
         """
             This function apply an batch update to the model.
@@ -25,7 +40,11 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         x_seq, x_text_seq = batch[0]
         y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq, _ = batch[1]
 
-        y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
+        if self.hparams['train_fusion'] is True:
+            y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
+        else:
+            outputs = self.model._forward_bypass_text_impl(x_seq)
+            y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = outputs
 
         spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 

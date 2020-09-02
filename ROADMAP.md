@@ -1,20 +1,13 @@
 # Roadmap
 
-- Make a first multimodal pipeline with hopfield networks
-- Refactor inputs
-  - Separate players info into categorical distribution
-  - change devcardsleft from regression to categories
+- Make sure bot names are handled correctly by the embedding
 - Build a function to compute accuracy per action types
+- Make sure all the dataset can handle the data with chat
 - Do the following experience
   - pre-train the CNN for next-step prediction, fix it, use a pretrained fixed Bert for text encoding, learn only the fusion module and reuse the fixed heads.
   - pre-train the CNN for next-step prediction, fix it, use a pretrained fixed Bert for text encoding, learn only the fusion module and the new heads
   - pre-train the CNN for next-step prediction, use a pretrained fixed Bert for text encoding, learn the fusion module and the new heads + let the CNN on learning mode
   - use a pretrained fixed Bert for text encoding, learn directly the CNN, the fusion module and heads
-- JAVA work
-    - Improve the code to add missing or buggy data in the DB if any
-    - Add a column counting players full turn
-    - Store chat negotiations in the DB
-    - Store server game descriptions in the DB
 - Debug work
 - Run all the pipeline on 10000 training games (20 epochs) + 100 validation game
 - Analyse the work and start questioning the fusion module.

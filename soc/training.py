@@ -25,6 +25,10 @@ class GenericConfig:
     batch_size: int = 32
     weight_decay: Optional[float] = 0.
 
+    train_cnn: bool = True
+    train_heads: bool = True
+    train_fusion: bool = True
+
 
 @dataclass
 class SocConfig:

@@ -90,15 +90,17 @@ class SOCRunner(LightningModule):
         return dataloader
 
     def configure_optimizers(self):
+        parameters = self.get_parameters()
+
         if self.hparams['optimizer'] == 'adam':
             optimizer = torch.optim.Adam(
-                self.model.parameters(),
+                parameters,
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams.weight_decay
             )
         elif self.hparams['optimizer'] == 'adamw':
             optimizer = torch.optim.AdamW(
-                self.model.parameters(),
+                parameters,
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams.weight_decay,
                 amsgrad=self.hparams.amsgrad
@@ -122,6 +124,9 @@ class SOCRunner(LightningModule):
             return optimizer, scheduler
 
         return optimizer
+
+    def get_parameters(self):
+        return self.model.parameters()
 
     def forward(self, x):
         return self.model(x)

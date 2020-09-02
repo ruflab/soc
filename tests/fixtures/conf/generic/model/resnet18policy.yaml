@@ -1,2 +1,3 @@
 # @package _group_
 name: ResNet18Policy
+n_core_planes: 1

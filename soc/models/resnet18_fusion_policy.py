@@ -92,7 +92,7 @@ class ResNet18FusionPolicy(nn.Module):
 
         # Fusion module
         # Our state that we want to change is the CNN state
-        self.hopfield = Hopfield(
+        self.fusion = Hopfield(
             input_size=self.n_core_outputs,
             output_size=self.n_core_outputs,
             stored_pattern_size=1,
@@ -106,6 +106,15 @@ class ResNet18FusionPolicy(nn.Module):
             dropout=0.,
             batch_first=True,
             association_activation=None,
+        )
+        self.cnn = nn.Sequential(
+            self.conv1,
+            self.bn1,
+            self.relu,
+            self.layer1,
+            self.layer2,
+            self.layer3,
+            self.layer4,
         )
 
         # Heads
@@ -206,29 +215,23 @@ class ResNet18FusionPolicy(nn.Module):
         bs, S, C, H, W = x.shape
         x = x.view(bs, S * C, H, W)
         # See note [TorchScript super()]
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        z_spatial = self.layer4(x)
+        z = self.cnn(x)
+        z_spatial_shape = z.shape
 
         # Fusion
         n_states = 1
-        z_linear = z_spatial.view(bs, n_states, self.n_core_outputs)
+        z = z.view(bs, n_states, self.n_core_outputs)
 
         d_y = 1
         N = S * self.text_data_input_size[1]
         x_text_reshaped = x_text.reshape([bs, N, d_y])
 
-        input_data = (x_text_reshaped, z_linear, x_text_reshaped)
-        z_linear = self.hopfield(input_data)
+        input_data = (x_text_reshaped, z, x_text_reshaped)
+        z = self.fusion(input_data)
 
         # Heads
-        z_spatial = z_linear.contiguous().view(z_spatial.shape)
-        z_linear = z_linear.squeeze()
+        z_spatial = z.reshape(z_spatial_shape)
+        z_linear = z.squeeze()
         y_spatial_state_logits = self.spatial_state_head(z_spatial)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
@@ -251,14 +254,7 @@ class ResNet18FusionPolicy(nn.Module):
         bs, S, C, H, W = x.shape
         x = x.view(bs, S * C, H, W)
         # See note [TorchScript super()]
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        z_spatial = self.layer4(x)
+        z_spatial = self.cnn(x)
         z_linear = z_spatial.view(bs, -1)
 
         y_spatial_state_logits = self.spatial_state_head(z_spatial)

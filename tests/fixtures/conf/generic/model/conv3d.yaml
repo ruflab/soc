@@ -1,7 +1,7 @@
 # @package _group_
 name: Conv3dModel
 num_layers: 2
-h_chan_dim: [32]
+h_chan_dim: [16]
 kernel_size: [[3, 3, 3]]
 strides: [[1, 1, 1]]
 paddings: [[1, 1, 1, 1, 2, 0]]

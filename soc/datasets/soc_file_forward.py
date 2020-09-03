@@ -75,14 +75,14 @@ class SocFileForwardSAToSAPolicyDataset(Dataset):
             for i in range(nb_games):
                 total_steps += len(self.data[i][0])
 
-            self._length = total_steps - nb_games * self.seq_len_per_datum
+            self._length = total_steps - nb_games * (self.seq_len_per_datum - 1)
 
         return self._length
 
     def _set_stats(self):
         nb_steps = self._get_nb_steps()
         for i, nb_step in enumerate(nb_steps):
-            seq_nb_steps = nb_step - self.seq_len_per_datum
+            seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
 
             if i == 0:
                 self._inc_seq_steps.append(seq_nb_steps)
@@ -192,14 +192,12 @@ class SocFileForwardSAToSAPolicyDataset(Dataset):
             field_type = soc_data.STATE_FIELDS_TYPE[field]
             if field_type in [3, 4, 5]:
                 spatial_metadata[field] = [
-                    last_spatial_idx,
-                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
             else:
                 linear_metadata[field] = [
-                    last_linear_idx,
-                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 

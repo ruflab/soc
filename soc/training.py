@@ -18,6 +18,7 @@ class GenericConfig:
     verbose: bool = False
     runner_name: str = MISSING
     dataset: Any = MISSING
+    val_dataset: Optional[Any] = None
     model: Any = MISSING
     lr: float = 3e-3
     optimizer: str = 'adam'

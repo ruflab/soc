@@ -57,6 +57,11 @@ class TestTextPolicyRunner(unittest.TestCase):
             name="preprocessedtextbertforwardsatosapolicy",
             node=datasets.PreprocessedTextForwardConfig
         )
+        cs.store(
+            group="generic/val_dataset",
+            name="preprocessedtextbertforwardsatosapolicy",
+            node=datasets.PreprocessedTextForwardConfig
+        )
 
     def setUp(self):
         self.folder = os.path.join(fixture_dir, str(int(time.time() * 100000000)))
@@ -72,14 +77,18 @@ class TestTextPolicyRunner(unittest.TestCase):
                 overrides=[
                     "generic/model=resnet18fusionpolicy",
                     "generic/dataset=preprocessedtextbertforwardsatosapolicy",
+                    "generic/val_dataset=preprocessedtextbertforwardsatosapolicy",
                     "generic.runner_name=SOCTextForwardPolicyRunner"
                 ]
             )
             config.generic.dataset.dataset_path = _TEXT_BERT_DATASET_PATH
+            config.generic.val_dataset.dataset_path = _TEXT_BERT_DATASET_PATH
             config.generic.train_cnn = True
             config.generic.train_fusion = False
             config.generic.train_heads = True
+
             config.trainer.default_root_dir = self.folder
+            config.trainer.fast_dev_run = False
 
             # We rely on seeds to copy the init weights
             seed_everything(config['generic']['seed'])
@@ -91,10 +100,7 @@ class TestTextPolicyRunner(unittest.TestCase):
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
-            zipped_params = zip(
-                r_copy.model.fusion.parameters(),
-                runner.model.fusion.parameters()
-            )
+            zipped_params = zip(r_copy.model.fusion.parameters(), runner.model.fusion.parameters())
             for param_copy, param in zipped_params:
                 assert torch.all(torch.eq(param_copy, param))
 
@@ -113,16 +119,12 @@ class TestTextPolicyRunner(unittest.TestCase):
                 assert not torch.all(torch.eq(param_copy, param))
 
             zipped_params = zip(
-                r_copy.model.policy_head.parameters(),
-                runner.model.policy_head.parameters()
+                r_copy.model.policy_head.parameters(), runner.model.policy_head.parameters()
             )
             for param_copy, param in zipped_params:
                 assert not torch.all(torch.eq(param_copy, param))
 
-            zipped_params = zip(
-                r_copy.model.cnn.parameters(),
-                runner.model.cnn.parameters()
-            )
+            zipped_params = zip(r_copy.model.cnn.parameters(), runner.model.cnn.parameters())
             for param_copy, param in zipped_params:
                 assert not torch.all(torch.eq(param_copy, param))
                 break  # Not all layers a learnable so we check only the first one

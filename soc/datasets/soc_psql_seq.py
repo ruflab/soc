@@ -213,8 +213,10 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         states_df = self._get_states_from_db(idx)
         actions_df = self._get_actions_from_db(idx)
 
+        sec_trunc_idx: Optional[int] = None
         if testing is True:
-            df_list = [states_df[:8], actions_df[:8]]
+            sec_trunc_idx = 20
+            df_list = [states_df[10:10 + sec_trunc_idx], actions_df[10:10 + sec_trunc_idx]]
         else:
             df_list = [states_df, actions_df]
 
@@ -256,10 +258,7 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         last_idx = 0
 
         for field in soc_data.STATE_FIELDS:
-            metadata[field] = [
-                last_idx,
-                last_idx + soc_data.STATE_FIELDS_SIZE[field]
-            ]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
             last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         return metadata
@@ -300,10 +299,7 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         last_idx = 0
 
         for field in soc_data.STATE_FIELDS:
-            metadata[field] = [
-                last_idx,
-                last_idx + soc_data.STATE_FIELDS_SIZE[field]
-            ]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
             last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         metadata['actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]

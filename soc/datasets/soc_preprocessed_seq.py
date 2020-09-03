@@ -87,10 +87,7 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         last_idx = 0
 
         for field in soc_data.STATE_FIELDS:
-            metadata[field] = [
-                last_idx,
-                last_idx + soc_data.STATE_FIELDS_SIZE[field]
-            ]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
             last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         return metadata
@@ -123,10 +120,7 @@ class SocPreprocessedSeqSAToSADataset(SocPreprocessedSeqSAToSDataset):
         last_idx = 0
 
         for field in soc_data.STATE_FIELDS:
-            metadata['mean_' + field] = [
-                last_idx,
-                last_idx + soc_data.STATE_FIELDS_SIZE[field]
-            ]
+            metadata['mean_' + field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
             last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
@@ -180,14 +174,12 @@ class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
             field_type = soc_data.STATE_FIELDS_TYPE[field]
             if field_type in [3, 4, 5]:
                 spatial_metadata[field] = [
-                    last_spatial_idx,
-                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
             else:
                 linear_metadata[field] = [
-                    last_linear_idx,
-                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 

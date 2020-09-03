@@ -1,8 +1,6 @@
 # Roadmap
 
 - Make sure bot names are handled correctly by the embedding
-- Build a function to compute accuracy per action types
-- Make sure all the dataset can handle the data with chat
 - Do the following experience
   - pre-train the CNN for next-step prediction, fix it, use a pretrained fixed Bert for text encoding, learn only the fusion module and reuse the fixed heads.
   - pre-train the CNN for next-step prediction, fix it, use a pretrained fixed Bert for text encoding, learn only the fusion module and the new heads

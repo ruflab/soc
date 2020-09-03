@@ -198,14 +198,12 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
             field_type = soc_data.STATE_FIELDS_TYPE[field]
             if field_type in [3, 4, 5]:
                 spatial_metadata[field] = [
-                    last_spatial_idx,
-                    last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
             else:
                 linear_metadata[field] = [
-                    last_linear_idx,
-                    last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
                 ]
                 last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 

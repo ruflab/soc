@@ -1,7 +1,7 @@
 import torch
 # from torch import Tensor
 from . import SOCRunner
-from ..val import compute_accs, get_stats
+from ..val import compute_accs, get_stats, compute_field_acc_post_action
 from ..losses import compute_losses
 
 
@@ -13,7 +13,6 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         Args:
             - config: Hyper parameters configuration
     """
-
     def get_parameters(self):
         parameters = []
         if self.hparams['train_cnn'] is True:
@@ -74,7 +73,6 @@ class SOCTextForwardPolicyRunner(SOCRunner):
                 - model: (Module) the model
                 - metadata: (Dict) metadata to compute losses
         """
-
         x_seq, x_text_seq = batch[0]
         y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq, _ = batch[1]
 
@@ -97,5 +95,16 @@ class SOCTextForwardPolicyRunner(SOCRunner):
 
         one_meta = {'piecesonboard_one_mean': spatial_metadata['piecesonboard']}
         val_dict.update(get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
+
+        # Check ressourcs accuracy post trade
+        playerressources_post_trade_acc = compute_field_acc_post_action(
+            'playersresources',
+            linear_metadata['playersresources'],
+            x_seq,
+            y_a_true_seq,
+            y_s_logits_seq,
+            y_s_true_seq
+        )
+        val_dict.update({'playerressources_post_trade_acc': playerressources_post_trade_acc})
 
         return val_dict

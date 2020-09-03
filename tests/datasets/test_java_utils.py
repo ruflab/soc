@@ -13,7 +13,7 @@ fixture_dir = os.path.join(cfd, '..', 'fixtures')
 class TestJavaUtils(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
+        data = torch.load(os.path.join(fixture_dir, 'soc_text_bert_3_raw_df.pt'))
 
         def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
             return data[idx][0]
@@ -106,16 +106,17 @@ class TestJavaUtils(unittest.TestCase):
 
     def test_parse_actions(self):
         actions_df = self._get_actions_from_db_se_f(0)
+
         actions = actions_df['type'].iloc[[0, 1, 2, 5, -1]]
 
         x = np.stack(actions.apply(ju.parse_actions))
 
         y = np.zeros([5, soc_data.ACTION_SIZE, 7, 7])
-        y[0, 1] = 1
+        y[0, 4] = 1
         y[1, 5] = 1
         y[2, 4] = 1
         y[3, 5] = 1
-        y[4, 5] = 1
+        y[4, 2] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -131,7 +132,7 @@ class TestJavaUtils(unittest.TestCase):
         y[1, -2] = 1
         y[2, -2] = 1
         y[3, -2] = 1
-        y[4, -2] = 1
+        y[4, 6] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -143,11 +144,11 @@ class TestJavaUtils(unittest.TestCase):
 
         y = np.zeros([5, soc_data.STATE_FIELDS_SIZE['gamestate'], 7, 7])
 
-        y[0, 5] = 1
-        y[1, 6] = 1
-        y[2, 5] = 1
-        y[3, 6] = 1
-        y[4, 6] = 1
+        y[0, 7] = 1
+        y[1, 8] = 1
+        y[2, 7] = 1
+        y[3, 8] = 1
+        y[4, 10] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -159,10 +160,10 @@ class TestJavaUtils(unittest.TestCase):
 
         y = np.zeros([5, 4, 7, 7])
 
-        y[0, 2] = 1
-        y[1, 2] = 1
+        y[0, 0] = 1
+        y[1, 0] = 1
         y[2, 3] = 1
-        y[3, 0] = 1
+        y[3, 2] = 1
         y[4, 1] = 1
 
         np.testing.assert_array_equal(x, y)

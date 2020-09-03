@@ -130,7 +130,12 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
             key = list(chats_gb.indices.keys())[0]
             chats_df = chats_gb.get_group(key).copy()
             chats_df['current_state'] = 5
-            df_list = [states_df[:8], actions_df[:8], chats_df[:8]]
+            sec_trunc_idx = 20
+            df_list = [
+                states_df[10:10 + sec_trunc_idx],
+                actions_df[10:10 + sec_trunc_idx],
+                chats_df[10:10 + sec_trunc_idx],
+            ]
         else:
             df_list = [states_df, actions_df, chats_df]
 

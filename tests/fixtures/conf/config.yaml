@@ -1,6 +1,7 @@
 defaults:
   - generic/model: convlstm
   - generic/dataset: psqlseqsatos
+  - generic/val_dataset: null
 
 generic:
   seed: 1
@@ -13,6 +14,8 @@ generic:
 trainer:
   default_root_dir: ???
   logger: False
-  max_steps: 2
+  fast_dev_run: True
+  max_steps: null
+  max_epochs: 1
 other:
   save_top_k: 0

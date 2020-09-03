@@ -318,18 +318,14 @@ def parse_game_phases(game_phase: int):
 
 
 def parse_devcardsleft(devcardsleft: int):
-    devcardsleft_plan = np.zeros([
-        soc_data.STATE_FIELDS_SIZE['devcardsleft'], 7, 7
-    ])
+    devcardsleft_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['devcardsleft'], 7, 7])
     devcardsleft_plan[devcardsleft, :, :] = 1
 
     return devcardsleft_plan
 
 
 def parse_dice_result(dice_result: int):
-    dice_result_plan = np.zeros([
-        soc_data.STATE_FIELDS_SIZE['diceresult'], 7, 7
-    ])
+    dice_result_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['diceresult'], 7, 7])
     idx = list(soc_data.DICE_RESULTS.values()).index(dice_result)
 
     dice_result_plan[idx, :, :] = 1
@@ -338,18 +334,14 @@ def parse_dice_result(dice_result: int):
 
 
 def parse_starting_player(starting_player: int):
-    starting_player_plan = np.zeros([
-        soc_data.STATE_FIELDS_SIZE['currentplayer'], 7, 7
-    ])
+    starting_player_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['currentplayer'], 7, 7])
     starting_player_plan[starting_player, :, :] = 1
 
     return starting_player_plan
 
 
 def parse_current_player(current_player: int):
-    current_player_plan = np.zeros([
-        soc_data.STATE_FIELDS_SIZE['startingplayer'], 7, 7
-    ])
+    current_player_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['startingplayer'], 7, 7])
     current_player_plan[current_player, :, :] = 1
 
     return current_player_plan

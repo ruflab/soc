@@ -46,7 +46,7 @@ class SOCRunner(LightningModule):
     def setup_dataset(self, hparams):
         """This function purpose is mainly to be overrided for tests"""
         train_dataset = make_dataset(hparams.dataset)
-        if 'val_dataset' in hparams:
+        if 'val_dataset' in hparams and hparams['val_dataset'] is not None:
             val_dataset = make_dataset(hparams.val_dataset)
         else:
             val_dataset = None
@@ -94,9 +94,7 @@ class SOCRunner(LightningModule):
 
         if self.hparams['optimizer'] == 'adam':
             optimizer = torch.optim.Adam(
-                parameters,
-                lr=self.hparams['lr'],
-                weight_decay=self.hparams.weight_decay
+                parameters, lr=self.hparams['lr'], weight_decay=self.hparams.weight_decay
             )
         elif self.hparams['optimizer'] == 'adamw':
             optimizer = torch.optim.AdamW(
@@ -139,11 +137,17 @@ class SOCRunner(LightningModule):
 
     def validation_epoch_end(self, outputs):
         def _mean(res, key):
-            return torch.stack([x[key] for x in res]).mean()
+            if key == 'playerressources_post_trade_acc':
+                all_val = [x[key] for x in res if x[key] != -1]
+            else:
+                all_val = [x[key] for x in res]
+            if len(all_val) == 0:
+                return -1.
+            return torch.stack(all_val).mean()
 
         logs = {}
-        for k in outputs[0].keys():
-            logs[k] = _mean(outputs, k)
+        for key in outputs[0].keys():
+            logs[key] = _mean(outputs, key)
 
         final_dict = {'val_accuracy': logs['val_accuracy'], 'log': logs}
 

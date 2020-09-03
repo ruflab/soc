@@ -45,6 +45,6 @@ class TestUtils(unittest.TestCase):
             x = next(iter(dataloader))
 
             assert len(x) == 3
-            assert x[0].shape == (2, 7, soc_data.STATE_SIZE + soc_data.ACTION_SIZE, 7, 7)
-            assert x[1].shape == (2, 7, soc_data.STATE_SIZE, 7, 7)
-            assert x[2].shape == (2, 7, soc_data.STATE_SIZE, 7, 7)
+            assert x[0].shape == (2, 19, soc_data.STATE_SIZE + soc_data.ACTION_SIZE, 7, 7)
+            assert x[1].shape == (2, 19, soc_data.STATE_SIZE, 7, 7)
+            assert x[2].shape == (2, 19, soc_data.STATE_SIZE, 7, 7)

@@ -4,6 +4,7 @@ import numpy as np
 from torch.nn.utils import rnn as rnn_utils
 from typing import TypeVar, Dict, List
 from ..typing import SocSeqList, SocSeqBatch, SocSeqPolicyBatch, SocSeqPolicyList
+from . import soc_data
 from . import java_utils as ju
 
 DataTensor = TypeVar('DataTensor', np.ndarray, torch.Tensor)
@@ -237,3 +238,12 @@ def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
         data[data == 0] = -1
 
     return data
+
+
+def find_actions_idxs(batch_sa_seq_t: torch.Tensor, action_name: str) -> torch.Tensor:
+    action_idx = soc_data.ACTIONS_NAMES.index(action_name)
+
+    action_seq = torch.argmax(batch_sa_seq_t[:, :, -len(soc_data.ACTIONS):, 0, 0], dim=2)
+    idxs = (action_seq == action_idx)
+
+    return idxs

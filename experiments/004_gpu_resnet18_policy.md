@@ -9,7 +9,7 @@ One timestep is the tuple (state, action).
 Note:
 - The game is settlers of catan
 - The history length is 16
-- The future length is 4
+- The future length is 4 or 1
 
 ### Hypothesis
 A resnet 18 can learn to predict the next 4 states and actions of the game settlers of catan for a fixed set of robot player up to 95% accuracy.

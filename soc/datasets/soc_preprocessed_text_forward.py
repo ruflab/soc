@@ -1,7 +1,6 @@
 import os
 import torch
 from torch.utils.data import Dataset
-from transformers import BertModel, BertTokenizer
 from dataclasses import dataclass
 from typing import List, Tuple, Union, Optional
 from ..typing import SocDataMetadata
@@ -47,20 +46,6 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
-        self.use_pooler_features = omegaConf['use_pooler_features']
-
-        if omegaConf['tokenizer_path'] is not None:
-            self.tokenizer = BertTokenizer.from_pretrained(omegaConf['tokenizer_path'])
-        else:
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-            self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
-            self.tokenizer.add_tokens(['<void>'], special_tokens=True)
-
-        if omegaConf['bert_model_path'] is not None:
-            self.bert = BertModel.from_pretrained(omegaConf['bert_model_path'])
-        else:
-            self.bert = BertModel.from_pretrained('bert-base-cased')
-            self.bert.resize_token_embeddings(len(self.tokenizer))
 
         self.data = torch.load(self.path)
 
@@ -70,12 +55,8 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
-        if self.use_pooler_features:
-            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
-        else:
-            text_input_shape = [
-                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
-            ]
+        n_bert_feature = self.data[0][0][1].shape[-1]
+        text_input_shape = [self.history_length, n_bert_feature]
         self.input_shape = [game_input_shape, text_input_shape]
 
         self.output_shape = [
@@ -194,33 +175,11 @@ class SocPreprocessedTextBertForwardSAToSAPolicyDataset(SocPreprocessedTextBertF
             Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
     def _set_props(self, config):
-        self.history_length = config['history_length']
-        self.future_length = config['future_length']
-        self.seq_len_per_datum = self.history_length + self.future_length
-        self.use_pooler_features = config['use_pooler_features']
-
-        if config['tokenizer_path'] is not None:
-            self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
-        else:
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-            self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
-            self.tokenizer.add_tokens(['<void>'], special_tokens=True)
-
-        if config['bert_model_path'] is not None:
-            self.bert = BertModel.from_pretrained(config['bert_model_path'])
-        else:
-            self.bert = BertModel.from_pretrained('bert-base-cased')
-            self.bert.resize_token_embeddings(len(self.tokenizer))
-
+        n_bert_feature = self.data[0][1].shape[-1]
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
-        if self.use_pooler_features:
-            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
-        else:
-            text_input_shape = [
-                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
-            ]
+        text_input_shape = [self.history_length, n_bert_feature]
         self.input_shape = [game_input_shape, text_input_shape]
 
         output_shape_spatial = [

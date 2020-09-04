@@ -104,6 +104,9 @@ exp_clean:
 zip:
 	python setup.py sdist --format zip
 
+zip_data:
+	zip $(CURRENT_DIR)/data/data.zip $(CURRENT_DIR)/data/*.pt
+
 wheel:
 	python setup.py bdist_wheel
 

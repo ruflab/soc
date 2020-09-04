@@ -165,7 +165,8 @@ def preprocess_chats(
     data: Dict[str, List] = {'message': [[] for i in range(game_length)]}
 
     for _, row in chats_df.iterrows():
-        db_state = row['current_state'] - first_state_idx
+        # Index start at 1 in the DB
+        db_state = (row['current_state'] - 1) - first_state_idx
         mess = "{}: {}".format(row['sender'], row['message'])
 
         data['message'][db_state].append(mess)

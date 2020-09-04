@@ -1,0 +1,38 @@
+# @package _global_
+generic:
+  seed: 1
+  verbose: true
+  lr: 0.0003
+  optimizer: adamw
+  scheduler: null
+  batch_size: 8
+  weight_decay: 0.01
+  amsgrad: true
+  dataset:
+    name: SocPreprocessedTextBertForwardSAToSAPolicyDataset
+    history_length: 16
+    future_length: 1
+    shuffle: false
+    dataset_path: ???
+  model:
+    name: ResNet18FusionPolicy
+    n_core_planes: 2
+    fusion_num_heads: 2
+    beta: 0.5
+    update_steps_max: 3
+    data_input_size: ???
+    data_output_size: ???
+  runner_name: SOCTextForwardPolicyRunner
+  train_cnn: true
+  train_heads: true
+  train_fusion: true
+trainer:
+  logger: neptune
+  deterministic: true
+  terminate_on_nan: true
+  gpus: 1
+  row_log_interval: 2
+  overfit_batches: 8
+other:
+  save_top_k: 0
+  period: 500

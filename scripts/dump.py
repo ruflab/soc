@@ -50,6 +50,9 @@ def dump(config):
     else:
         ds.dump_preprocessed_dataset(config.folder, config.testing, config.separate_seq)
 
+    if config.dump_text and config.tokenizer_path is None:
+        ds.save_assets(config.folder)
+
 
 if __name__ == "__main__":
     dump()

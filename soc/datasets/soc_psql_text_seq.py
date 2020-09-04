@@ -82,6 +82,7 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
         encoded_inputs = self.tokenizer(
             chats_df['message'].tolist(), padding=True, truncation=True, return_tensors="pt"
         )
+
         # For now, we will use the pooler_output, but HuggingFace advise against it
         # https://huggingface.co/transformers/model_doc/bert.html
         with torch.no_grad():

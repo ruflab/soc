@@ -64,7 +64,9 @@ def compute_field_acc_post_action(
     if select.sum() == 1:
         t1_logits_seq_trunc = t1_logits_seq_trunc.unsqueeze(0)
         t2_true_seq_trunc = t2_true_seq_trunc.unsqueeze(0)
-
+    elif t1_logits_seq.shape[1] == 1:
+        t1_logits_seq_trunc = t1_logits_seq_trunc.unsqueeze(1)
+        t2_true_seq_trunc = t2_true_seq_trunc.unsqueeze(1)
     acc = acc_mapping[field_key](indexes, t1_logits_seq_trunc, t2_true_seq_trunc)
 
     return acc

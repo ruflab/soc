@@ -150,6 +150,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         seqs = []
         for i in range(nb_games):
+            print('processing input {}'.format(i))
             inputs_l = self._load_input_seq(i)
             for input_idx, input_t in enumerate(inputs_l):
                 inputs_l[input_idx] = input_t[:sec_trunc_idx]

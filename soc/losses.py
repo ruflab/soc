@@ -29,12 +29,7 @@ def gameturn_loss(
     gameturn_logits = t1_logits_seq[:, :, start_i]
     gameturn_true = t2_true_seq[:, :, start_i]
 
-    # Regression losses need to be balanced with cross_entropy losses
-    # To do so we add a coefficient for thos losses
-    # The coefficient depends on the normalization applied
-    # which defines how precise the output should be to make the right prediction
-    coef = 20
-    loss = coef * F.mse_loss(gameturn_logits, gameturn_true)
+    loss = F.mse_loss(gameturn_logits, gameturn_true)
 
     return loss
 

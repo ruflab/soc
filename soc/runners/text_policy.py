@@ -76,7 +76,11 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         x_seq, x_text_seq = batch[0]
         y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq, _ = batch[1]
 
-        y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
+        if self.hparams['train_fusion'] is True:
+            y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq, x_text_seq)
+        else:
+            outputs = self.model._forward_bypass_text_impl(x_seq)
+            y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = outputs
 
         spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 

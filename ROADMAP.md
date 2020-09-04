@@ -6,9 +6,9 @@
   - pre-train the CNN for next-step prediction, fix it, use a pretrained fixed Bert for text encoding, learn only the fusion module and the new heads
   - pre-train the CNN for next-step prediction, use a pretrained fixed Bert for text encoding, learn the fusion module and the new heads + let the CNN on learning mode
   - use a pretrained fixed Bert for text encoding, learn directly the CNN, the fusion module and heads
-- Debug work
-- Run all the pipeline on 10000 training games (20 epochs) + 100 validation game
 - Analyse the work and start questioning the fusion module.
+- Run all the pipeline on 10000 training games (20 epochs) + 100 validation game
+
 
 ### Other ideas
 - Refactor the code to handl pytorch-lightning >= 0.9.1

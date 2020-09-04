@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Union, Optional
 from ..typing import SocDataMetadata
 from . import soc_data
+from .utils import separate_state_data
 from .soc_preprocessed_forward import PreprocessedForwardConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -200,11 +201,8 @@ class SocPreprocessedTextBertForwardSAToSAPolicyDataset(SocPreprocessedTextBertF
 
         future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
         future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
-        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
-                                            dim=1)  # [S, C_ss, H, W]
-        future_lin_states_t = torch.cat(
-            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
-        )  # [S, C_ls]
+
+        future_spatial_states_t, future_lin_states_t = separate_state_data(future_states_t)
 
         return ([history_t, history_chat_t],
                 [future_spatial_states_t, future_lin_states_t, future_actions_t, future_chat_t])

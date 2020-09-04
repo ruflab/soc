@@ -117,10 +117,21 @@ STATE_FIELDS_SIZE = {
 
 BOARD_SIZE = [7, 7]
 
+STATE_SIZE = sum(STATE_FIELDS_SIZE.values())
 SPATIAL_STATE_SIZE = sum([
     STATE_FIELDS_SIZE['hexlayout'],
     STATE_FIELDS_SIZE['numberlayout'],
     STATE_FIELDS_SIZE['robberhex'],
     STATE_FIELDS_SIZE['piecesonboard'],
 ])
-STATE_SIZE = sum(STATE_FIELDS_SIZE.values())
+LINEAR_STATE_SIZE = sum([
+    STATE_FIELDS_SIZE['gameturn'],
+    STATE_FIELDS_SIZE['gamestate'],
+    STATE_FIELDS_SIZE['diceresult'],
+    STATE_FIELDS_SIZE['startingplayer'],
+    STATE_FIELDS_SIZE['currentplayer'],
+    STATE_FIELDS_SIZE['devcardsleft'],
+    STATE_FIELDS_SIZE['playeddevcard'],
+    STATE_FIELDS_SIZE['playersresources'],
+    STATE_FIELDS_SIZE['players'],
+])

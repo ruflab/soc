@@ -65,7 +65,6 @@ class TestDatasetUtils(unittest.TestCase):
     def test_normalize_hexlayout_np(self):
         seq_data = self._get_states_from_db_se_f(0)
         hexlayout = seq_data['hexlayout'].apply(ju.parse_layout).apply(ju.mapping_1d_2d).iloc[0]
-
         normed = ds_utils.normalize_hexlayout(hexlayout)
         hexlayout_reconstructed = ds_utils.unnormalize_hexlayout(normed)
 

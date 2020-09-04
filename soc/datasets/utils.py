@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 import numpy as np
 from torch.nn.utils import rnn as rnn_utils
-from typing import TypeVar, Dict, List
+from typing import TypeVar, Dict, List, Tuple
 from ..typing import SocSeqList, SocSeqBatch, SocSeqPolicyBatch, SocSeqPolicyList
 from . import soc_data
 from . import java_utils as ju
@@ -248,3 +248,26 @@ def find_actions_idxs(batch_sa_seq_t: torch.Tensor, action_name: str) -> torch.T
     idxs = (action_seq == action_idx)
 
     return idxs
+
+
+def separate_state_data(state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    spatial_states_l = []
+    linear_states_l = []
+    last_idx = 0
+
+    for field in soc_data.STATE_FIELDS:
+        field_type = soc_data.STATE_FIELDS_TYPE[field]
+        field_size = soc_data.STATE_FIELDS_SIZE[field]
+
+        if field_type in [3, 4, 5]:
+            sub_state = state[:, last_idx:last_idx + field_size]
+            spatial_states_l.append(sub_state)
+        else:
+            sub_state = state[:, last_idx:last_idx + field_size, 0, 0]
+            linear_states_l.append(sub_state)
+        last_idx += field_size
+
+    spatial_states_t = torch.cat(spatial_states_l, dim=1)
+    lineat_states_t = torch.cat(linear_states_l, dim=1)
+
+    return spatial_states_t, lineat_states_t

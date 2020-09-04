@@ -228,10 +228,11 @@ def playersresources_loss(
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    players_logits = t1_logits_seq[:, :, start_i:end_i]
-    players_true = t2_true_seq[:, :, start_i:end_i]
+    playersresources_logits = t1_logits_seq[:, :, start_i:end_i]
+    playersresources_true = t2_true_seq[:, :, start_i:end_i]
 
-    loss = F.mse_loss(players_logits, players_true)
+    coef = 20
+    loss = coef * F.mse_loss(playersresources_logits, playersresources_true)
 
     return loss
 

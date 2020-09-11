@@ -137,7 +137,7 @@ class SOCRunner(LightningModule):
 
     def validation_epoch_end(self, outputs):
         def _mean(res, key):
-            if key == 'playerressources_post_trade_acc':
+            if key == 'playerresources_post_trade_acc':
                 all_val = [x[key] for x in res if x[key] != -1]
             else:
                 all_val = [x[key] for x in res]

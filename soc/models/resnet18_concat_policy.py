@@ -75,14 +75,18 @@ class ResNet18MeanConcatPolicy(nn.Module):
             self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
 
-        self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
+        self.layer1 = self._make_layer(
+            block, 8 * self.n_core_planes, layers[0], stride=1, dilate=False
+        )
         self.layer2 = self._make_layer(
             block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
         )
         self.layer3 = self._make_layer(
             block, 2 * self.n_core_planes, layers[2], stride=1, dilate=False
         )
-        self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
+        self.layer4 = self._make_layer(
+            block, 1 * self.n_core_planes, layers[3], stride=1, dilate=False
+        )
 
         # Game feature extractor
         self.cnn = nn.Sequential(

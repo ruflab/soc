@@ -112,7 +112,7 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         val_dict.update(get_stats(one_meta, torch.round(torch.sigmoid(y_spatial_s_logits_seq)), 1))
 
         # Check ressourcs accuracy post trade
-        playerressources_post_trade_acc = compute_field_acc_post_action(
+        playerresources_post_trade_acc = compute_field_acc_post_action(
             'playersresources',
             linear_metadata['playersresources'],
             x_seq,
@@ -120,6 +120,6 @@ class SOCTextForwardPolicyRunner(SOCRunner):
             y_s_logits_seq,
             y_s_true_seq
         )
-        val_dict.update({'playerressources_post_trade_acc': playerressources_post_trade_acc})
+        val_dict.update({'playerresources_post_trade_acc': playerresources_post_trade_acc})
 
         return val_dict

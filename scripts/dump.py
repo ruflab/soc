@@ -25,7 +25,7 @@ class DumpConfig(PSQLConfig):
 
     tokenizer_path: Optional[str] = None
     bert_model_path: Optional[str] = None
-    use_pooler_features: bool = True
+    use_pooler_features: bool = False
 
 
 cs = ConfigStore.instance()
@@ -50,8 +50,8 @@ def dump(config):
     else:
         ds.dump_preprocessed_dataset(config.folder, config.testing, config.separate_seq)
 
-    if config.dump_text and config.tokenizer_path is None:
-        ds.save_assets(config.folder)
+    # if config.dump_text and config.tokenizer_path is None:
+    #     ds.save_assets(config.folder)
 
 
 if __name__ == "__main__":

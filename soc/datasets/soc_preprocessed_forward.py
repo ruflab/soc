@@ -184,12 +184,12 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
             SocPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        future_spatial_states_t, future_lin_states_t = separate_state_data(future_states_t)
+        spatial_states_future_t, lin_states_future_t = separate_state_data(states_future_t)
 
-        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+        return (history_t, [spatial_states_future_t, lin_states_future_t, actions_future_t])
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}
@@ -380,12 +380,12 @@ class SocLazyPreprocessedForwardSAToSAPolicyDataset(SocLazyPreprocessedForwardSA
             SocLazyPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        future_spatial_states_t, future_lin_states_t = separate_state_data(future_states_t)
+        spatial_states_future_t, lin_states_future_t = separate_state_data(states_future_t)
 
-        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+        return (history_t, [spatial_states_future_t, lin_states_future_t, actions_future_t])
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}

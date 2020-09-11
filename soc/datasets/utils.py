@@ -1,6 +1,9 @@
+import re
 import torch
+from torch import nn
 import pandas as pd
 import numpy as np
+from torch._six import container_abcs, string_classes, int_classes
 from torch.nn.utils import rnn as rnn_utils
 from typing import TypeVar, Dict, List, Tuple
 from ..typing import SocSeqList, SocSeqBatch, SocSeqPolicyBatch, SocSeqPolicyList
@@ -8,6 +11,7 @@ from . import soc_data
 from . import java_utils as ju
 
 DataTensor = TypeVar('DataTensor', np.ndarray, torch.Tensor)
+np_str_obj_array_pattern = re.compile(r'[SaUO]')
 
 
 def pad_seq_sas(inputs: SocSeqList) -> SocSeqBatch:
@@ -74,6 +78,102 @@ def pad_seq_policy(inputs: SocSeqPolicyList) -> SocSeqPolicyBatch:
     mask_t = (mask_spatial_t, mask_linear_t, mask_action_t)
 
     return xs_t, ys_t, mask_t
+
+
+def pad_seq_text_policy(data_dict_l):
+    max_text_lengh = 0
+    for data_dict in data_dict_l:
+        max_text_lengh = max(max_text_lengh, data_dict['chat_history_t'].shape[1])
+    for i, data_dict in enumerate(data_dict_l):
+        if data_dict['chat_history_t'].shape[1] < max_text_lengh:
+            zeros_shape_history = [
+                data_dict['chat_history_t'].shape[0],
+                max_text_lengh - data_dict['chat_history_t'].shape[1],
+                data_dict['chat_history_t'].shape[2]
+            ]
+            zeros = torch.zeros(zeros_shape_history, dtype=torch.float32)
+
+            data_dict_l[i]['chat_history_t'] = torch.cat([data_dict['chat_history_t'], zeros],
+                                                         dim=1)
+            # yapf: disable
+            data_dict_l[i]['chat_mask_history_t'] = torch.cat(
+                [data_dict['chat_mask_history_t'], zeros[:, :, 0]],
+                dim=1
+            )
+            # yapf: enable
+
+            zeros_shape_future = [
+                data_dict['chat_future_t'].shape[0],
+                max_text_lengh - data_dict['chat_future_t'].shape[1],
+                data_dict['chat_future_t'].shape[2]
+            ]
+            zeros_shape_future[1] = max_text_lengh - data_dict['chat_future_t'].shape[1]
+            zeros = torch.zeros(zeros_shape_future, dtype=torch.float32)
+
+            data_dict_l[i]['chat_future_t'] = torch.cat([data_dict['chat_future_t'], zeros], dim=1)
+            # yapf: disable
+            data_dict_l[i]['chat_mask_future_t'] = torch.cat(
+                [data_dict['chat_mask_future_t'], zeros[:, :, 0]],
+                dim=1
+            )
+            # yapf: enable
+
+    return default_collate(data_dict_l)
+
+
+def default_collate(batch):
+    r"""
+        Default Pytorch 1.6 collate function
+
+        Puts each data field into a tensor with outer dimension batch size
+    """
+
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, torch.Tensor):
+        out = None
+        if torch.utils.data.get_worker_info() is not None:
+            # If we're in a background process, concatenate directly into a
+            # shared memory tensor to avoid an extra copy
+            numel = sum([x.numel() for x in batch])
+            storage = elem.storage()._new_shared(numel)
+            out = elem.new(storage)
+        return torch.stack(batch, 0, out=out)
+    elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
+            and elem_type.__name__ != 'string_':
+        elem = batch[0]
+        if elem_type.__name__ == 'ndarray':
+            # array of string classes and object
+            if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
+                default_collate_err_msg_format = (
+                    "default_collate: batch must contain tensors, numpy arrays, numbers, "
+                    "dicts or lists; found {}"
+                )
+                raise TypeError(default_collate_err_msg_format.format(elem.dtype))
+
+            return default_collate([torch.as_tensor(b) for b in batch])
+        elif elem.shape == ():  # scalars
+            return torch.as_tensor(batch)
+    elif isinstance(elem, float):
+        return torch.tensor(batch, dtype=torch.float64)
+    elif isinstance(elem, int_classes):
+        return torch.tensor(batch)
+    elif isinstance(elem, string_classes):
+        return batch
+    elif isinstance(elem, container_abcs.Mapping):
+        return {key: default_collate([d[key] for d in batch]) for key in elem}
+    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
+        return elem_type(*(default_collate(samples) for samples in zip(*batch)))
+    elif isinstance(elem, container_abcs.Sequence):
+        # check to make sure that the elements in batch have consistent size
+        it = iter(batch)
+        elem_size = len(next(it))
+        if not all(len(elem) == elem_size for elem in it):
+            raise RuntimeError('each element in list of batch should be of equal size')
+        transposed = zip(*batch)
+        return [default_collate(samples) for samples in transposed]
+
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
 
 
 def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
@@ -170,12 +270,91 @@ def preprocess_chats(
         mess = "{}: {}".format(row['sender'], row['message'])
 
         data['message'][db_state].append(mess)
-    data['message'] = list(
-        map(lambda x: '<void>' if len(x) == 0 else '\n'.join(x), data['message'])
-    )
+    data['message'] = list(map(lambda x: '' if len(x) == 0 else '\n'.join(x), data['message']))
     chats_preproc_df = pd.DataFrame(data)
 
     return chats_preproc_df
+
+
+def stack_states_df(states_df: pd.DataFrame) -> torch.Tensor:
+    state_seq = []
+    for i in range(len(states_df.index)):
+        current_state_df = states_df.iloc[i]
+
+        current_state_np = np.concatenate(
+            [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
+        )  # yapf: ignore
+
+        state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
+
+    state_seq_t = torch.stack(state_seq)
+
+    return state_seq_t
+
+
+def stack_actions_df(actions_df: pd.DataFrame) -> torch.Tensor:
+    action_seq = []
+    for i in range(len(actions_df.index)):
+        current_action_df = actions_df.iloc[i]
+        current_action_np = current_action_df['type']
+        action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
+
+    action_seq_t = torch.stack(action_seq)
+
+    return action_seq_t
+
+
+def replace_firstnames(text, lm='bert'):
+    if lm == 'bert':
+        return text.replace('BayesBetty', 'Betty')\
+            .replace('BayesFranck', 'Peter')\
+            .replace('BayesJake', 'Jake')\
+            .replace('DRLSam', 'Sam')\
+            # .replace('\n', '[SEP]')  # TODO: are we sure we want to use a separtor?
+
+    else:
+        raise NotImplementedError('LM {} is not supported'.format(lm))
+
+
+def compute_text_features(
+    messages: List[str],
+    tokenizer,
+    text_model: nn.Module
+) -> List[torch.Tensor]:
+    encoded_inputs = tokenizer(
+        messages, padding=True, truncation=True, return_tensors="pt"
+    )
+
+    empty_last_hidden_state = None
+    empty_pooler_output = None
+    last_hidden_state_list = []
+    pooler_output_list = []
+    # To speed things up, we compute only once the representation for the void sentences
+    # This works because there are much more void sentences than actual sentences
+    for i in range(len(messages)):
+        if messages[i] == '':
+            if empty_last_hidden_state is None:
+                empty_last_hidden_state, empty_pooler_output = text_model(
+                    input_ids=encoded_inputs['input_ids'][i:i + 1],
+                    token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
+                    attention_mask=encoded_inputs['attention_mask'][i:i + 1],
+                )
+            last_hidden_state_list.append(empty_last_hidden_state)
+            pooler_output_list.append(empty_pooler_output)
+        else:
+            last_hidden_state, pooler_output = text_model(
+                input_ids=encoded_inputs['input_ids'][i:i + 1],
+                token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
+                attention_mask=encoded_inputs['attention_mask'][i:i + 1],
+            )
+            last_hidden_state_list.append(last_hidden_state)
+            pooler_output_list.append(pooler_output)
+    last_hidden_state = torch.cat(last_hidden_state_list, dim=0)
+    pooler_output = torch.cat(pooler_output_list, dim=0)
+
+    mask = encoded_inputs['attention_mask'].to(torch.float32)
+
+    return [last_hidden_state, pooler_output, mask]
 
 
 def normalize_hexlayout(data: DataTensor) -> DataTensor:

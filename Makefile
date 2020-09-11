@@ -81,6 +81,7 @@ FIXTURES_FOLDER=$(CURRENT_DIR)/tests/fixtures
 test:
 ifeq ("$(wildcard $(TEST_FIXTURE_FILE))","")
 	unzip $(FIXTURES_ZIP_FILE) -d $(FIXTURES_FOLDER)
+	python $(FIXTURES_FOLDER)/dump_preprocessed_files.py
 endif
 	PYTHONWARNINGS="ignore" pytest .
 

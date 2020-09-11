@@ -24,7 +24,8 @@ os.environ['NEPTUNE_PROJECT_NAME'] = 'morgangiraud/soc'
 # config_name = "002_gpu_resnet18_policy_overfit_reg_adamw"
 # config_name = "003_gpu_convlstm_seq_policy_overfit"
 # config_name = "004_gpu_resnet18_policy_4step"
-config_name = "005_gpu_resetn18fusion_policy_overfit"
+config_name = "005_gpu_resetn18concat_policy_overfit"
+# config_name = "005_gpu_resetn18fusion_policy_overfit"
 with initialize(config_path=os.path.join("..", "experiments")):
     config = compose(config_name=config_name)
 

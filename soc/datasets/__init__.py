@@ -12,7 +12,6 @@ from .soc_psql_seq import SocPSQLSeqSAToSDataset
 from .soc_psql_seq import SocPSQLSeqSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from .soc_psql_forward import SocPSQLForwardSAToSAPolicyDataset
-from .soc_file_forward import SocFileForwardSAToSAPolicyDataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSDataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSADataset
 from .soc_preprocessed_seq import SocPreprocessedSeqSAToSAPolicyDataset
@@ -24,6 +23,8 @@ from .soc_preprocessed_forward import SocLazyPreprocessedForwardSAToSAPolicyData
 from .soc_psql_text_seq import SocPSQLTextBertSeqDataset
 from .soc_psql_text_forward import SocPSQLTextBertForwardSAToSADataset
 from .soc_psql_text_forward import SocPSQLTextBertForwardSAToSAPolicyDataset
+from .soc_file_seq import SocFileSeqDataset
+from .soc_file_text_seq import SocFileTextBertSeqDataset
 from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSADataset
 from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSAPolicyDataset
 
@@ -43,7 +44,6 @@ __all__ = [
     'SocPSQLSeqSAToSADataset',
     'SocPSQLForwardSAToSADataset',
     'SocPSQLForwardSAToSAPolicyDataset',
-    'SocFileForwardSAToSAPolicyDataset',
     'SocPreprocessedSeqSAToSDataset',
     'SocPreprocessedSeqSAToSADataset',
     'SocPreprocessedSeqSAToSAPolicyDataset',
@@ -55,6 +55,8 @@ __all__ = [
     'SocPSQLTextBertSeqDataset',
     'SocPSQLTextBertForwardSAToSADataset',
     'SocPSQLTextBertForwardSAToSAPolicyDataset',
+    'SocFileSeqDataset',
+    'SocFileTextBertSeqDataset',
     'SocPreprocessedTextBertForwardSAToSADataset',
     'SocPreprocessedTextBertForwardSAToSAPolicyDataset'
 ]

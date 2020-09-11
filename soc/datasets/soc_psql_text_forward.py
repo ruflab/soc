@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from omegaconf import MISSING
 from transformers import BertModel, BertTokenizer
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 from .soc_psql_text_seq import PSQLTextConfig
 from .soc_psql_forward import SocPSQLForwardSAToSADataset
 from . import utils as ds_utils
@@ -44,23 +44,20 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
         else:
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-            self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
-            self.tokenizer.add_tokens(['<void>'], special_tokens=True)
 
         if config['bert_model_path'] is not None:
             self.bert = BertModel.from_pretrained(config['bert_model_path'])
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
-            self.bert.resize_token_embeddings(len(self.tokenizer))
 
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
         if self.use_pooler_features:
-            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
+            text_input_shape = [self.history_length, None, self.bert.pooler.dense.out_features]
         else:
             text_input_shape = [
-                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
+                self.history_length, None, self.bert.encoder.layer[-1].output.dense.out_features
             ]
         self.input_shape = [game_input_shape, text_input_shape]
 
@@ -68,7 +65,7 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
             Return one datapoint from the dataset
 
@@ -83,22 +80,31 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
 
         chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, start_row_id)
 
-        encoded_inputs = self.tokenizer(
-            chats_df['message'].tolist(), padding=True, truncation=True, return_tensors="pt"
-        )
-        # For now, we will use the pooler_output, but HuggingFace advise against it
-        # https://huggingface.co/transformers/model_doc/bert.html
+        messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
         with torch.no_grad():
-            # I have to check if the no_grad call does not create problems with pytorch_lightning
-            last_hidden_state, pooler_output = self.bert(**encoded_inputs)
+            last_hidden_state, pooler_output, mask = ds_utils.compute_text_features(
+                messages, self.tokenizer, self.bert
+            )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
         else:
-            raise NotImplementedError('Using all Bert hidden states is not implemented yet')
+            # last_hidden_state contains all the contextualized words for the padded sentence
+            chat_seq_t = last_hidden_state
         chat_history_t = chat_seq_t[:self.history_length]
+        chat_mask_history_t = mask[:self.history_length]
         chat_future_t = chat_seq_t[self.history_length:]
+        chat_mask_future_t = mask[self.history_length:]
 
-        return [history_t, chat_history_t], [future_t, chat_future_t]
+        data_dict = {
+            'history_t': history_t,
+            'chat_history_t': chat_history_t,
+            'chat_mask_history_t': chat_mask_history_t,
+            'future_t': future_t,
+            'chat_future_t': chat_future_t,
+            'chat_mask_future_t': chat_mask_future_t,
+        }
+
+        return data_dict
 
     def _get_chats_from_db(self, table_id: int, start_row_id: int, end_row_id: int) -> pd.DataFrame:
         query = """
@@ -140,23 +146,20 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
         else:
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-            self.tokenizer.add_tokens(['BayesBetty', 'BayesFranck', 'BayesJake', 'DRLSam'])
-            self.tokenizer.add_tokens(['<void>'], special_tokens=True)
 
         if config['bert_model_path'] is not None:
             self.bert = BertModel.from_pretrained(config['bert_model_path'])
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
-            self.bert.resize_token_embeddings(len(self.tokenizer))
 
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
         if self.use_pooler_features:
-            text_input_shape = [self.history_length, self.bert.pooler.dense.out_features]
+            text_input_shape = [self.history_length, None, self.bert.pooler.dense.out_features]
         else:
             text_input_shape = [
-                self.history_length, self.bert.encoder.layer[-1].output.dense.out_features
+                self.history_length, None, self.bert.encoder.layer[-1].output.dense.out_features
             ]
         self.input_shape = [game_input_shape, text_input_shape]
 
@@ -167,22 +170,22 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
         output_shape_actions = [self.future_length, soc_data.ACTION_SIZE]
         self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
-    def __getitem__(self, idx: int):
-        history_l, future_l = super(
-            SocPSQLTextBertForwardSAToSAPolicyDataset, self
-        ).__getitem__(idx)
-        history_t = history_l[0]
-        history_chat_t = history_l[1]
-        future_t = future_l[0]
-        future_chat_t = future_l[1]
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        data_dict = super(SocPSQLTextBertForwardSAToSAPolicyDataset, self).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        future_t = data_dict['future_t']
+        del data_dict['future_t']
 
-        future_spatial_states_t, future_lin_states_t = ds_utils.separate_state_data(future_states_t)
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        return ([history_t, history_chat_t],
-                [future_spatial_states_t, future_lin_states_t, future_actions_t, future_chat_t])
+        spatial_states_future_t, lin_states_future_t = ds_utils.separate_state_data(states_future_t)
+
+        data_dict['spatial_states_future_t'] = spatial_states_future_t
+        data_dict['lin_states_future_t'] = lin_states_future_t
+        data_dict['actions_future_t'] = actions_future_t
+
+        return data_dict
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}

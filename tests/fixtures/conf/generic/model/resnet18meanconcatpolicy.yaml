@@ -1,0 +1,4 @@
+# @package _group_
+name: ResNet18MeanConcatPolicy
+fusion_num_heads: 2
+n_core_planes: 1

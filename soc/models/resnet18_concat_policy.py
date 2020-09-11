@@ -1,22 +1,11 @@
-from dataclasses import dataclass
 import torch
 from torch import nn
 from omegaconf import OmegaConf, DictConfig
 from .resnet18 import conv1x1, Bottleneck, BasicBlock
-from .resnet18 import ResNetConfig
 from .hexa_conv import HexaConv2d
-from .hopfield import Hopfield
 
 
-@dataclass
-class ResNetFusionConfig(ResNetConfig):
-    fusion_num_heads: int = 8
-    beta: float = 0.3
-    update_steps_max: int = 0
-    self_att_fusion: bool = True
-
-
-class ResNet18FusionPolicy(nn.Module):
+class ResNet18MeanConcatPolicy(nn.Module):
     def __init__(
         self,
         omegaConf: DictConfig,
@@ -28,7 +17,7 @@ class ResNet18FusionPolicy(nn.Module):
         replace_stride_with_dilation=None,
         norm_layer=None
     ):
-        super(ResNet18FusionPolicy, self).__init__()
+        super(ResNet18MeanConcatPolicy, self).__init__()
         if norm_layer is None:
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
@@ -42,8 +31,12 @@ class ResNet18FusionPolicy(nn.Module):
         assert isinstance(conf, dict)
 
         data_input_size = conf['data_input_size']
-        self.game_input_size = data_input_size[0]
-        self.text_input_size = data_input_size[1]
+        self.game_input_size = data_input_size[0]  # [S_h, C, H, W]
+        assert len(self.game_input_size) == 4
+
+        self.text_input_size = data_input_size[1]  # [S_h, S_text, F_bert]
+        assert len(self.text_input_size) == 3
+
         self.inplanes = self.game_input_size[0] * self.game_input_size[1]
 
         self.n_core_planes = conf['n_core_planes']
@@ -91,6 +84,7 @@ class ResNet18FusionPolicy(nn.Module):
         )
         self.layer4 = self._make_layer(block, self.n_core_planes, layers[3], stride=1, dilate=False)
 
+        # Game feature extractor
         self.cnn = nn.Sequential(
             self.conv1,
             self.bn1,
@@ -106,37 +100,8 @@ class ResNet18FusionPolicy(nn.Module):
         self.extractor = nn.Sequential()
 
         # Fusion module
-        # Our state that we want to change is the CNN state
-        self.self_att_fusion = conf['self_att_fusion']
-        if self.self_att_fusion is True:
-            self.text_projection = nn.Linear(self.text_input_size[-1], self.n_core_planes)
-            self.fusion = Hopfield(
-                input_size=self.n_core_planes,
-                hidden_size=1024,
-                num_heads=conf['fusion_num_heads'],
-                scaling=conf['beta'
-                             ],  # Beta parameter, can be set as a tensor to assign different betas
-                update_steps_max=conf['update_steps_max'],
-                dropout=0.,
-                batch_first=True,
-                association_activation=None,
-            )
-        else:
-            self.fusion = Hopfield(
-                input_size=self.text_input_size[-1],
-                stored_pattern_size=self.n_core_planes,
-                pattern_projection_size=self.n_core_planes,
-                output_size=self.n_core_outputs,
-                pattern_projection_as_connected=True,
-                hidden_size=1024,
-                num_heads=conf['fusion_num_heads'],
-                scaling=conf['beta'
-                             ],  # Beta parameter, can be set as a tensor to assign different betas
-                update_steps_max=conf['update_steps_max'],
-                dropout=0.,
-                batch_first=True,
-                association_activation=None,
-            )
+        # We use a simple concatenation operation
+        self.fusion = nn.Sequential()
 
         # Heads
         self.spatial_state_head = nn.Sequential(
@@ -159,11 +124,13 @@ class ResNet18FusionPolicy(nn.Module):
             )
         )
         self.linear_state_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs, 512), nn.ReLU(), nn.Linear(512, self.n_states)
+            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
+            nn.ReLU(),
+            nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs, 512),
+            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
             nn.ReLU(),
             nn.Linear(512, self.n_actions),
         )
@@ -234,35 +201,21 @@ class ResNet18FusionPolicy(nn.Module):
 
     def _forward_impl(self, x, x_text, x_text_mask):
         bs, S, C, H, W = x.shape
-
         x = x.view(bs, S * C, H, W)
         # See note [TorchScript super()]
         z = self.cnn(x)
-        z_spatial_shape = z.shape
+        z_linear = z.reshape(bs, -1)
 
         # Extraction
-        # TODO: Implement a more complex feature extraction process
         x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=2)
         x_text = x_text / torch.sum(x_text_mask, dim=2, keepdim=True)
         x_text = x_text[:, -1]  # [bs, F_text]
 
         # Fusion
-        # Input to hopfield network (K, Q, V)
-        if self.self_att_fusion is True:
-            x_text = self.text_projection(x_text)
-
-            n_z = H * W
-            d_z = self.n_core_planes
-            input_data = torch.cat([z.view(bs, n_z, d_z), x_text.view(bs, 1, d_z)], dim=1)
-            z = self.fusion(input_data)
-            z = z[:, 0:n_z]
-        else:
-            raise NotImplementedError()
+        z_linear = torch.cat([z_linear, x_text], dim=1)
 
         # Heads
-        z_spatial = z.view(z_spatial_shape)
-        z_linear = z.view(bs, -1)
-        y_spatial_state_logits = self.spatial_state_head(z_spatial)
+        y_spatial_state_logits = self.spatial_state_head(z)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
@@ -287,6 +240,8 @@ class ResNet18FusionPolicy(nn.Module):
         z = self.cnn(x)
         z_spatial = z
         z_linear = z.reshape(bs, -1)
+
+        z_linear = torch.cat([z_linear, torch.zeros(bs, self.text_input_size[1])], dim=1)
 
         y_spatial_state_logits = self.spatial_state_head(z_spatial)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([

@@ -2,7 +2,6 @@ import os
 import zipfile
 import shutil
 import sqlalchemy
-import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
@@ -53,7 +52,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return self._length
 
-    def __getitem__(self, idx: int) -> SocDatasetItem:
+    def __getitem__(self, idx: int):
         """
             Return one datapoint from the dataset
 
@@ -64,27 +63,12 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         actions_df = self._get_actions_from_db(idx)
 
         assert len(states_df.index) == len(actions_df.index)
-        game_length = len(states_df)
 
         states_df = ds_utils.preprocess_states(states_df)
         actions_df = ds_utils.preprocess_actions(actions_df)
 
-        state_seq = []
-        action_seq = []
-        for i in range(game_length):
-            current_state_df = states_df.iloc[i]
-            current_action_df = actions_df.iloc[i]
-
-            current_state_np = np.concatenate(
-                [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
-            )  # yapf: ignore
-            current_action_np = current_action_df['type']
-
-            state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
-            action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
-
-        state_seq_t = torch.stack(state_seq)
-        action_seq_t = torch.stack(action_seq)
+        state_seq_t = ds_utils.stack_states_df(states_df)
+        action_seq_t = ds_utils.stack_actions_df(actions_df)
 
         return state_seq_t, action_seq_t
 

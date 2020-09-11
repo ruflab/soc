@@ -1,5 +1,4 @@
 import sqlalchemy
-import numpy as np
 import pandas as pd
 import torch
 from dataclasses import dataclass
@@ -8,7 +7,7 @@ from typing import Tuple, List, Union
 from .soc_psql import SocPSQLDataset, PSQLConfig
 from . import utils as ds_utils
 from . import soc_data
-from ..typing import SocDatasetItem, SocDataMetadata
+from ..typing import SocDataMetadata
 
 
 @dataclass
@@ -86,7 +85,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
 
         return nb_steps
 
-    def __getitem__(self, idx: int) -> SocDatasetItem:
+    def __getitem__(self, idx: int):
         """
             Return one datapoint from the dataset
 
@@ -98,27 +97,13 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         states_df = self._get_states_from_db(table_id, start_row_id, end_row_id)
         actions_df = self._get_actions_from_db(table_id, start_row_id, end_row_id)
 
-        game_length = len(states_df)
+        assert len(states_df.index) == len(actions_df.index)
 
         states_df = ds_utils.preprocess_states(states_df)
         actions_df = ds_utils.preprocess_actions(actions_df)
 
-        state_seq = []
-        action_seq = []
-        for i in range(game_length):
-            current_state_df = states_df.iloc[i]
-            current_action_df = actions_df.iloc[i]
-
-            current_state_np = np.concatenate(
-                [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
-            )  # yapf: ignore
-            current_action_np = current_action_df['type']
-
-            state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
-            action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
-
-        state_seq_t = torch.stack(state_seq)
-        action_seq_t = torch.stack(action_seq)
+        state_seq_t = ds_utils.stack_states_df(states_df)
+        action_seq_t = ds_utils.stack_actions_df(actions_df)
         seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
         history_t = seq_t[:self.history_length]
@@ -237,12 +222,12 @@ class SocPSQLForwardSAToSAPolicyDataset(SocPSQLForwardSAToSADataset):
     def __getitem__(self, idx: int):
         history_t, future_t = super(SocPSQLForwardSAToSAPolicyDataset, self).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        future_spatial_states_t, future_lin_states_t = ds_utils.separate_state_data(future_states_t)
+        spatial_states_future_t, lin_states_future_t = ds_utils.separate_state_data(states_future_t)
 
-        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+        return (history_t, [spatial_states_future_t, lin_states_future_t, actions_future_t])
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}

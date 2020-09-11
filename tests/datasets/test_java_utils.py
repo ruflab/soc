@@ -112,11 +112,12 @@ class TestJavaUtils(unittest.TestCase):
         x = np.stack(actions.apply(ju.parse_actions))
 
         y = np.zeros([5, soc_data.ACTION_SIZE, 7, 7])
+
         y[0, 4] = 1
         y[1, 5] = 1
         y[2, 4] = 1
         y[3, 5] = 1
-        y[4, 2] = 1
+        y[4, 1] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -132,7 +133,7 @@ class TestJavaUtils(unittest.TestCase):
         y[1, -2] = 1
         y[2, -2] = 1
         y[3, -2] = 1
-        y[4, 6] = 1
+        y[4, -1] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -148,7 +149,7 @@ class TestJavaUtils(unittest.TestCase):
         y[1, 8] = 1
         y[2, 7] = 1
         y[3, 8] = 1
-        y[4, 10] = 1
+        y[4, 9] = 1
 
         np.testing.assert_array_equal(x, y)
 

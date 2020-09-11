@@ -2,10 +2,10 @@ import os
 import torch
 from torch.utils.data import Dataset
 from dataclasses import dataclass
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Dict, Callable
 from ..typing import SocDataMetadata
 from . import soc_data
-from .utils import separate_state_data
+from .utils import separate_state_data, pad_seq_text_policy
 from .soc_preprocessed_forward import PreprocessedForwardConfig
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -57,7 +57,7 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
         n_bert_feature = self.data[0][0][1].shape[-1]
-        text_input_shape = [self.history_length, n_bert_feature]
+        text_input_shape = [self.history_length, None, n_bert_feature]
         self.input_shape = [game_input_shape, text_input_shape]
 
         self.output_shape = [
@@ -102,18 +102,29 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
 
         return nb_steps
 
-    def __getitem__(self, idx: int):
-        x_t, x_text_t = self._get_data(idx)
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        x_t, chat_seq_t, chat_mask_seq_t = self._get_data(idx)
 
         _, _, H, W = x_t.shape
         history_t = x_t[:self.history_length]
         future_t = x_t[self.history_length:]
-        chat_history_t = x_text_t[:self.history_length]
-        chat_future_t = x_text_t[self.history_length:]
+        chat_history_t = chat_seq_t[:self.history_length]
+        chat_future_t = chat_seq_t[self.history_length:]
+        chat_mask_history_t = chat_mask_seq_t[:self.history_length]
+        chat_mask_future_t = chat_mask_seq_t[self.history_length:]
 
-        return [history_t, chat_history_t], [future_t, chat_future_t]
+        data_dict = {
+            'history_t': history_t,
+            'chat_history_t': chat_history_t,
+            'chat_mask_history_t': chat_mask_history_t,
+            'future_t': future_t,
+            'chat_future_t': chat_future_t,
+            'chat_mask_future_t': chat_mask_future_t,
+        }
 
-    def _get_data(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        return data_dict
+
+    def _get_data(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if len(self._inc_seq_steps) == 0:
             self._set_stats()
 
@@ -130,8 +141,9 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
 
         game_seq_t = self.data[table_id][0][start_row_id:end_row_id]
         chat_seq_t = self.data[table_id][1][start_row_id:end_row_id]
+        chat_mask_seq_t = self.data[table_id][2][start_row_id:end_row_id]
 
-        return game_seq_t, chat_seq_t
+        return game_seq_t, chat_seq_t, chat_mask_seq_t
 
     def get_input_size(self) -> SOCShape:
         """
@@ -147,8 +159,8 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
 
         return self.output_shape
 
-    def get_collate_fn(self) -> None:
-        return None
+    def get_collate_fn(self) -> Callable:
+        return pad_seq_text_policy
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         metadata: SocDataMetadata = {}
@@ -180,7 +192,7 @@ class SocPreprocessedTextBertForwardSAToSAPolicyDataset(SocPreprocessedTextBertF
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
-        text_input_shape = [self.history_length, n_bert_feature]
+        text_input_shape = [self.history_length, None, n_bert_feature]
         self.input_shape = [game_input_shape, text_input_shape]
 
         output_shape_spatial = [
@@ -191,21 +203,21 @@ class SocPreprocessedTextBertForwardSAToSAPolicyDataset(SocPreprocessedTextBertF
         self.output_shape = (output_shape_spatial, output_shape, output_shape_actions)
 
     def __getitem__(self, idx: int):
-        history_l, future_l = super(
-            SocPreprocessedTextBertForwardSAToSAPolicyDataset, self
-        ).__getitem__(idx)
-        history_t = history_l[0]
-        history_chat_t = history_l[1]
-        future_t = future_l[0]
-        future_chat_t = future_l[1]
+        data_dict = super(SocPreprocessedTextBertForwardSAToSAPolicyDataset, self).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
+        future_t = data_dict['future_t']
+        del data_dict['future_t']
 
-        future_spatial_states_t, future_lin_states_t = separate_state_data(future_states_t)
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        return ([history_t, history_chat_t],
-                [future_spatial_states_t, future_lin_states_t, future_actions_t, future_chat_t])
+        spatial_states_future_t, lin_states_future_t = separate_state_data(states_future_t)
+
+        data_dict['spatial_states_future_t'] = spatial_states_future_t
+        data_dict['lin_states_future_t'] = lin_states_future_t
+        data_dict['actions_future_t'] = actions_future_t
+
+        return data_dict
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}

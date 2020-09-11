@@ -29,7 +29,12 @@ def gameturn_loss(
     gameturn_logits = t1_logits_seq[:, :, start_i]
     gameturn_true = t2_true_seq[:, :, start_i]
 
-    loss = F.mse_loss(gameturn_logits, gameturn_true)
+    # Regression losses need to be balanced with cross_entropy losses
+    # To do so we add a coefficient for thos losses
+    # The coefficient depends on the normalization applied
+    # which defines how precise the output should be to make the right prediction
+    coef = 1
+    loss = coef * F.mse_loss(gameturn_logits, gameturn_true)
 
     return loss
 
@@ -48,7 +53,7 @@ def hexlayout_loss(
     # To do so we add a coefficient for thos losses
     # The coefficient depends on the normalization applied
     # which defines how precise the output should be to make the right prediction
-    coef = 20
+    coef = 1
     loss = coef * F.mse_loss(hexlayout_logits, hexlayout_true)
 
     return loss
@@ -68,7 +73,7 @@ def numberlayout_loss(
     # To do so we add a coefficient for thos losses
     # The coefficient depends on the normalization applied
     # which defines how precise the output should be to make the right prediction
-    coef = 20
+    coef = 1
     loss = coef * F.mse_loss(numberlayout_logits, numberlayout_true)
 
     return loss
@@ -86,7 +91,8 @@ def robber_loss(
     robber_logits = t1_logits_seq[:, :, start_i].reshape(bs * S, -1)
     robber_true_pos = torch.argmax(t2_true_seq[:, :, start_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(robber_logits, robber_true_pos)
+    coef = 1
+    loss = coef * F.cross_entropy(robber_logits, robber_true_pos)
 
     return loss
 
@@ -102,6 +108,7 @@ def pieces_loss(
     pieces_logits = t1_logits_seq[:, :, start_i:end_i]
     pieces_true = t2_true_seq[:, :, start_i:end_i]
 
+    coef = 1
     if compute_random_mask:
         # We compute a mask to subsample zero values
         loss_mask = torch.zeros_like(pieces_true, device=pieces_true.device, requires_grad=False)
@@ -109,9 +116,9 @@ def pieces_loss(
         random_c = torch.randperm(loss_mask.shape[2])[:2]
         loss_mask[:, :, random_c] = 1
 
-        loss = F.binary_cross_entropy_with_logits(pieces_logits * loss_mask, pieces_true)
+        loss = coef * F.binary_cross_entropy_with_logits(pieces_logits * loss_mask, pieces_true)
     else:
-        loss = F.binary_cross_entropy_with_logits(pieces_logits, pieces_true)
+        loss = coef * F.binary_cross_entropy_with_logits(pieces_logits, pieces_true)
 
     return loss
 
@@ -128,7 +135,8 @@ def gamestate_loss(
     gamestate_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     gamestate_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(gamestate_logits, gamestate_true)
+    coef = 1
+    loss = coef * F.cross_entropy(gamestate_logits, gamestate_true)
 
     return loss
 
@@ -145,7 +153,8 @@ def diceresult_loss(
     diceresult_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     diceresult_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(diceresult_logits, diceresult_true)
+    coef = 1
+    loss = coef * F.cross_entropy(diceresult_logits, diceresult_true)
 
     return loss
 
@@ -162,7 +171,8 @@ def startingplayer_loss(
     startingplayer_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     startingplayer_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(startingplayer_logits, startingplayer_true)
+    coef = 1
+    loss = coef * F.cross_entropy(startingplayer_logits, startingplayer_true)
 
     return loss
 
@@ -179,7 +189,8 @@ def currentplayer_loss(
     currentplayer_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     currentplayer_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(currentplayer_logits, currentplayer_true)
+    coef = 1
+    loss = coef * F.cross_entropy(currentplayer_logits, currentplayer_true)
 
     return loss
 
@@ -196,7 +207,8 @@ def devcardsleft_loss(
     devcardsleft_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     devcardsleft_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(devcardsleft_logits, devcardsleft_true)
+    coef = 1
+    loss = coef * F.cross_entropy(devcardsleft_logits, devcardsleft_true)
 
     return loss
 
@@ -211,7 +223,8 @@ def playeddevcard_loss(
     playeddevcard_logits = t1_logits_seq[:, :, start_i]
     playeddevcard_true = t2_true_seq[:, :, start_i]
 
-    loss = F.binary_cross_entropy_with_logits(playeddevcard_logits, playeddevcard_true)
+    coef = 1
+    loss = coef * F.binary_cross_entropy_with_logits(playeddevcard_logits, playeddevcard_true)
 
     return loss
 
@@ -226,7 +239,7 @@ def playersresources_loss(
     playersresources_logits = t1_logits_seq[:, :, start_i:end_i]
     playersresources_true = t2_true_seq[:, :, start_i:end_i]
 
-    coef = 20
+    coef = 1
     loss = coef * F.mse_loss(playersresources_logits, playersresources_true)
 
     return loss
@@ -242,7 +255,8 @@ def players_loss(
     players_logits = t1_logits_seq[:, :, start_i:end_i]
     players_true = t2_true_seq[:, :, start_i:end_i]
 
-    loss = F.mse_loss(players_logits, players_true)
+    coef = 1
+    loss = coef * F.mse_loss(players_logits, players_true)
 
     return loss
 
@@ -259,7 +273,8 @@ def actions_loss(
     actions_logits = t1_logits_seq[:, :, start_i:end_i].reshape(bs * S, -1)
     actions_true = torch.argmax(t2_true_seq[:, :, start_i:end_i].reshape(bs * S, -1), dim=1)
 
-    loss = F.cross_entropy(actions_logits, actions_true)
+    coef = 1
+    loss = coef * F.cross_entropy(actions_logits, actions_true)
 
     return loss
 

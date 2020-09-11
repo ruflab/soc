@@ -117,18 +117,18 @@ class TestDatasetUtils(unittest.TestCase):
                     False,
                     False,
                     False,
-                    False,
-                    False,
-                    False,
-                    False,
-                    False,
+                    True,
                     False,
                     False,
                     False,
                     False,
                     False,
                     True,
+                    False,
+                    False,
                     True,
+                    False,
+                    False,
                     False
                 ])
             )

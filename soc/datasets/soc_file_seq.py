@@ -16,6 +16,7 @@ SOCShape = Union[Tuple[List[int], ...], List[int]]
 @dataclass
 class FileSeqConfig:
     name: str = MISSING
+    dataset_path: str = MISSING
 
     shuffle: bool = True
 

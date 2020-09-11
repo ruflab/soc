@@ -55,10 +55,10 @@ endif
 # Test
 ###
 dump_training_set:
-	python scripts/dump.py
+	python scripts/dump.py raw=1 dump_text=1
 
 dump_fixtures:
-	python scripts/dump.py --multirun testing=1 raw=0,1 dump_text=0,1
+	python scripts/dump.py --multirun testing=1 raw=1 dump_text=0,1
 
 .PHONY: dump_fixtures dump_training_set
 

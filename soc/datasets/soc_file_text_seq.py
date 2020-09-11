@@ -2,9 +2,8 @@ import os
 import torch
 from transformers import BertModel, BertTokenizer
 from dataclasses import dataclass
-from omegaconf import MISSING
 from typing import Tuple, List, Union, Dict, Optional
-from .soc_file_seq import SocFileSeqDataset
+from .soc_file_seq import SocFileSeqDataset, FileSeqConfig
 from . import utils as ds_utils
 from .. import utils
 from . import soc_data
@@ -13,13 +12,10 @@ SOCShape = Union[Tuple[List[int], ...], List[int]]
 
 
 @dataclass
-class FileTextConfig:
-    name: str = MISSING
+class FileTextConfig(FileSeqConfig):
     tokenizer_path: Optional[str] = None
     bert_model_path: Optional[str] = None
     use_pooler_features: bool = False
-
-    shuffle: bool = True
 
 
 class SocFileTextBertSeqDataset(SocFileSeqDataset):

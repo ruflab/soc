@@ -63,6 +63,11 @@ class TestTraining(unittest.TestCase):
             name="preprocessedtextbertforwardsatosapolicy",
             node=datasets.PreprocessedTextForwardConfig
         )
+        cs.store(
+            group="generic/dataset",
+            name="filetextbertforwardsatosapolicy",
+            node=datasets.FileTextForwardConfig
+        )
 
         cls.data = torch.load(_RAW_DATASET_PATH)
         cls.data_text_bert = torch.load(_RAW_TEXT_BERT_DATASET_PATH)
@@ -255,23 +260,23 @@ class TestTraining(unittest.TestCase):
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
-    # def test_training_soc_preprocessed_forward_resnetfusionpolicy(self):
-    #     with initialize(config_path=os.path.join(".", "fixtures", "conf")):
-    #         config = compose(
-    #             config_name="config",
-    #             overrides=[
-    #                 "generic/model=resnet18fusionpolicy",
-    #                 "generic/dataset=preprocessedtextbertforwardsatosapolicy",
-    #                 "generic.runner_name=SOCTextForwardPolicyRunner"
-    #             ]
-    #         )
-    #         config.generic.dataset.dataset_path = _TEXT_BERT_DATASET_PATH
-    #         config.trainer.default_root_dir = self.folder
+    def test_training_soc_preprocessed_forward_resnetfusionpolicy(self):
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18fusionpolicy",
+                    "generic/dataset=preprocessedtextbertforwardsatosapolicy",
+                    "generic.runner_name=SOCTextForwardPolicyRunner"
+                ]
+            )
+            config.generic.dataset.dataset_path = _TEXT_BERT_DATASET_PATH
+            config.trainer.default_root_dir = self.folder
 
-    #         seed_everything(config['generic']['seed'])
-    #         runner = make_runner(config['generic'])
-    #         trainer = Trainer(**config['trainer'], deterministic=True)
-    #         trainer.fit(runner)
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
 
     def test_training_soc_psql_forward_resnetmeanconcatpolicy(self):
         with initialize(config_path=os.path.join(".", "fixtures", "conf")):
@@ -288,5 +293,23 @@ class TestTraining(unittest.TestCase):
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
             runner.setup_dataset = self.setup_text_dataset
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
+
+    def test_training_soc_file_forward_resnetmeanconcatpolicy(self):
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18meanconcatpolicy",
+                    "generic/dataset=filetextbertforwardsatosapolicy",
+                    "generic.runner_name=SOCTextForwardPolicyRunner"
+                ]
+            )
+            config.generic.dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
+            config.trainer.default_root_dir = self.folder
+
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)

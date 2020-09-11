@@ -9,13 +9,16 @@ generic:
   weight_decay: 0.01
   amsgrad: true
   dataset:
-    name: SocPreprocessedTextBertForwardSAToSAPolicyDataset
+    name: SocFileTextBertForwardSAToSAPolicyDataset
     history_length: 16
     future_length: 1
+    use_pooler_features: False
+    tokenizer_path: null
+    bert_model_path: null
     shuffle: false
     dataset_path: ???
   model:
-    name: ResNet18ConcatPolicy
+    name: ResNet18MeanConcatPolicy
     n_core_planes: 2
     data_input_size: ???
     data_output_size: ???

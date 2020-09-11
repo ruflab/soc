@@ -13,6 +13,7 @@ _SOC10_FOLDER_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_10_fullseq')
 _SOC10_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_10_fullseq.pt')
 _SOC50_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
 _SOC50_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_50_fullseq.pt')
+_RAW_SOC100_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_100_raw_df.pt')
 _SOC150_FOLDER_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_150_fullseq')
 _SOC150_RAW_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_150_raw.pt')
 
@@ -38,7 +39,8 @@ with initialize(config_path=os.path.join("..", "experiments")):
     # config.generic.dataset.first_index = 100
     # config.generic.dataset.name = 'SocLazyPreprocessedForwardSAToSAPolicyDataset'
     # config.generic.dataset.dataset_path = _SOC10_FOLDER_DATASET_PATH
-    config.generic.dataset.dataset_path = _SOC10_TEXT_BERT_DATASET_PATH
+    # config.generic.dataset.dataset_path = _SOC10_TEXT_BERT_DATASET_PATH
+    config.generic.dataset.dataset_path = _RAW_SOC100_TEXT_BERT_DATASET_PATH
     # config.generic.dataset.name = 'SocFileForwardSAToSAPolicyDataset'
     # config.generic.dataset.dataset_path = _SOC150_RAW_DATASET_PATH
     # config.generic.dataset.dataset_path = _SOC50_DATASET_PATH

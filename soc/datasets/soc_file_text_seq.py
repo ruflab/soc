@@ -30,7 +30,6 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
     def _set_props(self, config):
         self.use_pooler_features = config['use_pooler_features']
 

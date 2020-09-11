@@ -33,7 +33,6 @@ class SocFileSeqDataset(Dataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocFileSeqDataset, self).__init__()
 

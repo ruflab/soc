@@ -281,9 +281,8 @@ def stack_states_df(states_df: pd.DataFrame) -> torch.Tensor:
     for i in range(len(states_df.index)):
         current_state_df = states_df.iloc[i]
 
-        current_state_np = np.concatenate(
-            [current_state_df[col] for col in soc_data.STATE_FIELDS], axis=0
-        )  # yapf: ignore
+        current_state_np = np.concatenate([current_state_df[col] for col in soc_data.STATE_FIELDS],
+                                          axis=0)  # yapf: ignore
 
         state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
 
@@ -316,14 +315,9 @@ def replace_firstnames(text, lm='bert'):
         raise NotImplementedError('LM {} is not supported'.format(lm))
 
 
-def compute_text_features(
-    messages: List[str],
-    tokenizer,
-    text_model: nn.Module
-) -> List[torch.Tensor]:
-    encoded_inputs = tokenizer(
-        messages, padding=True, truncation=True, return_tensors="pt"
-    )
+def compute_text_features(messages: List[str], tokenizer,
+                          text_model: nn.Module) -> List[torch.Tensor]:
+    encoded_inputs = tokenizer(messages, padding=True, truncation=True, return_tensors="pt")
 
     empty_last_hidden_state = None
     empty_pooler_output = None

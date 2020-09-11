@@ -100,12 +100,29 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return nb_steps
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        data_dict = super(SocFileTextBertForwardSAToSADataset, self).__getitem__(idx)
+        states_df, actions_df, chats_df = self._get_data(idx)
 
-        state_seq_t = data_dict['state_seq_t']
-        action_seq_t = data_dict['action_seq_t']
-        chat_seq_t = data_dict['chat_seq_t']
-        chat_mask_seq_t = data_dict['chat_mask_seq_t']
+        states_df = ds_utils.preprocess_states(states_df)
+        actions_df = ds_utils.preprocess_actions(actions_df)
+        full_seq_len = self.history_length + self.future_length
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+        chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, start_row_id)
+
+        assert len(states_df.index) == len(actions_df.index) == len(chats_df.index)
+
+        state_seq_t = ds_utils.stack_states_df(states_df)
+        action_seq_t = ds_utils.stack_actions_df(actions_df)
+
+        messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
+        with torch.no_grad():
+            last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
+                messages, self.tokenizer, self.bert
+            )
+        if self.use_pooler_features:
+            chat_seq_t = pooler_output
+        else:
+            # last_hidden_state contains all the contextualized words for the padded sentence
+            chat_seq_t = last_hidden_state
 
         seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
         history_t = seq_t[:self.history_length]
@@ -127,6 +144,19 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return new_data_dict
 
     def _get_data(self, idx: int):
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+
+        states_df, actions_df, chats_df = self.data[table_id]
+        chats_df = chats_df[(chats_df['current_state'] >= start_row_id)
+                            & (chats_df['current_state'] < end_row_id)]
+
+        return (
+            states_df[start_row_id:end_row_id],
+            actions_df[start_row_id:end_row_id],
+            chats_df[start_row_id:end_row_id],
+        )
+
+    def _get_db_idxs(self, idx: int) -> Tuple:
         if len(self._inc_seq_steps) == 0:
             self._set_stats()
 
@@ -138,16 +168,10 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
                 break
             prev_seq_steps = seq_steps
         r = idx - prev_seq_steps
-        start_row_id = r
-        end_row_id = r + self.seq_len_per_datum
+        start_row_id = r + 1  # We add 1 because indices in the PosGreSQL DB start at 1 and not 0
+        end_row_id = start_row_id + self.seq_len_per_datum
 
-        states_df, actions_df, chats_df = self.data[table_id]
-
-        return (
-            states_df[start_row_id:end_row_id],
-            actions_df[start_row_id:end_row_id],
-            chats_df[start_row_id:end_row_id],
-        )
+        return table_id, start_row_id, end_row_id
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         metadata: SocDataMetadata = {}
@@ -160,6 +184,9 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
+
+    def get_collate_fn(self):
+        return ds_utils.pad_seq_text_policy
 
 
 class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSADataset):

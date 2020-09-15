@@ -19,6 +19,8 @@ ifeq (True,$(HAS_CONDA))
 	@echo ">>> Detected conda, creating conda environment."
 	conda env create -f environment_$(OS).yml
 	@echo ">>> Conda env created."
+	git subomdule update --init
+	ln -s ${PWD}/hopfield-layers/modules ${PWD}/soc/models/hopfield
 else
 	@echo ">>> Please install conda first: brew cask install anaconda"
 endif

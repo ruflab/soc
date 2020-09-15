@@ -26,6 +26,7 @@ class DumpConfig(PSQLConfig):
     tokenizer_path: Optional[str] = None
     bert_model_path: Optional[str] = None
     use_pooler_features: bool = False
+    set_empty_text_to_zero: bool = False
 
 
 cs = ConfigStore.instance()

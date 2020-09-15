@@ -5,14 +5,14 @@ name: Soc
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
     name: OSX run
-    runs-on: 'macos-latest'
+    runs-on: "macos-latest"
 
     steps:
       - uses: actions/checkout@v2
@@ -23,6 +23,11 @@ jobs:
           environment-file: environment_darwin.yml
           auto-activate-base: false
           auto-update-conda: true
+      - name: Update submodules
+        shell: bash -l {0}
+        run: |
+          git submodule update --init
+          ln -s ${PWD}/hopfield-layers/modules ${PWD}/soc/models/hopfield
       - name: Install soc
         shell: bash -l {0}
         run: |

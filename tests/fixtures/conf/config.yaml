@@ -10,7 +10,7 @@ generic:
   lr: 1.
   optimizer: adam
   scheduler:
-  batch_size: 2 # Data
+  batch_size: 4 # Data
 trainer:
   default_root_dir: ???
   logger: False

@@ -28,15 +28,12 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
-    _inc_seq_steps: List = []
-    history_length: int
-    future_length: int
-
     def _set_props(self, config):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
@@ -207,6 +204,8 @@ class SocPSQLForwardSAToSAPolicyDataset(SocPSQLForwardSAToSADataset):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self.input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE

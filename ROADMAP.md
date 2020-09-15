@@ -14,5 +14,4 @@
 - Refactor the code to handl pytorch-lightning >= 0.9.1
 - test SIREN networks
 - Implement a HP tuning lib
-- Implement history_length/future_length for sequential models
 - Check SWA update: https://github.com/PyTorchLightning/pytorch-lightning/issues/1894

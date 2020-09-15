@@ -24,7 +24,6 @@ class SOCTextForwardPolicyRunner(SOCRunner):
         if self.hparams['train_fusion'] is True:
             parameters += list(self.model.extractor.parameters())
             parameters += list(self.model.fusion.parameters())
-        # param2 = list(self.model.parameters())
 
         return parameters
 

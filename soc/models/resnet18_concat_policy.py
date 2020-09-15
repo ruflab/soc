@@ -264,3 +264,190 @@ class ResNet18MeanConcatPolicy(nn.Module):
 
     def forward_bypass_text(self, x, x_text, x_text_mask):
         return self._forward_bypass_text_impl(x)
+
+
+class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
+    def __init__(
+        self,
+        omegaConf: DictConfig,
+        block=BasicBlock,
+        layers=[2, 2, 2, 2],
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None
+    ):
+        super(ResNet18MeanConcatPolicy, self).__init__()
+        if norm_layer is None:
+            # Batch norm does not fit well with regression.
+            # norm_layer = nn.BatchNorm2d
+            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
+        self._norm_layer = norm_layer
+
+        # When we are here, the config has already been checked by OmegaConf
+        # so we can extract primitives to use with other libs
+        conf = OmegaConf.to_container(omegaConf)
+        assert isinstance(conf, dict)
+
+        data_input_size = conf['data_input_size']
+        self.game_input_size = data_input_size[0]  # [S_h, C, H, W]
+        assert len(self.game_input_size) == 4
+
+        self.text_input_size = data_input_size[1]  # [S_h, S_text, F_bert]
+        assert len(self.text_input_size) == 3
+
+        self.inplanes = self.game_input_size[0] * self.game_input_size[1]
+
+        self.n_core_planes = conf['n_core_planes']
+        self.n_core_outputs = self.n_core_planes * self.game_input_size[2] * self.game_input_size[3]
+
+        data_output_size = conf['data_output_size']
+        self.spatial_state_output_size = data_output_size[0]
+        self.state_output_size = data_output_size[1]
+        self.action_output_size = data_output_size[2]
+        n_future_seq = self.spatial_state_output_size[0]
+
+        self.n_spatial_planes = n_future_seq * self.spatial_state_output_size[1]
+        self.n_states = n_future_seq * self.state_output_size[1]
+        self.n_actions = n_future_seq * self.action_output_size[1]
+
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            # each element in the tuple indicates if we should replace
+            # the 2x2 stride with a dilated convolution instead
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                "replace_stride_with_dilation should be None "
+                "or a 3-element tuple, got {}".format(replace_stride_with_dilation)
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = HexaConv2d(
+            self.inplanes, 32 * self.n_core_planes, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.inplanes = 32 * self.n_core_planes
+
+        if norm_layer == nn.GroupNorm:
+            self.bn1 = norm_layer(4, self.inplanes)
+        else:
+            self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.layer1 = self._make_layer(
+            block, 8 * self.n_core_planes, layers[0], stride=1, dilate=False
+        )
+        self.layer2 = self._make_layer(
+            block, 4 * self.n_core_planes, layers[1], stride=1, dilate=False
+        )
+        self.layer3 = self._make_layer(
+            block, 2 * self.n_core_planes, layers[2], stride=1, dilate=False
+        )
+        self.layer4 = self._make_layer(
+            block, 1 * self.n_core_planes, layers[3], stride=1, dilate=False
+        )
+
+        # Game feature extractor
+        self.cnn = nn.Sequential(
+            self.conv1,
+            self.bn1,
+            self.relu,
+            self.layer1,
+            self.layer2,
+            self.layer3,
+            self.layer4,
+        )
+
+        # Text feature extractor
+        # We use a simple mean operation
+        self.extractor = nn.Sequential()
+
+        # Fusion module
+        self.fusion = nn.Sequential(
+            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
+            nn.ReLU(),
+            nn.Linear(512, self.n_core_outputs)
+        )
+
+        # Heads
+        self.spatial_state_head = nn.Sequential(
+            nn.Conv2d(
+                self.n_core_planes,
+                self.n_spatial_planes * 2,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                self.n_spatial_planes * 2,
+                self.n_spatial_planes,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False
+            )
+        )
+        self.linear_state_head = nn.Sequential(
+            nn.Linear(self.n_core_outputs, 512), nn.ReLU(), nn.Linear(512, self.n_states)
+        )
+
+        self.policy_head = nn.Sequential(
+            nn.Linear(self.n_core_outputs, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.n_actions),
+        )
+
+        for m in self.modules():
+            if isinstance(m, HexaConv2d):
+                continue
+                # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        # Zero-initialize the last BN in each residual branch,
+        # so that the residual branch starts with zeros, and each residual block behaves like an
+        # identity.
+        # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck):
+                    nn.init.constant_(m.bn3.weight, 0)
+                elif isinstance(m, BasicBlock):
+                    nn.init.constant_(m.bn2.weight, 0)
+
+    def _forward_impl(self, x, x_text, x_text_mask):
+        bs, S, C, H, W = x.shape
+        x = x.view(bs, S * C, H, W)
+        # See note [TorchScript super()]
+        z = self.cnn(x)
+        z_linear = z.reshape(bs, -1)
+
+        # Extraction
+        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=2)
+        x_text = x_text / torch.sum(x_text_mask, dim=2, keepdim=True)
+        x_text = x_text[:, -1]  # [bs, F_text]
+
+        # Fusion
+        z_linear = torch.cat([z_linear, x_text], dim=1)
+        z_linear = self.fusion(z_linear)
+
+        # Heads
+        y_spatial_state_logits = self.spatial_state_head(z)
+        y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
+            bs,
+        ] + self.spatial_state_output_size)
+        y_state_logits = self.linear_state_head(z_linear)
+        y_state_logits_seq = y_state_logits.reshape([
+            bs,
+        ] + self.state_output_size)
+        y_action_logits = self.policy_head(z_linear)
+        y_action_logits_seq = y_action_logits.reshape([
+            bs,
+        ] + self.action_output_size)
+
+        return y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq

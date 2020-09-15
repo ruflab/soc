@@ -29,16 +29,14 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
-    _inc_seq_steps: List = []
-    history_length: int
-    future_length: int
-
     def _set_props(self, config):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -83,7 +81,7 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
         messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
         with torch.no_grad():
             last_hidden_state, pooler_output, mask = ds_utils.compute_text_features(
-                messages, self.tokenizer, self.bert
+                messages, self.tokenizer, self.bert, self.set_empty_text_to_zero
             )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
@@ -141,6 +139,9 @@ class SocPSQLTextBertForwardSAToSAPolicyDataset(SocPSQLTextBertForwardSAToSAData
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])

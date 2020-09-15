@@ -37,7 +37,7 @@ endif
 export_env:
 ifeq (True,$(HAS_CONDA))
 	@echo ">>> Detected conda, exporting conda environment."
-	conda env export -n soc | grep -v "^prefix: " | grep -v libffi > environment_$(OS).yml
+	conda env export -n soc | grep -v "^prefix: " | grep -v libffi | grep -v "en-" > environment_$(OS).yml
 ifeq (darwin,$(OS))
 	sed -i '' -e 's/numpy-stubs==0.0.1/git+https:\/\/github.com\/numpy\/numpy-stubs.git/g' environment_$(OS).yml
 else

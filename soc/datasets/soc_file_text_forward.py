@@ -27,17 +27,14 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
-    _length: int = -1
-    _inc_seq_steps: List = []
-    history_length: int
-    future_length: int
-
     def _set_props(self, config):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -63,6 +60,9 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         self.output_shape = [
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
+
+    def __len__(self) -> int:
+        return self._get_length()
 
     def _get_length(self) -> int:
         if self._length == -1:
@@ -116,7 +116,7 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
         with torch.no_grad():
             last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
-                messages, self.tokenizer, self.bert
+                messages, self.tokenizer, self.bert, self.set_empty_text_to_zero,
             )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
@@ -168,7 +168,7 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
                 break
             prev_seq_steps = seq_steps
         r = idx - prev_seq_steps
-        start_row_id = r + 1  # We add 1 because indices in the PosGreSQL DB start at 1 and not 0
+        start_row_id = r  # We do not add one as dataframe starts at index 0
         end_row_id = start_row_id + self.seq_len_per_datum
 
         return table_id, start_row_id, end_row_id
@@ -205,6 +205,9 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
+        self._inc_seq_steps = []
+        self._length = -1
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])

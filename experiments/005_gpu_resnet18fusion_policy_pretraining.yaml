@@ -5,40 +5,50 @@ generic:
   lr: 0.0003
   optimizer: adamw
   scheduler: null
-  batch_size: 256
+  batch_size: 32
   weight_decay: 0.01
   amsgrad: true
   dataset:
-    name: SocPreprocessedTextBertForwardSAToSAPolicyDataset
+    name: SocFileTextBertForwardSAToSAPolicyDataset
     history_length: 16
     future_length: 1
+    use_pooler_features: False
+    set_empty_text_to_zero: True
+    tokenizer_path: null
+    bert_model_path: null
     shuffle: true
     dataset_path: ???
   val_dataset:
-    name: SocPreprocessedTextBertForwardSAToSAPolicyDataset
-    history_length: 16
+    name: SocFileTextBertForwardSAToSAPolicyDataset
+    history_length: 20
     future_length: 1
+    use_pooler_features: False
+    set_empty_text_to_zero: True
+    tokenizer_path: null
+    bert_model_path: null
     shuffle: true
     dataset_path: ???
   model:
     name: ResNet18FusionPolicy
+    self_att_fusion: False
     n_core_planes: 32
-    fusion_num_heads: 4
+    fusion_num_heads: 8
     beta: 0.5
     update_steps_max: 3
     data_input_size: ???
     data_output_size: ???
   runner_name: SOCTextForwardPolicyRunner
-  train_cnn: false
-  train_heads: false
-  train_fusion: true
+  train_cnn: true
+  train_heads: true
+  train_fusion: false
 trainer:
   logger: neptune
   deterministic: true
   terminate_on_nan: true
   gpus: 1
-  row_log_interval: 20
-  max_epochs: 1001
+  row_log_interval: 7
+  max_epochs: 101
+  val_check_interval: 150 # Every 100 training batches
 other:
   save_top_k: 3
   period: 3

@@ -16,6 +16,7 @@ class FileTextConfig(FileSeqConfig):
     tokenizer_path: Optional[str] = None
     bert_model_path: Optional[str] = None
     use_pooler_features: bool = False
+    set_empty_text_to_zero: bool = False
 
 
 class SocFileTextBertSeqDataset(SocFileSeqDataset):
@@ -32,6 +33,7 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
     """
     def _set_props(self, config):
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])

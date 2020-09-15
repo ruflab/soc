@@ -35,14 +35,6 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-
-    _length: int = -1
-    _inc_seq_steps: List[int] = []
-    history_length: int
-    future_length: int
-    input_shape: SOCShape
-    output_shape: SOCShape
-
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
@@ -50,6 +42,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self.data = torch.load(self.path)
         self._set_props(omegaConf)
@@ -229,14 +223,6 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-
-    _length: int = -1
-    _inc_seq_steps: List[int] = []
-    history_length: int
-    future_length: int
-    input_shape: SOCShape
-    output_shape: SOCShape
-
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocLazyPreprocessedForwardSAToSADataset, self).__init__()
 
@@ -247,6 +233,8 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self._set_props(omegaConf)
 

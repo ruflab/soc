@@ -123,12 +123,12 @@ class ResNet18FusionPolicy(nn.Module):
             )
         else:
             self.fusion = Hopfield(
-                input_size=self.text_input_size[-1],
-                stored_pattern_size=self.n_core_planes,
-                pattern_projection_size=self.n_core_planes,
+                input_size=self.n_core_outputs,
+                stored_pattern_size=self.text_input_size[-1],
+                pattern_projection_size=self.text_input_size[-1],
                 output_size=self.n_core_outputs,
                 pattern_projection_as_connected=True,
-                hidden_size=1024,
+                hidden_size=self.n_core_outputs,
                 num_heads=conf['fusion_num_heads'],
                 scaling=conf['beta'
                              ],  # Beta parameter, can be set as a tensor to assign different betas
@@ -233,34 +233,49 @@ class ResNet18FusionPolicy(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x, x_text, x_text_mask):
-        bs, S, C, H, W = x.shape
+        bs, S_hist, C, H, W = x.shape
+        # bs, S_hist, S_text, F_bert = x_text.shape
 
-        x = x.view(bs, S * C, H, W)
+        x = x.view(bs, S_hist * C, H, W)
         # See note [TorchScript super()]
         z = self.cnn(x)
-        z_spatial_shape = z.shape
-
-        # Extraction
-        # TODO: Implement a more complex feature extraction process
-        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=2)
-        x_text = x_text / torch.sum(x_text_mask, dim=2, keepdim=True)
-        x_text = x_text[:, -1]  # [bs, F_text]
+        _, C_core, H_core, W_core = z.shape  # bs, C_core, H_core, W_core
 
         # Fusion
         # Input to hopfield network (K, Q, V)
         if self.self_att_fusion is True:
-            x_text = self.text_projection(x_text)
-
-            n_z = H * W
+            n_z = H_core * W_core
             d_z = self.n_core_planes
-            input_data = torch.cat([z.view(bs, n_z, d_z), x_text.view(bs, 1, d_z)], dim=1)
-            z = self.fusion(input_data)
-            z = z[:, 0:n_z]
+
+            # We associate (contextualized) game data with text data
+            # Extraction and fusion happen at the same time
+            x_text = x_text[:, -1]  # [bs, S_Text, F_bert]
+            x_text = self.text_projection(x_text)  # [bs, S_Text, F_text]
+            x_text_mask = x_text_mask[:, -1]  # [bs, S_Text]
+            x_text_mask = torch.cat([torch.ones((bs, n_z)), x_text_mask],
+                                    dim=1).to(torch.bool)  # [bs, n_z + S_text]
+            x_text_mask = ~x_text_mask  # Negation (True value will be filled with -inf)
+
+            input_data = torch.cat([z.view(bs, n_z, d_z), x_text.view(bs, -1, d_z)], dim=1)
+            z = self.fusion(
+                input_data,  # [bs, n_z + S_text, d_z]
+                stored_pattern_padding_mask=x_text_mask
+            )
+            z = z[:, 0:n_z].reshape((bs, C_core, H_core, W_core))
         else:
-            raise NotImplementedError()
+            # We use game data to select text data and merge them together
+            # Extraction
+            x_text = x_text[:, -1]  # [bs, S_text, F_bert]
+            x_text_mask = x_text_mask[:, -1].to(torch.bool)  # [bs, S_text]
+            x_text_mask = ~x_text_mask  # Negation (True value will be filled with -inf)
+            # x_text_mask[:, 0] = True  # Remove CLS Token from the softmax
+            input_data = (x_text, z.view(bs, 1, self.n_core_outputs), x_text)
+            z_text_modality = self.fusion(input_data, stored_pattern_padding_mask=x_text_mask)
+            # Fusion by addition
+            z = z + z_text_modality.view((bs, C_core, H_core, W_core))
 
         # Heads
-        z_spatial = z.view(z_spatial_shape)
+        z_spatial = z
         z_linear = z.view(bs, -1)
         y_spatial_state_logits = self.spatial_state_head(z_spatial)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
@@ -281,8 +296,8 @@ class ResNet18FusionPolicy(nn.Module):
         return self._forward_impl(x, x_text, x_text_mask)
 
     def _forward_bypass_text_impl(self, x):
-        bs, S, C, H, W = x.shape
-        x = x.view(bs, S * C, H, W)
+        bs, S_hist, C, H, W = x.shape
+        x = x.view(bs, S_hist * C, H, W)
         # See note [TorchScript super()]
         z = self.cnn(x)
         z_spatial = z

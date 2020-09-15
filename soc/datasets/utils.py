@@ -266,10 +266,10 @@ def preprocess_chats(
 
     for _, row in chats_df.iterrows():
         # Index start at 1 in the DB
-        db_state = (row['current_state'] - 1) - first_state_idx
+        db_state_idx = (row['current_state'] - 1) - first_state_idx
         mess = "{}: {}".format(row['sender'], row['message'])
 
-        data['message'][db_state].append(mess)
+        data['message'][db_state_idx].append(mess)
     data['message'] = list(map(lambda x: '' if len(x) == 0 else '\n'.join(x), data['message']))
     chats_preproc_df = pd.DataFrame(data)
 
@@ -315,8 +315,12 @@ def replace_firstnames(text, lm='bert'):
         raise NotImplementedError('LM {} is not supported'.format(lm))
 
 
-def compute_text_features(messages: List[str], tokenizer,
-                          text_model: nn.Module) -> List[torch.Tensor]:
+def compute_text_features(
+    messages: List[str],
+    tokenizer,
+    text_model: nn.Module,
+    set_empty_text_to_zero: bool = False
+) -> List[torch.Tensor]:
     encoded_inputs = tokenizer(messages, padding=True, truncation=True, return_tensors="pt")
 
     empty_last_hidden_state = None
@@ -333,6 +337,10 @@ def compute_text_features(messages: List[str], tokenizer,
                     token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
                     attention_mask=encoded_inputs['attention_mask'][i:i + 1],
                 )
+                if set_empty_text_to_zero is True:
+                    empty_last_hidden_state = torch.zeros_like(empty_last_hidden_state)
+                    empty_pooler_output = torch.zeros_like(empty_pooler_output)
+                    encoded_inputs['attention_mask'][i:i + 1] = 0
             last_hidden_state_list.append(empty_last_hidden_state)
             pooler_output_list.append(empty_pooler_output)
         else:

@@ -10,7 +10,7 @@ from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
 from .. import utils
-from ..typing import SocDatasetItem, SocDataMetadata, SocSize
+from ..typing import SocDatasetItem, SocDataMetadata
 
 
 class SocPSQLSeqDataset(SocPSQLDataset):
@@ -37,9 +37,6 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         self.output_shape = [state_shape, action_shape]
 
         self.infix = 'seq'
-
-    def __len__(self) -> int:
-        return self._get_length()
 
     def _get_length(self):
         if self._length == -1 and self.engine is not None:
@@ -77,6 +74,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM obsgamestates_{}
+            ORDER BY id
         """.format(db_id)
 
         if self.engine is not None:
@@ -92,29 +90,23 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM gameactions_{}
+            WHERE beforestate > 0
+            ORDER BY beforestate
         """.format(db_id)
 
         if self.engine is not None:
             with self.engine.connect() as conn:
                 actions_df = pd.read_sql_query(query, con=conn)
+                # At the end of the trajectory, there is no action after the last state
+                # In this special case, we add it again
+                last_action = actions_df.iloc[-1].copy()
+                last_action['beforestate'] += 1
+                last_action['afterstate'] = -1
+                actions_df = actions_df.append(last_action)
         else:
             raise Exception('No engine detected')
 
         return actions_df
-
-    def get_input_size(self) -> SocSize:
-        """
-            Return the input dimension
-        """
-
-        return self.input_shape
-
-    def get_output_size(self) -> SocSize:
-        """
-            Return the output dimension
-        """
-
-        return self.output_shape
 
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
@@ -122,7 +114,7 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         sec_trunc_idx: Optional[int] = None
         if testing is True:
             nb_games = 3
-            sec_trunc_idx = 20
+            sec_trunc_idx = 30
         else:
             nb_games = len(self)
 
@@ -200,10 +192,15 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         sec_trunc_idx: Optional[int] = None
         if testing is True:
-            sec_trunc_idx = 20
-            df_list = [states_df[10:10 + sec_trunc_idx], actions_df[10:10 + sec_trunc_idx]]
-        else:
-            df_list = [states_df, actions_df]
+            sec_trunc_idx = 30
+
+            states_df = states_df[:sec_trunc_idx]
+            actions_df = actions_df[(actions_df['beforestate'] >= states_df['id'].min())
+                                    & (actions_df['beforestate'] <= states_df['id'].max())]
+
+        assert len(states_df) == len(actions_df)
+
+        df_list = [states_df, actions_df]
 
         return df_list
 

@@ -64,13 +64,14 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
 
         """
         states_df, actions_df, chats_df = self._get_data(idx)
-
+        first_state_idx = states_df['id'][0]
         game_length = len(states_df)
+
         assert game_length == len(states_df.index) == len(actions_df.index)
 
         states_df = ds_utils.preprocess_states(states_df)
         actions_df = ds_utils.preprocess_actions(actions_df)
-        chats_df = ds_utils.preprocess_chats(chats_df, game_length)
+        chats_df = ds_utils.preprocess_chats(chats_df, game_length, first_state_idx)
 
         state_seq_t = ds_utils.stack_states_df(states_df)
         action_seq_t = ds_utils.stack_actions_df(actions_df)

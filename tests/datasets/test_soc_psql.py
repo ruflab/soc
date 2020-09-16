@@ -39,11 +39,11 @@ class TestSocPSQLDataset(unittest.TestCase):
 
             seqs = dataset[0]
             assert len(seqs) == 2
-            assert len(seqs[0]) == 20
+            assert len(seqs[0]) == 30
             assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
             assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)
 
             seqs = dataset[1]
-            assert len(seqs[0]) == 20
+            assert len(seqs[0]) == 30
             assert seqs[0][0].shape == (soc_data.STATE_SIZE, 7, 7)
             assert seqs[1][0].shape == (soc_data.ACTION_SIZE, 7, 7)

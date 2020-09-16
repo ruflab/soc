@@ -8,6 +8,7 @@ tests/fixtures/*.pt
 
 # hydra
 outputs/
+multirun/
 
 # Python
 __pycache__

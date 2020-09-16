@@ -53,14 +53,14 @@ class TestTextPolicyRunner(unittest.TestCase):
             node=datasets.PSQLTextForwardConfig
         )
         cs.store(
-            group="generic/dataset",
-            name="preprocessedtextbertforwardsatosapolicy",
-            node=datasets.PreprocessedTextForwardConfig
+            group="generic/val_dataset",
+            name="filetextbertforwardsatosapolicy",
+            node=datasets.FileTextForwardConfig
         )
         cs.store(
-            group="generic/val_dataset",
-            name="preprocessedtextbertforwardsatosapolicy",
-            node=datasets.PreprocessedTextForwardConfig
+            group="generic/dataset",
+            name="filetextbertforwardsatosapolicy",
+            node=datasets.FileTextForwardConfig
         )
 
     def setUp(self):
@@ -76,13 +76,13 @@ class TestTextPolicyRunner(unittest.TestCase):
                 config_name="config",
                 overrides=[
                     "generic/model=resnet18fusionpolicy",
-                    "generic/dataset=preprocessedtextbertforwardsatosapolicy",
-                    "generic/val_dataset=preprocessedtextbertforwardsatosapolicy",
+                    "generic/dataset=filetextbertforwardsatosapolicy",
+                    "generic/val_dataset=filetextbertforwardsatosapolicy",
                     "generic.runner_name=SOCTextForwardPolicyRunner"
                 ]
             )
-            config.generic.dataset.dataset_path = _TEXT_BERT_DATASET_PATH
-            config.generic.val_dataset.dataset_path = _TEXT_BERT_DATASET_PATH
+            config.generic.dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
+            config.generic.val_dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
             config.generic.train_cnn = True
             config.generic.train_fusion = False
             config.generic.train_heads = True
@@ -127,4 +127,4 @@ class TestTextPolicyRunner(unittest.TestCase):
             zipped_params = zip(r_copy.model.cnn.parameters(), runner.model.cnn.parameters())
             for param_copy, param in zipped_params:
                 assert not torch.all(torch.eq(param_copy, param))
-                break  # Not all layers a learnable so we check only the first one
+                break  # Not all layers are learnable so we check only the first one

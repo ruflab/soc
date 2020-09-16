@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import LightningModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
+from pytorch_lightning.profiler import AdvancedProfiler
 from typing import Callable, List, Any, Dict, Optional
 from dataclasses import dataclass
 from omegaconf import MISSING, DictConfig, OmegaConf
@@ -67,6 +68,9 @@ def train(omegaConf: DictConfig) -> LightningModule:
 
     if 'deterministic' in config['trainer']:
         config['trainer']['deterministic'] = True
+
+    if 'profiler' in config['trainer'] and config['trainer']['profiler'] is True:
+        config['trainer']['profiler'] = AdvancedProfiler()
 
     # ###
     # # Early stopping

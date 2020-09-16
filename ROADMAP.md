@@ -11,7 +11,7 @@
 
 
 ### Other ideas
-- Refactor the code to handl pytorch-lightning >= 0.9.1
+- Refactor the code to handle pytorch-lightning >= 0.9.1
 - test SIREN networks
 - Implement a HP tuning lib
 - Check SWA update: https://github.com/PyTorchLightning/pytorch-lightning/issues/1894

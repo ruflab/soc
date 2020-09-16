@@ -18,6 +18,7 @@ generic:
     bert_model_path: null
     shuffle: false
     dataset_path: ???
+  val_dataset: ${generic.dataset}
   model:
     name: ResNet18FusionPolicy
     self_att_fusion: False

@@ -104,7 +104,7 @@ class SocFileSeqDataset(Dataset):
         sec_trunc_idx: Optional[int] = None
         if testing is True:
             nb_games = 3
-            sec_trunc_idx = 20
+            sec_trunc_idx = 30
         else:
             nb_games = len(self)
 

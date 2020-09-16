@@ -82,7 +82,7 @@ FIXTURES_ZIP_FILE=$(CURRENT_DIR)/tests/fixtures/fixtures_data.zip
 FIXTURES_FOLDER=$(CURRENT_DIR)/tests/fixtures
 test:
 ifeq ("$(wildcard $(TEST_FIXTURE_FILE))","")
-	unzip $(FIXTURES_ZIP_FILE) -d $(FIXTURES_FOLDER)
+	unzip -o $(FIXTURES_ZIP_FILE) -d $(FIXTURES_FOLDER)
 	python $(FIXTURES_FOLDER)/dump_preprocessed_files.py
 endif
 	PYTHONWARNINGS="ignore" pytest .
@@ -97,6 +97,29 @@ ci: lint typecheck test
 ###
 exp_clean:
 	rm -rf scripts/results/*
+
+exp_hopfield_hp_check:
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_full\
+		generic.lr=0.1,0.01,0.001\
+		generic.model.n_core_planes=2,8,24\
+		generic.model.fusion_num_heads=1,2,8\
+		generic.model.beta=0.25,0.5,1.,2.,8.\
+		generic.model.update_steps_max=0,3\
+		trainer.max_epochs=21
+
+exp_005:
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18concat_policy_overfit
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_overfit
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_full
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_pretraining
+	cd scripts &&\
+	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_fusionfinetuning
+
 
 .PHONY: exp_clean
 

@@ -113,11 +113,11 @@ class TestJavaUtils(unittest.TestCase):
 
         y = np.zeros([5, soc_data.ACTION_SIZE, 7, 7])
 
-        y[0, 4] = 1
-        y[1, 5] = 1
-        y[2, 4] = 1
-        y[3, 5] = 1
-        y[4, 1] = 1
+        y[0, 5] = 1
+        y[1, 4] = 1
+        y[2, 5] = 1
+        y[3, 4] = 1
+        y[4, 2] = 1
 
         np.testing.assert_array_equal(x, y)
 
@@ -145,10 +145,10 @@ class TestJavaUtils(unittest.TestCase):
 
         y = np.zeros([5, soc_data.STATE_FIELDS_SIZE['gamestate'], 7, 7])
 
-        y[0, 7] = 1
-        y[1, 8] = 1
-        y[2, 7] = 1
-        y[3, 8] = 1
+        y[0, 5] = 1
+        y[1, 6] = 1
+        y[2, 5] = 1
+        y[3, 6] = 1
         y[4, 9] = 1
 
         np.testing.assert_array_equal(x, y)
@@ -163,7 +163,7 @@ class TestJavaUtils(unittest.TestCase):
 
         y[0, 0] = 1
         y[1, 0] = 1
-        y[2, 3] = 1
+        y[2, 1] = 1
         y[3, 2] = 1
         y[4, 1] = 1
 

@@ -42,9 +42,6 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
         ] + soc_data.BOARD_SIZE
 
-    def __len__(self) -> int:
-        return self._get_length()
-
     def _get_length(self):
         if self._length == -1 and self.engine is not None:
             query = r"""
@@ -148,33 +145,20 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM gameactions_{}
-            WHERE id >= {} AND id < {}
+            WHERE beforestate >= {} AND beforestate < {}
         """.format(table_id, start_row_id, end_row_id)
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                states_df = pd.read_sql_query(query, con=conn)
+                actions_df = pd.read_sql_query(query, con=conn)
+                if len(actions_df) < (end_row_id - start_row_id):
+                    # At the end of the trajectory, there is no action after the last state
+                    # In this special case, we add it again
+                    actions_df = actions_df.append(actions_df.iloc[-1])
         else:
             raise Exception('No engine detected')
 
-        return states_df
-
-    def get_input_size(self):
-        """
-            Return the input dimension
-        """
-
-        return self.input_shape
-
-    def get_output_size(self):
-        """
-            Return the output dimension
-        """
-
-        return self.output_shape
-
-    def get_collate_fn(self):
-        return None
+        return actions_df
 
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         metadata: SocDataMetadata = {}

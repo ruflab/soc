@@ -100,13 +100,16 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return nb_steps
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        full_seq_len = self.history_length + self.future_length
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+
         states_df, actions_df, chats_df = self._get_data(idx)
+
+        first_state_idx = start_row_id + 1
 
         states_df = ds_utils.preprocess_states(states_df)
         actions_df = ds_utils.preprocess_actions(actions_df)
-        full_seq_len = self.history_length + self.future_length
-        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
-        chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, start_row_id)
+        chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, first_state_idx)
 
         assert len(states_df.index) == len(actions_df.index) == len(chats_df.index)
 
@@ -147,14 +150,15 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
 
         states_df, actions_df, chats_df = self.data[table_id]
-        chats_df = chats_df[(chats_df['current_state'] >= start_row_id)
-                            & (chats_df['current_state'] < end_row_id)]
 
-        return (
-            states_df[start_row_id:end_row_id],
-            actions_df[start_row_id:end_row_id],
-            chats_df[start_row_id:end_row_id],
-        )
+        states_df = states_df[start_row_id:end_row_id]
+        actions_df = actions_df[(actions_df['beforestate'] >= start_row_id + 1)
+                                & (actions_df['beforestate'] < end_row_id + 1)]
+
+        chats_df = chats_df[(chats_df['current_state'] >= start_row_id + 1)
+                            & (chats_df['current_state'] < end_row_id + 1)]
+
+        return states_df, actions_df, chats_df
 
     def _get_db_idxs(self, idx: int) -> Tuple:
         if len(self._inc_seq_steps) == 0:

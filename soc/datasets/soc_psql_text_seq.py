@@ -40,6 +40,7 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
     """
     def _set_props(self, config):
         self.use_pooler_features = config['use_pooler_features']
+        self.set_empty_text_to_zero = config['set_empty_text_to_zero']
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -125,23 +126,15 @@ class SocPSQLTextBertSeqDataset(SocPSQLSeqDataset):
         return input_seq_t
 
     def _load_input_df_list(self, idx: int, testing: bool = False) -> List[pd.DataFrame]:
-        states_df = self._get_states_from_db(idx)
-        actions_df = self._get_actions_from_db(idx)
+        df_list = super(SocPSQLTextBertSeqDataset, self)._load_input_df_list(idx, testing)
+
         chats_df = self._get_chats_from_db(idx)
 
         if testing is True:
-            chats_gb = chats_df.groupby('current_state')
-            key = list(chats_gb.indices.keys())[0]
-            chats_df = chats_gb.get_group(key).copy()
-            chats_df['current_state'] = 5
-            sec_trunc_idx = 20
-            df_list = [
-                states_df[10:10 + sec_trunc_idx],
-                actions_df[10:10 + sec_trunc_idx],
-                chats_df[10:10 + sec_trunc_idx],
-            ]
-        else:
-            df_list = [states_df, actions_df, chats_df]
+            chats_df = chats_df[(chats_df['current_state'] >= df_list[0]['id'].min())
+                                & (chats_df['current_state'] <= df_list[0]['id'].max())]
+
+        df_list.append(chats_df)
 
         return df_list
 

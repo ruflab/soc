@@ -95,20 +95,27 @@ class TestTraining(unittest.TestCase):
         def _get_text_states_from_db_se_f(
             table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = cls.data_text_bert[table_id][0]
-            return seq[start_row_id:end_row_id]
+            df = cls.data_text_bert[table_id][0]
+            return df[start_row_id:end_row_id]
 
         def _get_text_actions_from_db_se_f(
             table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = cls.data_text_bert[table_id][1]
-            return seq[start_row_id:end_row_id]
+            df = cls.data_text_bert[table_id][1]
+            df = df[(df['beforestate'] >= start_row_id + 1) & (df['beforestate'] < end_row_id + 1)]
+            if len(df) < (end_row_id - start_row_id):
+                # At the end of the trajectory, there is no action after the last state
+                # In this special case, we add it again
+                df = df.append(df.iloc[-1])
+            return df
 
         def _get_text_chats_from_db_se_f(
             table_id: int, start_row_id: int, end_row_id: int
         ) -> pd.DataFrame:
-            seq = cls.data_text_bert[table_id][2]
-            return seq[start_row_id:end_row_id]
+            df = cls.data_text_bert[table_id][2]
+            df = df[(df['current_state'] >= start_row_id + 1)
+                    & (df['current_state'] < end_row_id + 1)]
+            return df
 
         def _get_text_nb_steps_se_f():
             return [len(cls.data_text_bert[i][0]) for i in range(len(cls.data_text_bert))]
@@ -258,6 +265,7 @@ class TestTraining(unittest.TestCase):
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
             runner.setup_dataset = self.setup_text_dataset
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
@@ -278,6 +286,7 @@ class TestTraining(unittest.TestCase):
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
             runner.setup_dataset = self.setup_text_dataset
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
@@ -296,6 +305,7 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
@@ -314,6 +324,7 @@ class TestTraining(unittest.TestCase):
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
             runner.setup_dataset = self.setup_text_dataset
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
@@ -332,6 +343,7 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 
@@ -350,5 +362,6 @@ class TestTraining(unittest.TestCase):
 
             seed_everything(config['generic']['seed'])
             runner = make_runner(config['generic'])
+            runner.num_workers = 1
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)

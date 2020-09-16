@@ -53,20 +53,17 @@ def compute_field_acc_post_action(
 ) -> torch.Tensor:
     # We are interested only in the last action of the history
     select = ds_utils.find_actions_idxs(x_seq, 'TRADE')
-    select = select[:, -1:]
+    select = select[:, -1]
 
     if torch.all(torch.eq(select, False)):
         return torch.tensor(-1.)
 
     # We evaluate only the next state
-    t1_logits_seq_trunc = t1_logits_seq[select, 0:1]
-    t2_true_seq_trunc = t2_true_seq[select, 0:1]
-    if select.sum() == 1:
-        t1_logits_seq_trunc = t1_logits_seq_trunc.unsqueeze(0)
-        t2_true_seq_trunc = t2_true_seq_trunc.unsqueeze(0)
-    elif t1_logits_seq.shape[1] == 1:
-        t1_logits_seq_trunc = t1_logits_seq_trunc.unsqueeze(1)
-        t2_true_seq_trunc = t2_true_seq_trunc.unsqueeze(1)
+    t1_logits_seq_trunc = t1_logits_seq[select, :1]
+    t2_true_seq_trunc = t2_true_seq[select, :1]
+
+    assert len(t1_logits_seq_trunc.shape) == 3
+
     acc = acc_mapping[field_key](indexes, t1_logits_seq_trunc, t2_true_seq_trunc)
 
     return acc

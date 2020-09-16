@@ -251,25 +251,21 @@ def preprocess_actions(actions_df: pd.DataFrame) -> pd.DataFrame:
     del actions_df['value']
 
     actions_df['type'] = actions_df['type'].apply(ju.parse_actions)
-    # The first action is igniting the first state so we remove it
-    actions_df = actions_df[1:]
-    # and we duplicate the last one to keep the same numbers of state-actions
-    actions_df = actions_df.append(actions_df.iloc[-1])
 
     return actions_df
 
 
 def preprocess_chats(
-    chats_df: pd.DataFrame, game_length: int, first_state_idx: int = 0
+    chats_df: pd.DataFrame, seq_length: int, first_state_idx: int = 1
 ) -> pd.DataFrame:
-    data: Dict[str, List] = {'message': [[] for i in range(game_length)]}
+    data: Dict[str, List] = {'message': [[] for i in range(seq_length)]}
 
     for _, row in chats_df.iterrows():
         # Index start at 1 in the DB
-        db_state_idx = (row['current_state'] - 1) - first_state_idx
+        i = (row['current_state'] - 1) - first_state_idx
         mess = "{}: {}".format(row['sender'], row['message'])
 
-        data['message'][db_state_idx].append(mess)
+        data['message'][i].append(mess)
     data['message'] = list(map(lambda x: '' if len(x) == 0 else '\n'.join(x), data['message']))
     chats_preproc_df = pd.DataFrame(data)
 

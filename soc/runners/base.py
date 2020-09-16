@@ -25,6 +25,7 @@ class SOCRunner(LightningModule):
         super(SOCRunner, self).__init__()
         self.hparams = config
         self.val_dataset = None
+        self.num_workers = multiprocessing.cpu_count()
 
     def prepare_data(self):
         # Download data here if needed
@@ -71,7 +72,7 @@ class SOCRunner(LightningModule):
             self.train_dataset,
             batch_size=self.hparams['batch_size'],
             shuffle=shuffle,
-            num_workers=multiprocessing.cpu_count(),
+            num_workers=self.num_workers,
             collate_fn=self.collate_fn,
             pin_memory=True
         )
@@ -82,7 +83,7 @@ class SOCRunner(LightningModule):
         dataloader = DataLoader(
             self.val_dataset,
             batch_size=self.hparams['batch_size'],
-            num_workers=multiprocessing.cpu_count(),
+            num_workers=self.num_workers,
             collate_fn=self.collate_fn,
             pin_memory=True
         )

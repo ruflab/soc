@@ -5,12 +5,13 @@ generic:
   lr: 0.0003
   optimizer: adamw
   scheduler: null
-  batch_size: 32
+  batch_size: 64
   weight_decay: 0.01
   amsgrad: true
+  use_gpu_preprocessing: true
   dataset:
     name: SocFileTextBertForwardSAToSAPolicyDataset
-    history_length: 16
+    history_length: 4
     future_length: 1
     use_pooler_features: False
     set_empty_text_to_zero: True

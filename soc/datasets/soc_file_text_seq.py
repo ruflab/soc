@@ -77,10 +77,9 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
         action_seq_t = ds_utils.stack_actions_df(actions_df)
 
         messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
-        with torch.no_grad():
-            last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
-                messages, self.tokenizer, self.bert
-            )
+        last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
+            messages, self.tokenizer, self.bert
+        )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
         else:

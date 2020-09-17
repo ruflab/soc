@@ -91,7 +91,11 @@ def pad_seq_text_policy(data_dict_l):
                 max_text_lengh - data_dict['chat_history_t'].shape[1],
                 data_dict['chat_history_t'].shape[2]
             ]
-            zeros = torch.zeros(zeros_shape_history, dtype=torch.float32)
+            zeros = torch.zeros(
+                zeros_shape_history,
+                dtype=torch.float32,
+                device=data_dict['chat_mask_history_t'].device
+            )
 
             data_dict_l[i]['chat_history_t'] = torch.cat([data_dict['chat_history_t'], zeros],
                                                          dim=1)
@@ -108,7 +112,9 @@ def pad_seq_text_policy(data_dict_l):
                 data_dict['chat_future_t'].shape[2]
             ]
             zeros_shape_future[1] = max_text_lengh - data_dict['chat_future_t'].shape[1]
-            zeros = torch.zeros(zeros_shape_future, dtype=torch.float32)
+            zeros = torch.zeros(
+                zeros_shape_future, dtype=torch.float32, device=data_dict['chat_future_t'].device
+            )
 
             data_dict_l[i]['chat_future_t'] = torch.cat([data_dict['chat_future_t'], zeros], dim=1)
             # yapf: disable
@@ -317,40 +323,46 @@ def compute_text_features(
     text_model: nn.Module,
     set_empty_text_to_zero: bool = False
 ) -> List[torch.Tensor]:
-    encoded_inputs = tokenizer(messages, padding=True, truncation=True, return_tensors="pt")
-
-    empty_last_hidden_state = None
-    empty_pooler_output = None
-    last_hidden_state_list = []
-    pooler_output_list = []
-    # To speed things up, we compute only once the representation for the void sentences
-    # This works because there are much more void sentences than actual sentences
-    for i in range(len(messages)):
-        if messages[i] == '':
-            if empty_last_hidden_state is None:
-                empty_last_hidden_state, empty_pooler_output = text_model(
-                    input_ids=encoded_inputs['input_ids'][i:i + 1],
-                    token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
-                    attention_mask=encoded_inputs['attention_mask'][i:i + 1],
-                )
-                if set_empty_text_to_zero is True:
-                    empty_last_hidden_state = torch.zeros_like(empty_last_hidden_state)
-                    empty_pooler_output = torch.zeros_like(empty_pooler_output)
-                    encoded_inputs['attention_mask'][i:i + 1] = 0
-            last_hidden_state_list.append(empty_last_hidden_state)
-            pooler_output_list.append(empty_pooler_output)
+    with torch.no_grad():
+        encoded_inputs = tokenizer(messages, padding=True, truncation=True, return_tensors="pt")
+        if next(text_model.parameters()).is_cuda:
+            encoded_inputs['input_ids'] = encoded_inputs['input_ids'].cuda()
+            encoded_inputs['token_type_ids'] = encoded_inputs['token_type_ids'].cuda()
+            encoded_inputs['attention_mask'] = encoded_inputs['attention_mask'].cuda()
+            last_hidden_state, pooler_output = text_model(**encoded_inputs)
         else:
-            last_hidden_state, pooler_output = text_model(
-                input_ids=encoded_inputs['input_ids'][i:i + 1],
-                token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
-                attention_mask=encoded_inputs['attention_mask'][i:i + 1],
-            )
-            last_hidden_state_list.append(last_hidden_state)
-            pooler_output_list.append(pooler_output)
-    last_hidden_state = torch.cat(last_hidden_state_list, dim=0)
-    pooler_output = torch.cat(pooler_output_list, dim=0)
+            empty_last_hidden_state = None
+            empty_pooler_output = None
+            last_hidden_state_list = []
+            pooler_output_list = []
+            # To speed things up, we compute only once the representation for the void sentences
+            # This works because there are much more void sentences than actual sentences
+            for i in range(len(messages)):
+                if messages[i] == '':
+                    if empty_last_hidden_state is None:
+                        empty_last_hidden_state, empty_pooler_output = text_model(
+                            input_ids=encoded_inputs['input_ids'][i:i + 1],
+                            token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
+                            attention_mask=encoded_inputs['attention_mask'][i:i + 1],
+                        )
+                        if set_empty_text_to_zero is True:
+                            empty_last_hidden_state = torch.zeros_like(empty_last_hidden_state)
+                            empty_pooler_output = torch.zeros_like(empty_pooler_output)
+                            encoded_inputs['attention_mask'][i:i + 1] = 0
+                    last_hidden_state_list.append(empty_last_hidden_state)
+                    pooler_output_list.append(empty_pooler_output)
+                else:
+                    last_hidden_state, pooler_output = text_model(
+                        input_ids=encoded_inputs['input_ids'][i:i + 1],
+                        token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
+                        attention_mask=encoded_inputs['attention_mask'][i:i + 1],
+                    )
+                    last_hidden_state_list.append(last_hidden_state)
+                    pooler_output_list.append(pooler_output)
+            last_hidden_state = torch.cat(last_hidden_state_list, dim=0)
+            pooler_output = torch.cat(pooler_output_list, dim=0)
 
-    mask = encoded_inputs['attention_mask'].to(torch.float32)
+        mask = encoded_inputs['attention_mask'].to(torch.float32)
 
     return [last_hidden_state, pooler_output, mask]
 

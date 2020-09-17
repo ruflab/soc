@@ -79,10 +79,9 @@ class SocPSQLTextBertForwardSAToSADataset(SocPSQLForwardSAToSADataset):
         chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, start_row_id)
 
         messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
-        with torch.no_grad():
-            last_hidden_state, pooler_output, mask = ds_utils.compute_text_features(
-                messages, self.tokenizer, self.bert, self.set_empty_text_to_zero
-            )
+        last_hidden_state, pooler_output, mask = ds_utils.compute_text_features(
+            messages, self.tokenizer, self.bert, self.set_empty_text_to_zero
+        )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
         else:

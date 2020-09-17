@@ -25,7 +25,14 @@ class SOCRunner(LightningModule):
         super(SOCRunner, self).__init__()
         self.hparams = config
         self.val_dataset = None
-        self.num_workers = multiprocessing.cpu_count()
+        if 'use_gpu_preprocessing' in config and config['use_gpu_preprocessing'
+                                                        ] is True and torch.cuda.is_available():
+            # You can't fork process if you want to use GPU for preprocessing
+            self.num_workers = 0
+            self.pin_memory = False
+        else:
+            self.num_workers = multiprocessing.cpu_count()
+            self.pin_memory = True
 
     def prepare_data(self):
         # Download data here if needed
@@ -74,7 +81,7 @@ class SOCRunner(LightningModule):
             shuffle=shuffle,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
-            pin_memory=True
+            pin_memory=self.pin_memory
         )
 
         return dataloader
@@ -85,7 +92,7 @@ class SOCRunner(LightningModule):
             batch_size=self.hparams['batch_size'],
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
-            pin_memory=True
+            pin_memory=self.pin_memory
         )
 
         return dataloader

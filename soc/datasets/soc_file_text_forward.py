@@ -35,6 +35,7 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         self.set_empty_text_to_zero = config['set_empty_text_to_zero']
         self._inc_seq_steps: List[int] = []
         self._length = -1
+        self.use_gpu = False
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -45,6 +46,9 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
             self.bert = BertModel.from_pretrained(config['bert_model_path'])
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
+        if torch.cuda.is_available():
+            self.bert = self.bert.cuda()
+            self.use_gpu = True
 
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
@@ -117,10 +121,10 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         action_seq_t = ds_utils.stack_actions_df(actions_df)
 
         messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
-        with torch.no_grad():
-            last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
-                messages, self.tokenizer, self.bert, self.set_empty_text_to_zero,
-            )
+
+        last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
+            messages, self.tokenizer, self.bert, self.set_empty_text_to_zero,
+        )
         if self.use_pooler_features:
             chat_seq_t = pooler_output
         else:
@@ -135,14 +139,24 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         chat_mask_history_t = chat_mask_seq_t[:self.history_length]
         chat_mask_future_t = chat_mask_seq_t[self.history_length:]
 
-        new_data_dict = {
-            'history_t': history_t,
-            'chat_history_t': chat_history_t,
-            'chat_mask_history_t': chat_mask_history_t,
-            'future_t': future_t,
-            'chat_future_t': chat_future_t,
-            'chat_mask_future_t': chat_mask_future_t,
-        }
+        if self.use_gpu is True:
+            new_data_dict = {
+                'history_t': history_t.cuda(),
+                'chat_history_t': chat_history_t.cuda(),
+                'chat_mask_history_t': chat_mask_history_t.cuda(),
+                'future_t': future_t.cuda(),
+                'chat_future_t': chat_future_t.cuda(),
+                'chat_mask_future_t': chat_mask_future_t.cuda(),
+            }
+        else:
+            new_data_dict = {
+                'history_t': history_t,
+                'chat_history_t': chat_history_t,
+                'chat_mask_history_t': chat_mask_history_t,
+                'future_t': future_t,
+                'chat_future_t': chat_future_t,
+                'chat_mask_future_t': chat_mask_future_t,
+            }
 
         return new_data_dict
 
@@ -212,6 +226,7 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
         self.set_empty_text_to_zero = config['set_empty_text_to_zero']
         self._inc_seq_steps = []
         self._length = -1
+        self.use_gpu = False
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -222,6 +237,9 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
             self.bert = BertModel.from_pretrained(config['bert_model_path'])
         else:
             self.bert = BertModel.from_pretrained('bert-base-cased')
+        if torch.cuda.is_available():
+            self.bert = self.bert.cuda()
+            self.use_gpu = True
 
         game_input_shape = [
             self.history_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE

@@ -2,6 +2,7 @@ from .resnet18 import resnet18, ResNetConfig
 from .resnet18_policy import ResNet18Policy
 from .resnet18_fusion_policy import ResNet18FusionPolicy, ResNetFusionConfig
 from .resnet18_concat_policy import ResNet18MeanConcatPolicy, ResNet18MeanFFPolicy
+from .resnet18_concat_policy import ResNet18MeanFFResPolicy
 from .conv_lstm import ConvLSTM, ConvLSTMConfig
 from .conv_lstm_policy import ConvLSTMPolicy
 from .conv3d import Conv3dModel, Conv3dModelConfig
@@ -20,6 +21,7 @@ __all__ = [
     "ResNet18FusionPolicy",
     "ResNet18MeanConcatPolicy",
     "ResNet18MeanFFPolicy",
+    "ResNet18MeanFFResPolicy",
     "ConvLSTM",
     "ConvLSTMPolicy",
     "Conv3dModel",

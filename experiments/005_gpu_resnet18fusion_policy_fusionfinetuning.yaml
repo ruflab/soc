@@ -11,7 +11,7 @@ generic:
   use_gpu_preprocessing: true
   dataset:
     name: SocFileTextBertForwardSAToSAPolicyDataset
-    history_length: 4
+    history_length: 1
     future_length: 1
     use_pooler_features: False
     set_empty_text_to_zero: True
@@ -21,10 +21,10 @@ generic:
     dataset_path: ???
   val_dataset:
     name: SocFileTextBertForwardSAToSAPolicyDataset
-    history_length: 20
-    future_length: 1
-    use_pooler_features: False
-    set_empty_text_to_zero: True
+    history_length: ${generic.dataset.history_length}
+    future_length: ${generic.dataset.future_length}
+    use_pooler_features: ${generic.dataset.use_pooler_features}
+    set_empty_text_to_zero: ${generic.dataset.set_empty_text_to_zero}
     tokenizer_path: null
     bert_model_path: null
     shuffle: true
@@ -34,7 +34,7 @@ generic:
     self_att_fusion: False
     n_core_planes: 32
     fusion_num_heads: 8
-    beta: 0.5
+    beta: 0.3
     update_steps_max: 3
     data_input_size: ???
     data_output_size: ???

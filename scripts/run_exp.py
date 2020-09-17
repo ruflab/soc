@@ -62,10 +62,11 @@ def main(config: DictConfig):
 
     if cuda is False:
         config.trainer.gpus = 0
-    # config.generic.batch_size = 32
+    # config.generic.batch_size = 8
     # config.generic.model.n_core_planes = 2
     # config.trainer.profiler = True
-    # config.trainer.limit_train_batches = 10
+    # config.trainer.limit_train_batches = 16
+    # config.trainer.limit_val_batches = 16
     # config.trainer.max_epochs = 1
 
     _ = train(config)

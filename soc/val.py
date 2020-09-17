@@ -92,8 +92,8 @@ def gameturn_acc(
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    gameturn_preds = torch.round(t1_logits_seq[:, :, start_i])
-    gameturn_true = t2_true_seq[:, :, start_i]
+    gameturn_preds = ds_utils.unnormalize_gameturn(t1_logits_seq[:, :, start_i:end_i])
+    gameturn_true = ds_utils.unnormalize_gameturn(t2_true_seq[:, :, start_i:end_i])
 
     acc_eq = (gameturn_preds == gameturn_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
@@ -315,8 +315,10 @@ def playersresources_acc(
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    playersresources_preds = torch.round(t1_logits_seq[:, :, start_i:end_i])
-    playersresources_true = t2_true_seq[:, :, start_i:end_i]
+    playersresources_preds = ds_utils.unnormalize_playersresources(
+        t1_logits_seq[:, :, start_i:end_i]
+    )
+    playersresources_true = ds_utils.unnormalize_playersresources(t2_true_seq[:, :, start_i:end_i])
 
     acc_eq = (playersresources_preds == playersresources_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore

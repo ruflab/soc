@@ -211,9 +211,11 @@ class ResNet18MeanConcatPolicy(nn.Module):
         z_linear = z.reshape(bs, -1)
 
         # Extraction
-        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=2)
-        x_text = x_text / torch.sum(x_text_mask, dim=2, keepdim=True)
-        x_text = x_text[:, -1]  # [bs, F_text]
+        x_text = x_text[:, -1]  # [bs, S_text, F_bert]
+        x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
+        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
+        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
+        x_text[torch.isnan(x_text)] = 0.
 
         # Fusion
         z_linear = torch.cat([z_linear, x_text], dim=1)
@@ -366,9 +368,11 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
 
         # Fusion module
         self.fusion = nn.Sequential(
-            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
+            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 1024),
             nn.ReLU(),
-            nn.Linear(512, self.n_core_outputs)
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, self.n_core_outputs)
         )
 
         # Heads
@@ -428,13 +432,51 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
         z_linear = z.reshape(bs, -1)
 
         # Extraction
-        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=2)
-        x_text = x_text / torch.sum(x_text_mask, dim=2, keepdim=True)
-        x_text = x_text[:, -1]  # [bs, F_text]
+        x_text = x_text[:, -1]  # [bs, S_text, F_bert]
+        x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
+        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
+        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
+        x_text[torch.isnan(x_text)] = 0.
 
         # Fusion
         z_linear = torch.cat([z_linear, x_text], dim=1)
         z_linear = self.fusion(z_linear)
+
+        # Heads
+        y_spatial_state_logits = self.spatial_state_head(z)
+        y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
+            bs,
+        ] + self.spatial_state_output_size)
+        y_state_logits = self.linear_state_head(z_linear)
+        y_state_logits_seq = y_state_logits.reshape([
+            bs,
+        ] + self.state_output_size)
+        y_action_logits = self.policy_head(z_linear)
+        y_action_logits_seq = y_action_logits.reshape([
+            bs,
+        ] + self.action_output_size)
+
+        return y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq
+
+
+class ResNet18MeanFFResPolicy(ResNet18MeanFFPolicy):
+    def _forward_impl(self, x, x_text, x_text_mask):
+        bs, S, C, H, W = x.shape
+        x = x.view(bs, S * C, H, W)
+        # See note [TorchScript super()]
+        z = self.cnn(x)
+        z_linear = z.reshape(bs, -1)
+
+        # Extraction
+        x_text = x_text[:, -1]  # [bs, S_text, F_bert]
+        x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
+        x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
+        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
+        x_text[torch.isnan(x_text)] = 0.
+
+        # Residual fusion
+        z_linear_fus = torch.cat([z_linear, x_text], dim=1)
+        z_linear = z_linear + self.fusion(z_linear_fus)
 
         # Heads
         y_spatial_state_logits = self.spatial_state_head(z)

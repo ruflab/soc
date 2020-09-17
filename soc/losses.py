@@ -24,7 +24,7 @@ def gameturn_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 20.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -91,7 +91,7 @@ def pieces_loss(
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
     compute_random_mask=False,
-    coef: float = 1.0,
+    coef: float = 5.0,
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -152,7 +152,7 @@ def startingplayer_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 2.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -170,7 +170,7 @@ def currentplayer_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 2.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -206,7 +206,7 @@ def playeddevcard_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 5.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -222,7 +222,7 @@ def playersresources_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 200.0  # Regression
 ) -> torch.Tensor:
     start_i, end_i = indexes
 

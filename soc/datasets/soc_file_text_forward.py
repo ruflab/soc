@@ -111,16 +111,16 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
 
         first_state_idx = start_row_id + 1
 
-        states_df = ds_utils.preprocess_states(states_df)
-        actions_df = ds_utils.preprocess_actions(actions_df)
-        chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, first_state_idx)
+        p_states_df = ds_utils.preprocess_states(states_df)
+        p_actions_df = ds_utils.preprocess_actions(actions_df)
+        p_chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, first_state_idx)
 
-        assert len(states_df.index) == len(actions_df.index) == len(chats_df.index)
+        assert len(p_states_df.index) == len(p_actions_df.index) == len(p_chats_df.index)
 
-        state_seq_t = ds_utils.stack_states_df(states_df)
-        action_seq_t = ds_utils.stack_actions_df(actions_df)
+        state_seq_t = ds_utils.stack_states_df(p_states_df)
+        action_seq_t = ds_utils.stack_actions_df(p_actions_df)
 
-        messages = list(map(ds_utils.replace_firstnames, chats_df['message'].tolist()))
+        messages = list(map(ds_utils.replace_firstnames, p_chats_df['message'].tolist()))
 
         last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
             messages, self.tokenizer, self.bert, self.set_empty_text_to_zero,
@@ -162,15 +162,17 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
 
     def _get_data(self, idx: int):
         table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
-
         states_df, actions_df, chats_df = self.data[table_id]
 
         states_df = states_df[start_row_id:end_row_id]
-        actions_df = actions_df[(actions_df['beforestate'] >= start_row_id + 1)
-                                & (actions_df['beforestate'] < end_row_id + 1)]
+        min_id = states_df['id'].min()
+        max_id = states_df['id'].max()
 
-        chats_df = chats_df[(chats_df['current_state'] >= start_row_id + 1)
-                            & (chats_df['current_state'] < end_row_id + 1)]
+        actions_df = actions_df[(actions_df['beforestate'] >= min_id)
+                                & (actions_df['beforestate'] < max_id + 1)]
+
+        chats_df = chats_df[(chats_df['current_state'] >= min_id)
+                            & (chats_df['current_state'] < max_id + 1)]
 
         return states_df, actions_df, chats_df
 

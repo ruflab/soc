@@ -11,18 +11,18 @@ generic:
   use_gpu_preprocessing: true
   dataset:
     name: SocFileTextBertForwardSAToSAPolicyDataset
-    history_length: 4
+    history_length: 1
     future_length: 1
     use_pooler_features: False
     set_empty_text_to_zero: True
     tokenizer_path: null
     bert_model_path: null
-    shuffle: false
+    shuffle: true
     dataset_path: ???
   val_dataset: ${generic.dataset}
   model:
     name: ResNet18MeanConcatPolicy
-    n_core_planes: 20
+    n_core_planes: 32
     data_input_size: ???
     data_output_size: ???
   runner_name: SOCTextForwardPolicyRunner

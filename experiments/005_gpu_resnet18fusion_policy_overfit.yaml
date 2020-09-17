@@ -11,7 +11,7 @@ generic:
   use_gpu_preprocessing: true
   dataset:
     name: SocFileTextBertForwardSAToSAPolicyDataset
-    history_length: 4
+    history_length: 1
     future_length: 1
     use_pooler_features: False
     set_empty_text_to_zero: True
@@ -22,8 +22,8 @@ generic:
   val_dataset: ${generic.dataset}
   model:
     name: ResNet18FusionPolicy
+    n_core_planes: 32
     self_att_fusion: False
-    n_core_planes: 20
     fusion_num_heads: 8
     beta: 0.3
     update_steps_max: 3

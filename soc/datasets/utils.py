@@ -215,11 +215,13 @@ def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
     del states_df['name']
     del states_df['id']
 
-    states_df['gameturn'] = states_df['gameturn'].apply(ju.get_replicated_plan)
+    states_df['gameturn'] = states_df['gameturn'].apply(ju.get_replicated_plan) \
+                                                 .apply(normalize_gameturn)
 
     states_df['hexlayout'] = states_df['hexlayout'].apply(ju.parse_layout) \
                                                    .apply(ju.mapping_1d_2d) \
                                                    .apply(normalize_hexlayout)
+
     states_df['numberlayout'] = states_df['numberlayout'].apply(ju.parse_layout) \
                                                          .apply(ju.mapping_1d_2d) \
                                                          .apply(normalize_numberlayout)
@@ -242,7 +244,8 @@ def preprocess_states(states_df: pd.DataFrame) -> pd.DataFrame:
 
     states_df['playeddevcard'] = states_df['playeddevcard'].apply(ju.get_replicated_plan)
 
-    states_df['playersresources'] = states_df['playersresources'].apply(ju.parse_player_resources)
+    states_df['playersresources'] = states_df['playersresources'].apply(ju.parse_player_resources) \
+                                                                 .apply(normalize_playersresources)
 
     states_df['players'] = states_df['players'].apply(ju.parse_player_infos)
 
@@ -267,15 +270,14 @@ def preprocess_chats(
     data: Dict[str, List] = {'message': [[] for i in range(seq_length)]}
 
     for _, row in chats_df.iterrows():
-        # Index start at 1 in the DB
-        i = (row['current_state'] - 1) - first_state_idx
+        i = row['current_state'] - first_state_idx
         mess = "{}: {}".format(row['sender'], row['message'])
 
         data['message'][i].append(mess)
     data['message'] = list(map(lambda x: '' if len(x) == 0 else '\n'.join(x), data['message']))
-    chats_preproc_df = pd.DataFrame(data)
+    p_chats_df = pd.DataFrame(data)
 
-    return chats_preproc_df
+    return p_chats_df
 
 
 def stack_states_df(states_df: pd.DataFrame) -> torch.Tensor:
@@ -330,6 +332,12 @@ def compute_text_features(
             encoded_inputs['token_type_ids'] = encoded_inputs['token_type_ids'].cuda()
             encoded_inputs['attention_mask'] = encoded_inputs['attention_mask'].cuda()
             last_hidden_state, pooler_output = text_model(**encoded_inputs)
+            if set_empty_text_to_zero is True:
+                for i in range(len(messages)):
+                    if messages[i] == '':
+                        encoded_inputs['attention_mask'][i] = 0
+                        last_hidden_state[i] = 0
+                        pooler_output[i] = 0
         else:
             empty_last_hidden_state = None
             empty_pooler_output = None
@@ -345,10 +353,10 @@ def compute_text_features(
                             token_type_ids=encoded_inputs['token_type_ids'][i:i + 1],
                             attention_mask=encoded_inputs['attention_mask'][i:i + 1],
                         )
-                        if set_empty_text_to_zero is True:
-                            empty_last_hidden_state = torch.zeros_like(empty_last_hidden_state)
-                            empty_pooler_output = torch.zeros_like(empty_pooler_output)
-                            encoded_inputs['attention_mask'][i:i + 1] = 0
+                    if set_empty_text_to_zero is True:
+                        empty_last_hidden_state = torch.zeros_like(empty_last_hidden_state)
+                        empty_pooler_output = torch.zeros_like(empty_pooler_output)
+                        encoded_inputs['attention_mask'][i] = 0
                     last_hidden_state_list.append(empty_last_hidden_state)
                     pooler_output_list.append(empty_pooler_output)
                 else:
@@ -426,6 +434,56 @@ def unnormalize_numberlayout(data: DataTensor) -> DataTensor:
         data = data * 12
         data = np.round(data).astype(np.int64)
         data[data == 0] = -1
+
+    return data
+
+
+def normalize_gameturn(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone().type(torch.float32)  # type:ignore
+        # There are rarely more than 40 game turns
+        data = data / 40.
+    else:
+        data = data.copy()
+        data = data / 40.
+
+    return data
+
+
+def unnormalize_gameturn(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone()
+        data = data * 40
+        data = torch.round(data).type(torch.int64)  # type:ignore
+    else:
+        data = data.copy()
+        data = data * 40
+        data = np.round(data).astype(np.int64)
+
+    return data
+
+
+def normalize_playersresources(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone().type(torch.float32)  # type:ignore
+        # There are 25 cards of each resources
+        data = data / 10.
+    else:
+        data = data.copy()
+        data = data / 10.
+
+    return data
+
+
+def unnormalize_playersresources(data: DataTensor) -> DataTensor:
+    if isinstance(data, torch.Tensor):
+        data = data.clone()
+        data = data * 10
+        data = torch.round(data).type(torch.int64)  # type:ignore
+    else:
+        data = data.copy()
+        data = data * 10
+        data = np.round(data).astype(np.int64)
 
     return data
 

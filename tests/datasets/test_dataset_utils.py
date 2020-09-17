@@ -100,6 +100,26 @@ class TestDatasetUtils(unittest.TestCase):
 
         np.testing.assert_array_equal(numberlayout_reconstructed, numberlayout_t)
 
+    def test_normalize_gameturn_torch(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        gameturn = seq_data['gameturn'].apply(ju.get_replicated_plan).iloc[0]
+        gameturn_t = torch.tensor(gameturn)
+
+        normed = ds_utils.normalize_gameturn(gameturn_t)
+        gameturn_reconstructed = ds_utils.unnormalize_gameturn(normed)
+
+        np.testing.assert_array_equal(gameturn_reconstructed, gameturn_t)
+
+    def test_normalize_playersresources_torch(self):
+        seq_data = self._get_states_from_db_se_f(0)
+        playersresources = seq_data['playersresources'].apply(ju.parse_player_resources).iloc[0]
+        playersresources_t = torch.tensor(playersresources)
+
+        normed = ds_utils.normalize_playersresources(playersresources_t)
+        playersresources_reconstructed = ds_utils.unnormalize_playersresources(normed)
+
+        np.testing.assert_array_equal(playersresources_reconstructed, playersresources_t)
+
     def test_find_actions_idxs(self):
         data = self._get_text_bert_seq(0)
         sa_seq_t = data[0]

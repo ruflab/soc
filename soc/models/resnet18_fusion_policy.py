@@ -80,7 +80,7 @@ class ResNet18FusionPolicy(nn.Module):
             self.bn1 = norm_layer(4, self.inplanes)
         else:
             self.bn1 = norm_layer(self.inplanes)
-        self.relu = nn.ReLU(inplace=True)
+        self.act_f = nn.GELU()
 
         self.layer1 = self._make_layer(block, 8 * self.n_core_planes, layers[0])
         self.layer2 = self._make_layer(
@@ -94,7 +94,7 @@ class ResNet18FusionPolicy(nn.Module):
         self.cnn = nn.Sequential(
             self.conv1,
             self.bn1,
-            self.relu,
+            self.act_f,
             self.layer1,
             self.layer2,
             self.layer3,
@@ -148,7 +148,7 @@ class ResNet18FusionPolicy(nn.Module):
                 padding=1,
                 bias=False
             ),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 self.n_spatial_planes * 2,
                 self.n_spatial_planes,
@@ -159,12 +159,12 @@ class ResNet18FusionPolicy(nn.Module):
             )
         )
         self.linear_state_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs, 512), nn.ReLU(), nn.Linear(512, self.n_states)
+            nn.Linear(self.n_core_outputs, 512), nn.GELU(), nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
             nn.Linear(self.n_core_outputs, 512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(512, self.n_actions),
         )
 

@@ -2,7 +2,7 @@
 generic:
   seed: 1
   verbose: true
-  lr: 0.0003
+  lr: 0.0001
   optimizer: adamw
   scheduler: null
   batch_size: 64

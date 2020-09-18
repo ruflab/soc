@@ -73,7 +73,7 @@ class ResNet18MeanConcatPolicy(nn.Module):
             self.bn1 = norm_layer(4, self.inplanes)
         else:
             self.bn1 = norm_layer(self.inplanes)
-        self.relu = nn.ReLU(inplace=True)
+        self.act_f = nn.GELU()
 
         self.layer1 = self._make_layer(
             block, 8 * self.n_core_planes, layers[0], stride=1, dilate=False
@@ -92,7 +92,7 @@ class ResNet18MeanConcatPolicy(nn.Module):
         self.cnn = nn.Sequential(
             self.conv1,
             self.bn1,
-            self.relu,
+            self.act_f,
             self.layer1,
             self.layer2,
             self.layer3,
@@ -117,7 +117,7 @@ class ResNet18MeanConcatPolicy(nn.Module):
                 padding=1,
                 bias=False
             ),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 self.n_spatial_planes * 2,
                 self.n_spatial_planes,
@@ -129,13 +129,13 @@ class ResNet18MeanConcatPolicy(nn.Module):
         )
         self.linear_state_head = nn.Sequential(
             nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
             nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(512, self.n_actions),
         )
 
@@ -336,7 +336,7 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
             self.bn1 = norm_layer(4, self.inplanes)
         else:
             self.bn1 = norm_layer(self.inplanes)
-        self.relu = nn.ReLU(inplace=True)
+        self.act_f = nn.GELU()
 
         self.layer1 = self._make_layer(
             block, 8 * self.n_core_planes, layers[0], stride=1, dilate=False
@@ -355,7 +355,7 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
         self.cnn = nn.Sequential(
             self.conv1,
             self.bn1,
-            self.relu,
+            self.act_f,
             self.layer1,
             self.layer2,
             self.layer3,
@@ -369,9 +369,9 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
         # Fusion module
         self.fusion = nn.Sequential(
             nn.Linear(self.n_core_outputs + self.text_input_size[-1], 1024),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(1024, 1024),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(1024, self.n_core_outputs)
         )
 
@@ -385,7 +385,7 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
                 padding=1,
                 bias=False
             ),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 self.n_spatial_planes * 2,
                 self.n_spatial_planes,
@@ -396,12 +396,12 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
             )
         )
         self.linear_state_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs, 512), nn.ReLU(), nn.Linear(512, self.n_states)
+            nn.Linear(self.n_core_outputs, 512), nn.GELU(), nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
             nn.Linear(self.n_core_outputs, 512),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(512, self.n_actions),
         )
 
@@ -476,7 +476,8 @@ class ResNet18MeanFFResPolicy(ResNet18MeanFFPolicy):
 
         # Residual fusion
         z_linear_fus = torch.cat([z_linear, x_text], dim=1)
-        z_linear = z_linear + self.fusion(z_linear_fus)
+        # batch_mask =  torch.sum(x_text_mask, dim=1, keepdims=True) != 0
+        z_linear = z_linear + self.fusion(z_linear_fus)  # * batch_mask
 
         # Heads
         y_spatial_state_logits = self.spatial_state_head(z)

@@ -60,6 +60,8 @@ def main(config: DictConfig):
     #     config.generic.val_dataset.dataset_path = _RAW_SOC20_TEXT_BERT_DATASET_PATH
     #     # config.generic.val_dataset.dataset_path = _SOC10_DATASET_PATH
 
+    # config.generic.model.name = 'ResNet18BiLSTMConcatPolicy'
+
     if cuda is False:
         config.trainer.gpus = 0
     # config.generic.batch_size = 8

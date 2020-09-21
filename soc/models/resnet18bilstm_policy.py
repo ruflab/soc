@@ -227,8 +227,7 @@ class ResNet18BiLSTMConcatPolicy(nn.Module):
         output = torch.sum(
             output * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
         )  # [bs, F_bert]
-        output = output / torch.sum(x_text_mask, dim=1, keepdim=True)
-        output[torch.isnan(output)] = 0.
+        output = output / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Fusion
         z_linear = torch.cat([z_linear, output], dim=1)
@@ -461,8 +460,7 @@ class ResNet18BiLSTMFFPolicy(ResNet18BiLSTMConcatPolicy):
         output = torch.sum(
             output * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
         )  # [bs, F_bert]
-        output = output / torch.sum(x_text_mask, dim=1, keepdim=True)
-        output[torch.isnan(output)] = 0.
+        output = output / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Fusion
         z_linear = torch.cat([z_linear, output], dim=1)
@@ -503,8 +501,7 @@ class ResNet18BiLSTMFFResPolicy(ResNet18BiLSTMFFPolicy):
         output = torch.sum(
             output * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
         )  # [bs, F_bert]
-        output = output / torch.sum(x_text_mask, dim=1, keepdim=True)
-        output[torch.isnan(output)] = 0.
+        output = output / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Residual fusion
         z_linear_fus = torch.cat([z_linear, output], dim=1)

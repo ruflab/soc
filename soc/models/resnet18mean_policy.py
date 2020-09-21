@@ -214,8 +214,7 @@ class ResNet18MeanConcatPolicy(nn.Module):
         x_text = x_text[:, -1]  # [bs, S_text, F_bert]
         x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
         x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
-        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
-        x_text[torch.isnan(x_text)] = 0.
+        x_text = x_text / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Fusion
         z_linear = torch.cat([z_linear, x_text], dim=1)
@@ -435,8 +434,7 @@ class ResNet18MeanFFPolicy(ResNet18MeanConcatPolicy):
         x_text = x_text[:, -1]  # [bs, S_text, F_bert]
         x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
         x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
-        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
-        x_text[torch.isnan(x_text)] = 0.
+        x_text = x_text / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Fusion
         z_linear = torch.cat([z_linear, x_text], dim=1)
@@ -471,8 +469,7 @@ class ResNet18MeanFFResPolicy(ResNet18MeanFFPolicy):
         x_text = x_text[:, -1]  # [bs, S_text, F_bert]
         x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
         x_text = torch.sum(x_text * x_text_mask.unsqueeze(-1), dim=1)  # [bs, F_bert]
-        x_text = x_text / torch.sum(x_text_mask, dim=1, keepdim=True)
-        x_text[torch.isnan(x_text)] = 0.
+        x_text = x_text / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Residual fusion
         z_linear_fus = torch.cat([z_linear, x_text], dim=1)

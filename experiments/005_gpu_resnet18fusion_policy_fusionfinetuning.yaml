@@ -48,8 +48,8 @@ trainer:
   terminate_on_nan: true
   gpus: 1
   row_log_interval: 7
-  max_epochs: 101
+  max_epochs: 3
   val_check_interval: 150 # Every 100 training batches
 other:
   save_top_k: 3
-  period: 3
+  period: 1

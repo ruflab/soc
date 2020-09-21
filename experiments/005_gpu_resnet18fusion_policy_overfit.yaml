@@ -43,5 +43,5 @@ trainer:
   # overfit_batches: 8
   max_epochs: 1001
 other:
-  save_top_k: 0
-  period: 500
+  save_top_k: 1
+  period: 10

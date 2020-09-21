@@ -30,12 +30,8 @@ generic:
     shuffle: true
     dataset_path: ???
   model:
-    name: ResNet18FusionPolicy
-    self_att_fusion: False
+    name: ResNet18MeanConcatPolicy
     n_core_planes: 32
-    fusion_num_heads: 8
-    beta: 0.3
-    update_steps_max: 3
     data_input_size: ???
     data_output_size: ???
   runner_name: SOCTextForwardPolicyRunner

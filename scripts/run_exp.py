@@ -50,7 +50,7 @@ def main(config: DictConfig):
     # config.generic.dataset.dataset_path = _SOC10_FOLDER_DATASET_PATH
     # config.generic.dataset.dataset_path = _SOC10_TEXT_BERT_DATASET_PATH
     # config.generic.dataset.dataset_path = _RAW_SOC1_TEXT_BERT_DATASET_PATH
-    config.generic.dataset.dataset_path = _RAW_SOC5_TEXT_BERT_DATASET_PATH
+    # config.generic.dataset.dataset_path = _RAW_SOC5_TEXT_BERT_DATASET_PATH
     # config.generic.dataset.dataset_path = _RAW_SOC1000_TEXT_BERT_DATASET_PATH
     # config.generic.dataset.name = 'SocFileForwardSAToSAPolicyDataset'
     # config.generic.dataset.dataset_path = _SOC150_RAW_DATASET_PATH
@@ -62,8 +62,8 @@ def main(config: DictConfig):
 
     # config.generic.model.name = 'ResNet18BiLSTMConcatPolicy'
 
-    if cuda is False:
-        config.trainer.gpus = 0
+    # if cuda is False:
+    #     config.trainer.gpus = 0
     # config.generic.batch_size = 8
     # config.generic.model.n_core_planes = 2
     # config.trainer.profiler = True

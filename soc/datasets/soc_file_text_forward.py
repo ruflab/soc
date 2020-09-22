@@ -208,6 +208,19 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
     def get_collate_fn(self):
         return ds_utils.pad_seq_text_policy
 
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [
+                last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]
+            ]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
 
 class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSADataset):
     """

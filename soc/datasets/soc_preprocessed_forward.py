@@ -137,6 +137,17 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         metadata: SocDataMetadata = {}
         last_idx = 0

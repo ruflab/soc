@@ -41,6 +41,7 @@ class SOCRunner(LightningModule):
     def setup(self, stage):
         self.train_dataset, self.val_dataset = self.setup_dataset(self.hparams)
 
+        self.input_metadata = self.train_dataset.get_input_metadata()
         self.output_metadata = self.train_dataset.get_output_metadata()
         self.collate_fn = self.train_dataset.get_collate_fn()
         self.hparams.model['data_input_size'] = self.train_dataset.get_input_size()

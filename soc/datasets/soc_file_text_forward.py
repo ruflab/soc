@@ -104,16 +104,13 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return nb_steps
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        full_seq_len = self.history_length + self.future_length
-        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
-
         states_df, actions_df, chats_df = self._get_data(idx)
-
-        first_state_idx = start_row_id + 1
 
         p_states_df = ds_utils.preprocess_states(states_df)
         p_actions_df = ds_utils.preprocess_actions(actions_df)
-        p_chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, first_state_idx)
+        p_chats_df = ds_utils.preprocess_chats(
+            chats_df, self.history_length + self.future_length, states_df['id'].min()
+        )
 
         assert len(p_states_df.index) == len(p_actions_df.index) == len(p_chats_df.index)
 
@@ -205,21 +202,19 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
 
         return metadata
 
-    def get_collate_fn(self):
-        return ds_utils.pad_seq_text_policy
-
     def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         metadata: SocDataMetadata = {}
         last_idx = 0
 
         for field in soc_data.STATE_FIELDS:
             # field_type = soc_data.STATE_FIELDS_TYPE[field]
-            metadata[field] = [
-                last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]
-            ]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
             last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         return metadata
+
+    def get_collate_fn(self):
+        return ds_utils.pad_seq_text_policy
 
 
 class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSADataset):
@@ -242,6 +237,7 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
         self._inc_seq_steps = []
         self._length = -1
         self.use_gpu = False
+        self.use_resources_distrib_loss = False
 
         if config['tokenizer_path'] is not None:
             self.tokenizer = BertTokenizer.from_pretrained(config['tokenizer_path'])
@@ -291,6 +287,22 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
 
         return data_dict
 
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if self.use_resources_distrib_loss is True and field == 'playersresources':
+                metadata['playersresources_distrib'] = [
+                    last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+            else:
+                metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
     def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
         spatial_metadata: SocDataMetadata = {}
         last_spatial_idx = 0
@@ -300,19 +312,100 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
 
         for field in soc_data.STATE_FIELDS:
             field_type = soc_data.STATE_FIELDS_TYPE[field]
+            field_size = soc_data.STATE_FIELDS_SIZE[field]
+
             if field_type in [3, 4, 5]:
-                spatial_metadata[field] = [
-                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
-                ]
-                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+                spatial_metadata[field] = [last_spatial_idx, last_spatial_idx + field_size]
+                last_spatial_idx += field_size
             else:
-                linear_metadata[field] = [
-                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
-                ]
-                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
+                if self.use_resources_distrib_loss is True and field == 'playersresources':
+                    field_size *= 2
+                    linear_metadata['playersresources_distrib'] = [
+                        last_linear_idx, last_linear_idx + field_size
+                    ]
+                else:
+                    linear_metadata[field] = [last_linear_idx, last_linear_idx + field_size]
+                last_linear_idx += field_size
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],
         }
 
         return (spatial_metadata, linear_metadata, actions_metadata)
+
+
+class SocFileTextBertSubsetForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAPolicyDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S_h, (C_states + C_actions), H, W]
+
+        Output: Tuple of next state and next actions
+            Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
+    """
+    def _set_props(self, config):
+        super(SocFileTextBertSubsetForwardSAToSAPolicyDataset, self)._set_props(config)
+
+        # self.use_resources_distrib_loss = True
+        assert self.history_length == 1
+        assert self.future_length == 1
+
+        tmp_data = []
+        for idx in range(self._get_length()):
+            states_df, actions_df, chats_df = self._get_original_data(idx)
+            resources_df = states_df['playersresources']
+            changing = (torch.tensor(resources_df.iloc[0])
+                        - torch.tensor(resources_df.iloc[1])).sum() != 0.
+            if not changing:
+                continue
+
+            tmp_data.append((states_df, actions_df, chats_df))
+
+        self.data = tmp_data
+        self._length = len(self.data)
+
+    def _get_data(self, idx: int):
+        states_df, actions_df, chats_df = self.data[idx]
+
+        # the futur predictions is hte diff
+        resources_df = states_df['playersresources']
+        resources_diff_t = (
+            torch.tensor(resources_df.iloc[1], dtype=torch.float32)
+            - torch.tensor(resources_df.iloc[0], dtype=torch.float32)
+        )
+
+        if self.use_resources_distrib_loss:
+            increasing_diff = torch.abs(resources_diff_t)
+            decreasing_diff = torch.abs(-resources_diff_t)
+            resources_diff_t = torch.cat([increasing_diff, decreasing_diff], dim=1)
+            resources_diff_t[resources_diff_t == 0] = float('-inf')
+            resources_distrib = torch.softmax(resources_diff_t.flatten(), dim=0)
+            resources_distrib = resources_distrib.view((4, 12))
+            if torch.any(torch.isnan(resources_distrib)):
+                raise ValueError(
+                    'NaN values in resources_distrib.'
+                    'Make sure to remove all unchanging states from the dataset.'
+                )
+            states_df['playersresources'].iloc[1] = resources_distrib.detach().numpy()
+        else:
+            states_df['playersresources'].iloc[1] = resources_diff_t.detach().numpy()
+
+        return states_df, actions_df, chats_df
+
+    def _get_original_data(self, idx: int):
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+        states_df, actions_df, chats_df = self.data[table_id]
+
+        states_df = states_df[start_row_id:end_row_id]
+        min_id = states_df['id'].min()
+        max_id = states_df['id'].max()
+
+        actions_df = actions_df[(actions_df['beforestate'] >= min_id)
+                                & (actions_df['beforestate'] < max_id + 1)]
+
+        chats_df = chats_df[(chats_df['current_state'] >= min_id)
+                            & (chats_df['current_state'] < max_id + 1)]
+
+        return states_df, actions_df, chats_df

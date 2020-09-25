@@ -69,6 +69,11 @@ class TestTraining(unittest.TestCase):
             name="filetextbertforwardsatosapolicy",
             node=datasets.FileTextForwardConfig
         )
+        cs.store(
+            group="generic/dataset",
+            name="filetextbertsubsetforwardsatosapolicy",
+            node=datasets.FileTextForwardConfig
+        )
 
         cls.data = torch.load(_RAW_DATASET_PATH)
         cls.data_text_bert = torch.load(_RAW_TEXT_BERT_DATASET_PATH)
@@ -354,6 +359,25 @@ class TestTraining(unittest.TestCase):
                 overrides=[
                     "generic/model=resnet18meanffpolicy",
                     "generic/dataset=filetextbertforwardsatosapolicy",
+                    "generic.runner_name=SOCTextForwardPolicyRunner"
+                ]
+            )
+            config.generic.dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
+            config.trainer.default_root_dir = self.folder
+
+            seed_everything(config['generic']['seed'])
+            runner = make_runner(config['generic'])
+            runner.num_workers = 1
+            trainer = Trainer(**config['trainer'], deterministic=True)
+            trainer.fit(runner)
+
+    def test_training_soc_file_subset_forward_resnetmeanffpolicy(self):
+        with initialize(config_path=os.path.join(".", "fixtures", "conf")):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "generic/model=resnet18meanffpolicy",
+                    "generic/dataset=filetextbertsubsetforwardsatosapolicy",
                     "generic.runner_name=SOCTextForwardPolicyRunner"
                 ]
             )

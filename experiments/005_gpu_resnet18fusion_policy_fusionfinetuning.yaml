@@ -20,7 +20,7 @@ generic:
     shuffle: true
     dataset_path: ???
   val_dataset:
-    name: SocFileTextBertForwardSAToSAPolicyDataset
+    name: ${generic.dataset.name}
     history_length: ${generic.dataset.history_length}
     future_length: ${generic.dataset.future_length}
     use_pooler_features: ${generic.dataset.use_pooler_features}

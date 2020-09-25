@@ -36,8 +36,8 @@ class TestLosses(unittest.TestCase):
 
         indexes = [0, 2]
 
-        loss = losses.hexlayout_loss(indexes, state_t, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t, state_t, 1.0)
         assert loss == 0
 
-        loss = losses.hexlayout_loss(indexes, state_t + 0.2, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t + 0.2, state_t, 1.0)
         assert loss != 0

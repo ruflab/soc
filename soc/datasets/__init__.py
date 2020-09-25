@@ -28,6 +28,7 @@ from .soc_psql_text_forward import SocPSQLTextBertForwardSAToSAPolicyDataset
 from .soc_file_seq import SocFileSeqDataset
 from .soc_file_text_seq import SocFileTextBertSeqDataset
 from .soc_file_text_forward import SocFileTextBertForwardSAToSAPolicyDataset
+from .soc_file_text_forward import SocFileTextBertSubsetForwardSAToSAPolicyDataset
 from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSADataset
 from .soc_preprocessed_text_forward import SocPreprocessedTextBertForwardSAToSAPolicyDataset
 
@@ -63,6 +64,7 @@ __all__ = [
     'SocFileSeqDataset',
     'SocFileTextBertSeqDataset',
     'SocFileTextBertForwardSAToSAPolicyDataset',
+    'SocFileTextBertSubsetForwardSAToSAPolicyDataset',
     'SocPreprocessedTextBertForwardSAToSADataset',
     'SocPreprocessedTextBertForwardSAToSAPolicyDataset',
 ]

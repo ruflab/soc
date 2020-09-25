@@ -505,8 +505,8 @@ class ResNet18BiLSTMFFResPolicy(ResNet18BiLSTMFFPolicy):
 
         # Residual fusion
         z_linear_fus = torch.cat([z_linear, output], dim=1)
-        # batch_mask =  torch.sum(x_text_mask, dim=1, keepdims=True) != 0
-        z_linear = z_linear + self.fusion(z_linear_fus)  # * batch_mask
+        batch_mask = (torch.sum(x_text_mask, dim=1, keepdims=True) != 0) * 1.
+        z_linear = z_linear + self.fusion(z_linear_fus) * batch_mask
 
         # Heads
         y_spatial_state_logits = self.spatial_state_head(z)

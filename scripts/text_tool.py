@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import seaborn as sns
 # import matplotlib.pyplot as plt
 from soc.runners import make_runner
-from soc.datasets import soc_data
+# from soc.datasets import soc_data
 import soc.datasets.utils as ds_utils
 # from soc.val import compute_accs
 # from soc.losses import compute_losses
@@ -80,10 +80,7 @@ with torch.no_grad():
         players_resources_true = y_s_true_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
         players_resources_preds = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
         print('Order: - 0, CLAY ORE SHEEP WHEAT WOOD UNKNOWN')
-        print(
-            'players_resources        ',
-            ds_utils.unnormalize_playersresources(players_resources)
-        )
+        print('players_resources        ', ds_utils.unnormalize_playersresources(players_resources))
         print(
             'players_resources_true   ',
             ds_utils.unnormalize_playersresources(players_resources_true)
@@ -93,4 +90,5 @@ with torch.no_grad():
             ds_utils.unnormalize_playersresources(players_resources_preds)
         )
         print(messages[0])
+        print('raw_dist ', players_resources_preds - players_resources_true)
         breakpoint()

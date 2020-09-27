@@ -1,7 +1,8 @@
 # @package _global_
-generic:
+runner:
   seed: 1
   verbose: true
+  n_epochs: 1000
   lr: 0.0001
   optimizer: adamw
   scheduler: null
@@ -19,7 +20,7 @@ generic:
     bert_model_path: null
     shuffle: false
     dataset_path: ???
-  val_dataset: ${generic.dataset}
+  val_dataset: ${runner.dataset}
   model:
     name: ResNet18FusionPolicy
     n_core_planes: 32
@@ -41,7 +42,8 @@ trainer:
   row_log_interval: 2
   # The states containing text are rare, so we just train our network on a very small dataset
   # overfit_batches: 8
-  max_epochs: 1001
+  max_epochs: ${runner.n_epochs}
+  resume_from_checkpoint: null
 other:
   save_top_k: 1
   period: 10

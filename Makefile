@@ -101,11 +101,11 @@ exp_clean:
 exp_hopfield_hp_check:
 	cd scripts &&\
 	python run_exp.py -m -cn 005_gpu_resnet18fusion_policy_full\
-		generic.lr=0.1,0.01,0.001\
-		generic.model.n_core_planes=2,8,24\
-		generic.model.fusion_num_heads=1,2,8\
-		generic.model.beta=0.25,0.5,1.,2.,8.\
-		generic.model.update_steps_max=0,3\
+		runner.lr=0.1,0.01,0.001\
+		runner.model.n_core_planes=2,8,24\
+		runner.model.fusion_num_heads=1,2,8\
+		runner.model.beta=0.25,0.5,1.,2.,8.\
+		runner.model.update_steps_max=0,3\
 		trainer.max_epochs=21
 
 exp_005:

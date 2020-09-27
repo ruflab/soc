@@ -36,20 +36,20 @@ class GenericConfig:
 class SocConfig:
     defaults: List[Any] = MISSING
 
-    generic: GenericConfig = GenericConfig()
+    runner: GenericConfig = GenericConfig()
     trainer: Any = MISSING
     other: Any = MISSING
 
 
 def train(omegaConf: DictConfig) -> LightningModule:
     # Misc part
-    if omegaConf['generic']['verbose'] is True:
+    if omegaConf['runner']['verbose'] is True:
         print(OmegaConf.to_yaml(omegaConf))
 
-    pl.seed_everything(omegaConf['generic']['seed'])
+    pl.seed_everything(omegaConf['runner']['seed'])
 
     # Runner part
-    runner = make_runner(omegaConf['generic'])
+    runner = make_runner(omegaConf['runner'])
 
     if "auto_lr_find" in omegaConf['trainer'] and omegaConf['trainer']['auto_lr_find'] is True:
         runner = custom_lr_finder(runner, omegaConf)
@@ -103,10 +103,10 @@ def custom_lr_finder(runner: LightningModule, omegaConf: DictConfig) -> Lightnin
     lr_finder = tmp_trainer.lr_find(runner)
     # fig = lr_finder.plot(suggest=True)
     new_lr = lr_finder.suggestion()
-    omegaConf['generic']['lr'] = new_lr
-    runner = make_runner(omegaConf['generic'])
+    omegaConf['runner']['lr'] = new_lr
+    runner = make_runner(omegaConf['runner'])
 
-    if omegaConf['generic'].get('verbose', False) is True:
+    if omegaConf['runner'].get('verbose', False) is True:
         print('Learning rate found: {}'.format(new_lr))
 
     return runner
@@ -138,7 +138,7 @@ def build_logger(config: Dict):
         logger = NeptuneLogger(
             api_key=os.environ['NEPTUNE_API_TOKEN'],
             project_name=os.environ['NEPTUNE_PROJECT_NAME'],
-            params=config['generic'],
+            params=config['runner'],
         )
     else:
         raise ValueError('Logger {} unknown'.format(config['trainer']['logger']))

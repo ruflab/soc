@@ -3,6 +3,7 @@ import pprint
 import torch
 import pytorch_lightning as pl
 import seaborn as sns
+from omegaconf import DictConfig
 # import matplotlib.pyplot as plt
 from soc.runners import make_runner
 # from soc.datasets import soc_data
@@ -14,25 +15,32 @@ sns.set(color_codes=True)
 
 cfd = os.path.dirname(os.path.realpath(__file__))
 _DATA_FOLDER = os.path.join(cfd, '..', 'data')
-_SOC10_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_10_fullseq.pt')
-_SOC10_FOLDER_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_10_fullseq')
-_SOC10_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_10_fullseq.pt')
-_SOC50_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_50_fullseq.pt')
-_SOC50_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_50_fullseq.pt')
 _RAW_SOC1_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1_raw_df.pt')
 _RAW_SOC5_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_5_raw_df.pt')
 _RAW_SOC20_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_20_raw_df.pt')
 _RAW_SOC100_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_100_raw_df.pt')
 _RAW_SOC1000_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1000_raw_df.pt')
-_SOC150_FOLDER_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_150_fullseq')
-_SOC150_RAW_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_150_raw.pt')
 
 # ckpt_path = os.path.join(cfd, 'results/resnet18meanconcat/last.ckpt')
-ckpt_path = os.path.join(cfd, 'results/resnet18meanff/last.ckpt')
+# ckpt_path = os.path.join(cfd, 'results/resnet18meanff/last.ckpt')
+ckpt_path = os.path.join(cfd, 'results/_ckpt_epoch_42.ckpt')
 ckpt = torch.load(ckpt_path, map_location=torch.device('cpu'))
+ckpt['hyper_parameters'] = DictConfig(ckpt['hyper_parameters'])
+ckpt['hyper_parameters']['dataset'] = DictConfig(ckpt['hyper_parameters']['dataset'])
+ckpt['hyper_parameters']['val_dataset'] = DictConfig(ckpt['hyper_parameters']['val_dataset'])
+ckpt['hyper_parameters']['val_dataset']['name'] = ckpt['hyper_parameters']['dataset']['name']
+ckpt['hyper_parameters']['val_dataset']['history_length'] = ckpt['hyper_parameters']['dataset'][
+    'history_length']
+ckpt['hyper_parameters']['val_dataset']['future_length'] = ckpt['hyper_parameters']['dataset'][
+    'future_length']
+ckpt['hyper_parameters']['val_dataset']['use_pooler_features'] = ckpt['hyper_parameters'][
+    'dataset']['use_pooler_features']
+ckpt['hyper_parameters']['val_dataset']['set_empty_text_to_zero'] = ckpt['hyper_parameters'][
+    'dataset']['set_empty_text_to_zero']
+ckpt['hyper_parameters']['model'] = DictConfig(ckpt['hyper_parameters']['model'])
 
-ckpt['hyper_parameters']['dataset']['dataset_path'] = _RAW_SOC5_TEXT_BERT_DATASET_PATH
-ckpt['hyper_parameters']['val_dataset']['dataset_path'] = _RAW_SOC5_TEXT_BERT_DATASET_PATH
+ckpt['hyper_parameters']['dataset']['dataset_path'] = _RAW_SOC20_TEXT_BERT_DATASET_PATH
+ckpt['hyper_parameters']['val_dataset']['dataset_path'] = _RAW_SOC20_TEXT_BERT_DATASET_PATH
 ckpt['hyper_parameters']['dataset']['shuffle'] = False
 ckpt['hyper_parameters']['batch_size'] = 1
 
@@ -70,10 +78,8 @@ with torch.no_grad():
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = outputs
 
         full_seq_len = runner.train_dataset.history_length + runner.train_dataset.future_length
-        table_id, start_row_id, end_row_id = runner.train_dataset._get_db_idxs(idx)
         states_df, actions_df, chats_df = runner.train_dataset._get_data(idx)
-        first_state_idx = start_row_id + 1
-        p_chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, first_state_idx)
+        p_chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, states_df['id'].min())
         messages = list(map(ds_utils.replace_firstnames, p_chats_df['message'].tolist()))
 
         players_resources = x_seq[:, -1, input_pr_idx[0]:input_pr_idx[1], 0, 0]

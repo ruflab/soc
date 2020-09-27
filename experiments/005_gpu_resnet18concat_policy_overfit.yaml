@@ -1,7 +1,8 @@
 # @package _global_
-generic:
+runner:
   seed: 1
   verbose: true
+  n_epochs: 1000
   lr: 0.0001
   optimizer: adamw
   scheduler: null
@@ -19,7 +20,7 @@ generic:
     bert_model_path: null
     shuffle: true
     dataset_path: ???
-  val_dataset: ${generic.dataset}
+  val_dataset: ${runner.dataset}
   model:
     name: ResNet18MeanConcatPolicy
     n_core_planes: 32
@@ -37,10 +38,11 @@ trainer:
   row_log_interval: 2
   # The states containing text are rare, so we just train our network on a very small dataset
   # overfit_batches: 8
-  max_epochs: 1001
+  max_epochs: ${runner.n_epochs}
   profiler: null
   limit_train_batches: 1.0
   limit_val_batches: 1.0
+  resume_from_checkpoint: null
 other:
   save_top_k: 0
   period: 500

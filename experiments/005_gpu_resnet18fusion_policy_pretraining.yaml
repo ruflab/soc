@@ -1,7 +1,8 @@
 # @package _global_
-generic:
+runner:
   seed: 1
   verbose: true
+  n_epochs: 60
   lr: 0.0001
   optimizer: adamw
   scheduler: null
@@ -20,11 +21,11 @@ generic:
     shuffle: true
     dataset_path: ???
   val_dataset:
-    name: ${generic.dataset.name}
-    history_length: ${generic.dataset.history_length}
-    future_length: ${generic.dataset.future_length}
-    use_pooler_features: ${generic.dataset.use_pooler_features}
-    set_empty_text_to_zero: ${generic.dataset.set_empty_text_to_zero}
+    name: ${runner.dataset.name}
+    history_length: ${runner.dataset.history_length}
+    future_length: ${runner.dataset.future_length}
+    use_pooler_features: ${runner.dataset.use_pooler_features}
+    set_empty_text_to_zero: ${runner.dataset.set_empty_text_to_zero}
     tokenizer_path: null
     bert_model_path: null
     shuffle: true
@@ -48,8 +49,9 @@ trainer:
   terminate_on_nan: true
   gpus: 1
   row_log_interval: 7
-  max_epochs: 31
+  max_epochs: ${runner.n_epochs}
   val_check_interval: 150 # Every 100 training batches
+  resume_from_checkpoint: null
 other:
   save_top_k: 3
   period: 1

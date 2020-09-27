@@ -1,33 +1,33 @@
 # @package _global_
-generic:
-    seed: 1
-    verbose: true
-    lr: 0.0003
-    optimizer: adamw
-    scheduler: null
-    batch_size: 8
-    weight_decay: 0.01
-    amsgrad: true
-    dataset:
-        name: SocPreprocessedForwardSAToSAPolicyDataset
-        history_length: 16
-        future_length: 4
-        shuffle: false
-        dataset_path: ???
-    model:
-        name: ResNet18Policy
-        n_core_planes: 4
-        data_input_size: ???
-        data_output_size: ???
-    runner_name: SOCForwardPolicyRunner
+runner:
+  seed: 1
+  verbose: true
+  lr: 0.0003
+  optimizer: adamw
+  scheduler: null
+  batch_size: 8
+  weight_decay: 0.01
+  amsgrad: true
+  dataset:
+    name: SocPreprocessedForwardSAToSAPolicyDataset
+    history_length: 16
+    future_length: 4
+    shuffle: false
+    dataset_path: ???
+  model:
+    name: ResNet18Policy
+    n_core_planes: 4
+    data_input_size: ???
+    data_output_size: ???
+  runner_name: SOCForwardPolicyRunner
 trainer:
-    logger: neptune
-    deterministic: true
-    terminate_on_nan: true
-    gpus: 1
-    overfit_batches: 8
-    row_log_interval: 2
-    max_epochs: 1001
+  logger: neptune
+  deterministic: true
+  terminate_on_nan: true
+  gpus: 1
+  overfit_batches: 8
+  row_log_interval: 2
+  max_epochs: 1001
 other:
-    save_top_k: 1
-    period: 500
+  save_top_k: 1
+  period: 500

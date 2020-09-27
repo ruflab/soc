@@ -24,41 +24,41 @@ class TestTextPolicyRunner(unittest.TestCase):
     def setUpClass(cls):
         cs = ConfigStore.instance()
         cs.store(name="config", node=SocConfig)
-        cs.store(group="generic/model", name="convlstm", node=models.ConvLSTMConfig)
-        cs.store(group="generic/model", name="convlstmpolicy", node=models.ConvLSTMConfig)
-        cs.store(group="generic/model", name="conv3d", node=models.Conv3dModelConfig)
-        cs.store(group="generic/model", name="conv3dpolicy", node=models.Conv3dModelConfig)
-        cs.store(group="generic/model", name="resnet18", node=models.ResNetConfig)
-        cs.store(group="generic/model", name="resnet18policy", node=models.ResNetConfig)
-        cs.store(group="generic/model", name="resnet18fusionpolicy", node=models.ResNetFusionConfig)
-        cs.store(group="generic/dataset", name="psqlseqsatos", node=datasets.PSQLConfig)
+        cs.store(group="runner/model", name="convlstm", node=models.ConvLSTMConfig)
+        cs.store(group="runner/model", name="convlstmpolicy", node=models.ConvLSTMConfig)
+        cs.store(group="runner/model", name="conv3d", node=models.Conv3dModelConfig)
+        cs.store(group="runner/model", name="conv3dpolicy", node=models.Conv3dModelConfig)
+        cs.store(group="runner/model", name="resnet18", node=models.ResNetConfig)
+        cs.store(group="runner/model", name="resnet18policy", node=models.ResNetConfig)
+        cs.store(group="runner/model", name="resnet18fusionpolicy", node=models.ResNetFusionConfig)
+        cs.store(group="runner/dataset", name="psqlseqsatos", node=datasets.PSQLConfig)
         cs.store(
-            group="generic/dataset",
+            group="runner/dataset",
             name="preprocessedforwardsatosa",
             node=datasets.PreprocessedForwardConfig
         )
         cs.store(
-            group="generic/dataset",
+            group="runner/dataset",
             name="preprocessedforwardsatosapolicy",
             node=datasets.PreprocessedForwardConfig
         )
         cs.store(
-            group="generic/dataset",
+            group="runner/dataset",
             name="preprocessedseqsatosapolicy",
             node=datasets.PreprocessedSeqConfig
         )
         cs.store(
-            group="generic/dataset",
+            group="runner/dataset",
             name="psqltextbertforwardsatosapolicy",
             node=datasets.PSQLTextForwardConfig
         )
         cs.store(
-            group="generic/val_dataset",
+            group="runner/val_dataset",
             name="filetextbertforwardsatosapolicy",
             node=datasets.FileTextForwardConfig
         )
         cs.store(
-            group="generic/dataset",
+            group="runner/dataset",
             name="filetextbertforwardsatosapolicy",
             node=datasets.FileTextForwardConfig
         )
@@ -75,28 +75,28 @@ class TestTextPolicyRunner(unittest.TestCase):
             config = compose(
                 config_name="config",
                 overrides=[
-                    "generic/model=resnet18fusionpolicy",
-                    "generic/dataset=filetextbertforwardsatosapolicy",
-                    "generic/val_dataset=filetextbertforwardsatosapolicy",
-                    "generic.runner_name=SOCTextForwardPolicyRunner"
+                    "runner/model=resnet18fusionpolicy",
+                    "runner/dataset=filetextbertforwardsatosapolicy",
+                    "runner/val_dataset=filetextbertforwardsatosapolicy",
+                    "runner.runner_name=SOCTextForwardPolicyRunner"
                 ]
             )
-            config.generic.dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
-            config.generic.val_dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
-            config.generic.train_cnn = True
-            config.generic.train_fusion = False
-            config.generic.train_heads = True
+            config.runner.dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
+            config.runner.val_dataset.dataset_path = _RAW_TEXT_BERT_DATASET_PATH
+            config.runner.train_cnn = True
+            config.runner.train_fusion = False
+            config.runner.train_heads = True
 
             config.trainer.default_root_dir = self.folder
             config.trainer.fast_dev_run = False
 
             # We rely on seeds to copy the init weights
-            seed_everything(config['generic']['seed'])
-            r_copy = make_runner(config['generic'])
+            seed_everything(config['runner']['seed'])
+            r_copy = make_runner(config['runner'])
             r_copy.setup('fit')
 
-            seed_everything(config['generic']['seed'])
-            runner = make_runner(config['generic'])
+            seed_everything(config['runner']['seed'])
+            runner = make_runner(config['runner'])
             trainer = Trainer(**config['trainer'], deterministic=True)
             trainer.fit(runner)
 

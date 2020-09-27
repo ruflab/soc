@@ -124,8 +124,9 @@ class SOCRunner(LightningModule):
         elif self.hparams['scheduler'] == 'cyclic':
             scheduler = torch.optim.lr_scheduler.CyclicLR(
                 optimizer,
-                base_lr=self.hparams['lr'],
                 max_lr=10 * self.hparams['lr'],
+                steps_per_epoch=len(self.train_dataset),
+                epochs=self.hparams.n_epochs,
             )
 
             return optimizer, scheduler

@@ -1,9 +1,9 @@
 defaults:
-  - generic/model: convlstm
-  - generic/dataset: psqlseqsatos
-  - generic/val_dataset: null
+  - runner/model: convlstm
+  - runner/dataset: psqlseqsatos
+  - runner/val_dataset: null
 
-generic:
+runner:
   seed: 1
   verbose: False
   runner_name: ???

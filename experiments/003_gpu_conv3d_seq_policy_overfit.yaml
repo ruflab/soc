@@ -1,36 +1,36 @@
 # @package _global_
-generic:
-    seed: 1
-    verbose: true
-    lr: 0.0003
-    optimizer: adamw
-    scheduler: null
-    batch_size: 1 # to build a small batch we use the trainer truncated_bptt_steps option
-    weight_decay: 0.01
-    amsgrad: true
-    dataset:
-        name: SocPreprocessedSeqSAToSAPolicyDataset
-        shuffle: false
-        dataset_path: ???
-    model:
-        name: Conv3dModelPolicy
-        num_layers: 8
-        h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
-        kernel_size: [[3, 3, 3]]
-        strides: [[1, 1, 1]]
-        paddings: [[1, 1, 1, 1, 2, 0]]
-        data_input_size: ???
-        data_output_size: ???
-    runner_name: SOCSeqPolicyRunner
+runner:
+  seed: 1
+  verbose: true
+  lr: 0.0003
+  optimizer: adamw
+  scheduler: null
+  batch_size: 1 # to build a small batch we use the trainer truncated_bptt_steps option
+  weight_decay: 0.01
+  amsgrad: true
+  dataset:
+    name: SocPreprocessedSeqSAToSAPolicyDataset
+    shuffle: false
+    dataset_path: ???
+  model:
+    name: Conv3dModelPolicy
+    num_layers: 8
+    h_chan_dim: [256, 256, 128, 128, 64, 64, 32, 32]
+    kernel_size: [[3, 3, 3]]
+    strides: [[1, 1, 1]]
+    paddings: [[1, 1, 1, 1, 2, 0]]
+    data_input_size: ???
+    data_output_size: ???
+  runner_name: SOCSeqPolicyRunner
 trainer:
-    truncated_bptt_steps: 16
-    logger: neptune
-    deterministic: true
-    terminate_on_nan: true
-    gpus: 1
-    overfit_batches: 4
-    row_log_interval: 2
-    max_epochs: 1001
+  truncated_bptt_steps: 16
+  logger: neptune
+  deterministic: true
+  terminate_on_nan: true
+  gpus: 1
+  overfit_batches: 4
+  row_log_interval: 2
+  max_epochs: 1001
 other:
-    save_top_k: 1
-    period: 500
+  save_top_k: 1
+  period: 500

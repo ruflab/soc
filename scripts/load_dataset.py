@@ -1,7 +1,6 @@
 import os
-import hydra
+# import hydra
 from omegaconf import DictConfig
-from os.path import expanduser
 import torch
 from soc.datasets import make_dataset
 
@@ -17,9 +16,8 @@ _RAW_SOC100_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1
 _RAW_SOC500_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_500_raw_df.pt')
 _RAW_SOC1000_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1000_raw_df.pt')
 
-
 config = {
-    'name': 'SocFileTextBertSubsetForwardSAToSAPolicyDataset',
+    'name': 'SocFileTextBertHumanTradeForwardSAToSAPolicyDataset',
     'history_length': 1,
     'future_length': 1,
     'use_pooler_features': False,

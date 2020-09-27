@@ -1,5 +1,5 @@
 # @package _group_
-name: SocFileTextBertSubsetForwardSAToSAPolicyDataset
+name: SocFileTextBertHumanTradeForwardSAToSAPolicyDataset
 history_length: 1
 future_length: 1
 tokenizer_path: null

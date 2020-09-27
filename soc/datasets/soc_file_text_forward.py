@@ -334,7 +334,8 @@ class SocFileTextBertForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAData
         return (spatial_metadata, linear_metadata, actions_metadata)
 
 
-class SocFileTextBertSubsetForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAPolicyDataset):
+class SocFileTextBertHumanTradeForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAPolicyDataset
+                                                          ):
     """
         Returns a completely formatted dataset:
 
@@ -346,7 +347,7 @@ class SocFileTextBertSubsetForwardSAToSAPolicyDataset(SocFileTextBertForwardSATo
             Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
     """
     def _set_props(self, config):
-        super(SocFileTextBertSubsetForwardSAToSAPolicyDataset, self)._set_props(config)
+        super(SocFileTextBertHumanTradeForwardSAToSAPolicyDataset, self)._set_props(config)
 
         # self.use_resources_distrib_loss = True
         assert self.history_length == 1
@@ -355,13 +356,16 @@ class SocFileTextBertSubsetForwardSAToSAPolicyDataset(SocFileTextBertForwardSATo
         tmp_data = []
         for idx in range(self._get_length()):
             states_df, actions_df, chats_df = self._get_original_data(idx)
-            resources_df = states_df['playersresources']
-            changing = (torch.tensor(resources_df.iloc[0])
-                        - torch.tensor(resources_df.iloc[1])).sum() != 0.
-            if not changing:
-                continue
 
-            tmp_data.append((states_df, actions_df, chats_df))
+            resources_df = states_df['playersresources']
+            past_res = torch.tensor(resources_df.iloc[0])
+            future_res = torch.tensor(resources_df.iloc[1])
+
+            if actions_df['type'].iloc[0] == soc_data.ACTIONS['TRADE']:
+                if not torch.equal(past_res, future_res):
+                    # Human trade is zero sum: the total change of resources is 0
+                    if torch.sum(future_res - past_res) == 0:
+                        tmp_data.append((states_df, actions_df, chats_df))
 
         self.data = tmp_data
         self._length = len(self.data)
@@ -369,28 +373,28 @@ class SocFileTextBertSubsetForwardSAToSAPolicyDataset(SocFileTextBertForwardSATo
     def _get_data(self, idx: int):
         states_df, actions_df, chats_df = self.data[idx]
 
-        # the futur predictions is hte diff
-        resources_df = states_df['playersresources']
-        resources_diff_t = (
-            torch.tensor(resources_df.iloc[1], dtype=torch.float32)
-            - torch.tensor(resources_df.iloc[0], dtype=torch.float32)
-        )
+        # # the futur predictions is hte diff
+        # resources_df = states_df['playersresources']
+        # resources_diff_t = (
+        #     torch.tensor(resources_df.iloc[1], dtype=torch.float32)
+        #     - torch.tensor(resources_df.iloc[0], dtype=torch.float32)
+        # )
 
-        if self.use_resources_distrib_loss:
-            increasing_diff = torch.abs(resources_diff_t)
-            decreasing_diff = torch.abs(-resources_diff_t)
-            resources_diff_t = torch.cat([increasing_diff, decreasing_diff], dim=1)
-            resources_diff_t[resources_diff_t == 0] = float('-inf')
-            resources_distrib = torch.softmax(resources_diff_t.flatten(), dim=0)
-            resources_distrib = resources_distrib.view((4, 12))
-            if torch.any(torch.isnan(resources_distrib)):
-                raise ValueError(
-                    'NaN values in resources_distrib.'
-                    'Make sure to remove all unchanging states from the dataset.'
-                )
-            states_df['playersresources'].iloc[1] = resources_distrib.detach().numpy()
-        else:
-            states_df['playersresources'].iloc[1] = resources_diff_t.detach().numpy()
+        # if self.use_resources_distrib_loss:
+        #     increasing_diff = torch.abs(resources_diff_t)
+        #     decreasing_diff = torch.abs(-resources_diff_t)
+        #     resources_diff_t = torch.cat([increasing_diff, decreasing_diff], dim=1)
+        #     resources_diff_t[resources_diff_t == 0] = float('-inf')
+        #     resources_distrib = torch.softmax(resources_diff_t.flatten(), dim=0)
+        #     resources_distrib = resources_distrib.view((4, 12))
+        #     if torch.any(torch.isnan(resources_distrib)):
+        #         raise ValueError(
+        #             'NaN values in resources_distrib.'
+        #             'Make sure to remove all unchanging states from the dataset.'
+        #         )
+        #     states_df['playersresources'].iloc[1] = resources_distrib.detach().numpy()
+        # else:
+        #     states_df['playersresources'].iloc[1] = resources_diff_t.detach().numpy()
 
         return states_df, actions_df, chats_df
 

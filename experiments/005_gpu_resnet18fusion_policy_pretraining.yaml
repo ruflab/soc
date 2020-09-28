@@ -49,7 +49,7 @@ trainer:
   terminate_on_nan: true
   gpus: 1
   row_log_interval: 7
-  max_epochs: ${runner.n_epochs}
+  max_epochs: 60
   val_check_interval: 150 # Every 100 training batches
   resume_from_checkpoint: null
 other:

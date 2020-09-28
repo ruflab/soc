@@ -101,12 +101,13 @@ class SOCRunner(LightningModule):
     def configure_optimizers(self):
         parameters = self.get_parameters()
 
+        optim_dict = {}
         if self.hparams['optimizer'] == 'adam':
-            optimizer = torch.optim.Adam(
+            optim_dict['optimizer'] = torch.optim.Adam(
                 parameters, lr=self.hparams['lr'], weight_decay=self.hparams.weight_decay
             )
         elif self.hparams['optimizer'] == 'adamw':
-            optimizer = torch.optim.AdamW(
+            optim_dict['optimizer'] = torch.optim.AdamW(
                 parameters,
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams.weight_decay,
@@ -116,22 +117,25 @@ class SOCRunner(LightningModule):
             raise Exception('Unknown optimizer {}'.format(self.hparams['optimizer']))
 
         if self.hparams['scheduler'] == 'plateau':
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001
+            optim_dict['lr_scheduler'] = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optim_dict['optimizer'],
+                mode='min',
+                factor=0.1,
+                patience=5,
+                verbose=True,
+                threshold=0.0001
             )
-
-            return optimizer, scheduler
         elif self.hparams['scheduler'] == 'cyclic':
-            scheduler = torch.optim.lr_scheduler.CyclicLR(
-                optimizer,
+            optim_dict['lr_scheduler'] = {}
+            optim_dict['lr_scheduler']['scheduler'] = torch.optim.lr_scheduler.OneCycleLR(
+                optim_dict['optimizer'],
                 max_lr=10 * self.hparams['lr'],
-                steps_per_epoch=len(self.train_dataset),
-                epochs=self.hparams.n_epochs,
+                steps_per_epoch=len(self.train_dataset) // self.hparams['batch_size'],
+                epochs=self.hparams.n_epochs
             )
+            optim_dict['lr_scheduler']['interval'] = 'step'
 
-            return optimizer, scheduler
-
-        return optimizer
+        return optim_dict
 
     def get_parameters(self):
         return self.model.parameters()

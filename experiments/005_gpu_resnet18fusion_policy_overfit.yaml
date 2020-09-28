@@ -42,7 +42,7 @@ trainer:
   row_log_interval: 2
   # The states containing text are rare, so we just train our network on a very small dataset
   # overfit_batches: 8
-  max_epochs: ${runner.n_epochs}
+  max_epochs: 60
   resume_from_checkpoint: null
 other:
   save_top_k: 1

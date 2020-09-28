@@ -2,7 +2,7 @@ import os
 import time
 import pytorch_lightning as pl
 from pytorch_lightning import LightningModule
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateLogger
 from pytorch_lightning.loggers import NeptuneLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 from typing import Callable, List, Any, Dict, Optional
@@ -71,6 +71,10 @@ def train(omegaConf: DictConfig) -> LightningModule:
 
     if 'profiler' in config['trainer'] and config['trainer']['profiler'] is True:
         config['trainer']['profiler'] = AdvancedProfiler()
+
+    if 'scheduler' in config['runner'] and config['runner']['scheduler'] is not None:
+        lr_monitor = LearningRateLogger(logging_interval='step')
+        config['trainer']['callbacks'] = [lr_monitor]
 
     # ###
     # # Early stopping

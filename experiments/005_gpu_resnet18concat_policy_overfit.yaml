@@ -38,7 +38,7 @@ trainer:
   row_log_interval: 2
   # The states containing text are rare, so we just train our network on a very small dataset
   # overfit_batches: 8
-  max_epochs: ${runner.n_epochs}
+  max_epochs: 60
   profiler: null
   limit_train_batches: 1.0
   limit_val_batches: 1.0

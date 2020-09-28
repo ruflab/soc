@@ -2,7 +2,7 @@
 runner:
   seed: 1
   verbose: true
-  n_epochs: 60
+  n_epochs: 60 # This should be the same as trainer.max_epochs
   lr: 0.0001
   optimizer: adamw
   scheduler: null
@@ -45,7 +45,7 @@ trainer:
   terminate_on_nan: true
   gpus: 1
   row_log_interval: 7
-  max_epochs: ${runner.n_epochs}
+  max_epochs: 60
   val_check_interval: 150
   resume_from_checkpoint: null
 other:

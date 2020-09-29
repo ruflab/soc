@@ -373,28 +373,55 @@ class SocFileTextBertHumanTradeForwardSAToSAPolicyDataset(SocFileTextBertForward
     def _get_data(self, idx: int):
         states_df, actions_df, chats_df = self.data[idx]
 
-        # # the futur predictions is hte diff
-        # resources_df = states_df['playersresources']
-        # resources_diff_t = (
-        #     torch.tensor(resources_df.iloc[1], dtype=torch.float32)
-        #     - torch.tensor(resources_df.iloc[0], dtype=torch.float32)
-        # )
+        return states_df, actions_df, chats_df
 
-        # if self.use_resources_distrib_loss:
-        #     increasing_diff = torch.abs(resources_diff_t)
-        #     decreasing_diff = torch.abs(-resources_diff_t)
-        #     resources_diff_t = torch.cat([increasing_diff, decreasing_diff], dim=1)
-        #     resources_diff_t[resources_diff_t == 0] = float('-inf')
-        #     resources_distrib = torch.softmax(resources_diff_t.flatten(), dim=0)
-        #     resources_distrib = resources_distrib.view((4, 12))
-        #     if torch.any(torch.isnan(resources_distrib)):
-        #         raise ValueError(
-        #             'NaN values in resources_distrib.'
-        #             'Make sure to remove all unchanging states from the dataset.'
-        #         )
-        #     states_df['playersresources'].iloc[1] = resources_distrib.detach().numpy()
-        # else:
-        #     states_df['playersresources'].iloc[1] = resources_diff_t.detach().numpy()
+    def _get_original_data(self, idx: int):
+        table_id, start_row_id, end_row_id = self._get_db_idxs(idx)
+        states_df, actions_df, chats_df = self.data[table_id]
+
+        states_df = states_df[start_row_id:end_row_id]
+        min_id = states_df['id'].min()
+        max_id = states_df['id'].max()
+
+        actions_df = actions_df[(actions_df['beforestate'] >= min_id)
+                                & (actions_df['beforestate'] < max_id + 1)]
+
+        chats_df = chats_df[(chats_df['current_state'] >= min_id)
+                            & (chats_df['current_state'] < max_id + 1)]
+
+        return states_df, actions_df, chats_df
+
+
+class SocFileTextBertTradeForwardSAToSAPolicyDataset(SocFileTextBertForwardSAToSAPolicyDataset):
+    """
+        Returns a completely formatted dataset:
+
+        Input: Concatenation of state and actions representation
+        in Sequence.
+            Dims: [S_h, (C_states + C_actions), H, W]
+
+        Output: Tuple of next state and next actions
+            Dims: ( [S_f, C_ss, H, W], [S_f, C_ls], [S_f, C_actions] )
+    """
+    def _set_props(self, config):
+        super(SocFileTextBertTradeForwardSAToSAPolicyDataset, self)._set_props(config)
+
+        # self.use_resources_distrib_loss = True
+        assert self.history_length == 1
+        assert self.future_length == 1
+
+        tmp_data = []
+        for idx in range(self._get_length()):
+            states_df, actions_df, chats_df = self._get_original_data(idx)
+
+            if actions_df['type'].iloc[0] == soc_data.ACTIONS['TRADE']:
+                tmp_data.append((states_df, actions_df, chats_df))
+
+        self.data = tmp_data
+        self._length = len(self.data)
+
+    def _get_data(self, idx: int):
+        states_df, actions_df, chats_df = self.data[idx]
 
         return states_df, actions_df, chats_df
 

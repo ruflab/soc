@@ -486,6 +486,7 @@ class ResNet18BiLSTMFFPolicy(ResNet18BiLSTMConcatPolicy):
 class ResNet18BiLSTMFFResPolicy(ResNet18BiLSTMFFPolicy):
     def _forward_impl(self, x, x_text, x_text_mask):
         bs, S, C, H, W = x.shape
+
         x = x.view(bs, S * C, H, W)
         # See note [TorchScript super()]
         z = self.cnn(x)

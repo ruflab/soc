@@ -2,12 +2,12 @@
 runner:
   seed: 1
   verbose: true
-  n_epochs: 1000
-  lr: 0.0001
+  n_epochs: 20 # This should be the same as trainer.max_epochs
+  lr: 0.00006
   optimizer: adamw
-  scheduler: null
+  scheduler: cyclic
   batch_size: 64
-  weight_decay: 0.01
+  weight_decay: 0.0001
   amsgrad: true
   use_gpu_preprocessing: true
   dataset:
@@ -23,7 +23,7 @@ runner:
   val_dataset: ${runner.dataset}
   model:
     name: ResNet18MeanConcatPolicy
-    n_core_planes: 32
+    n_core_planes: 16
     data_input_size: ???
     data_output_size: ???
   runner_name: SOCTextForwardPolicyRunner
@@ -38,11 +38,11 @@ trainer:
   row_log_interval: 2
   # The states containing text are rare, so we just train our network on a very small dataset
   # overfit_batches: 8
-  max_epochs: 60
+  max_epochs: 20
   profiler: null
   limit_train_batches: 1.0
   limit_val_batches: 1.0
   resume_from_checkpoint: null
 other:
-  save_top_k: 0
-  period: 500
+  save_top_k: 1
+  period: 1

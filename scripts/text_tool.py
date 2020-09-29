@@ -1,3 +1,4 @@
+# flake8: noqa
 import os
 import pprint
 import torch
@@ -21,9 +22,9 @@ _RAW_SOC20_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_20
 _RAW_SOC100_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_100_raw_df.pt')
 _RAW_SOC1000_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1000_raw_df.pt')
 
-# ckpt_path = os.path.join(cfd, 'results/resnet18meanconcat/last.ckpt')
-# ckpt_path = os.path.join(cfd, 'results/resnet18meanff/last.ckpt')
-ckpt_path = os.path.join(cfd, 'results/_ckpt_epoch_42.ckpt')
+# ckpt_path = os.path.join(cfd, 'results/resnet18bilstmconcat/humantrade.ckpt')
+# ckpt_path = os.path.join(cfd, 'results/resnet18bilstmff/humantrade.ckpt')
+ckpt_path = os.path.join(cfd, 'results/resnet18bilstmffres/humantrade.ckpt')
 ckpt = torch.load(ckpt_path, map_location=torch.device('cpu'))
 ckpt['hyper_parameters'] = DictConfig(ckpt['hyper_parameters'])
 ckpt['hyper_parameters']['dataset'] = DictConfig(ckpt['hyper_parameters']['dataset'])
@@ -39,8 +40,8 @@ ckpt['hyper_parameters']['val_dataset']['set_empty_text_to_zero'] = ckpt['hyper_
     'dataset']['set_empty_text_to_zero']
 ckpt['hyper_parameters']['model'] = DictConfig(ckpt['hyper_parameters']['model'])
 
-ckpt['hyper_parameters']['dataset']['dataset_path'] = _RAW_SOC20_TEXT_BERT_DATASET_PATH
-ckpt['hyper_parameters']['val_dataset']['dataset_path'] = _RAW_SOC20_TEXT_BERT_DATASET_PATH
+ckpt['hyper_parameters']['dataset']['dataset_path'] = _RAW_SOC5_TEXT_BERT_DATASET_PATH
+ckpt['hyper_parameters']['val_dataset']['dataset_path'] = _RAW_SOC5_TEXT_BERT_DATASET_PATH
 ckpt['hyper_parameters']['dataset']['shuffle'] = False
 ckpt['hyper_parameters']['batch_size'] = 1
 
@@ -52,6 +53,33 @@ runner.load_state_dict(ckpt['state_dict'])
 runner.eval()
 
 pprint.pprint(runner.hparams)
+
+
+def format_res_tensor(res_tensor):
+    return res_tensor.view(4, 6).detach().numpy().tolist()
+
+
+def format_res_pred(res_pred):
+    return format_res_tensor(ds_utils.unnormalize_playersresources(res_pred))
+
+
+def get_formated_preds(runner, output_pr_idx, x_seq, messages):
+    train_dataset = runner.train_dataset
+    last_hidden_state, pooler_output, chat_mask_seq_t = ds_utils.compute_text_features(
+        messages, train_dataset.tokenizer, train_dataset.bert, train_dataset.set_empty_text_to_zero,
+    )
+    if train_dataset.use_pooler_features:
+        chat_seq_t = pooler_output
+    else:
+        chat_seq_t = last_hidden_state
+    x_text_seq = chat_seq_t[:train_dataset.history_length].unsqueeze(0)
+    x_text_mask = chat_mask_seq_t[:train_dataset.history_length].unsqueeze(0)
+
+    _, y_s_logits_seq, _ = runner.model(x_seq, x_text_seq, x_text_mask)
+    res_pred = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
+
+    return format_res_tensor(ds_utils.unnormalize_playersresources(res_pred))
+
 
 input_meta = runner.train_dataset.get_input_metadata()
 spatial_metadata, linear_metadata, actions_metadata = runner.output_metadata
@@ -82,19 +110,37 @@ with torch.no_grad():
         p_chats_df = ds_utils.preprocess_chats(chats_df, full_seq_len, states_df['id'].min())
         messages = list(map(ds_utils.replace_firstnames, p_chats_df['message'].tolist()))
 
-        players_resources = x_seq[:, -1, input_pr_idx[0]:input_pr_idx[1], 0, 0]
-        players_resources_true = y_s_true_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
-        players_resources_preds = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
-        print('Order: - 0, CLAY ORE SHEEP WHEAT WOOD UNKNOWN')
-        print('players_resources        ', ds_utils.unnormalize_playersresources(players_resources))
-        print(
-            'players_resources_true   ',
-            ds_utils.unnormalize_playersresources(players_resources_true)
-        )
-        print(
-            'players_resources_preds  ',
-            ds_utils.unnormalize_playersresources(players_resources_preds)
-        )
+        players_res = x_seq[:, -1, input_pr_idx[0]:input_pr_idx[1], 0, 0]
+        players_res_true = y_s_true_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
+        players_res_preds = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
+
+        _, y_s_logits_seq, _ = runner.model(x_seq, torch.zeros_like(x_text_seq), x_text_mask)
+        players_res_preds_no_text = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
+
+        _, y_s_logits_seq, _ = runner.model(torch.zeros_like(x_seq), x_text_seq, x_text_mask)
+        players_res_preds_no_state = y_s_logits_seq[:, 0, output_pr_idx[0]:output_pr_idx[1]]
+
+        print('\n')
+        print(' -- Chat messages between states -- ')
         print(messages[0])
-        print('raw_dist ', players_resources_preds - players_resources_true)
+        print(' --\n')
+
+        print(
+            'Data: 4 players containing 6 resources in the following order CLAY ORE SHEEP WHEAT WOOD UNKNOWN'
+        )
+        print(
+            'players:                                 -       Betty       -       Peter       -       Jake        -       Sam'
+        )
+        print('players_res (s_t)                      ', format_res_pred(players_res))
+
+        print('players_res_true (s_t+1)               ', format_res_pred(players_res_true))
+        print('players_res_preds p(s_t+1|s_t, text_t) ', format_res_pred(players_res_preds))
+        print('players_res_preds p(s_t+1|s_t, 0)      ', format_res_pred(players_res_preds_no_text))
+        print(
+            'players_res_preds p(s_t+1|0, text_t)   ', format_res_pred(players_res_preds_no_state)
+        )
+        # print(
+        #     'Distance predictions <-> true values:\n',
+        #     (players_res_preds - players_res_true).view(4, -1)
+        # )
         breakpoint()

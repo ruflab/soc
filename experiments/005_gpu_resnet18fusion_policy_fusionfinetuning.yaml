@@ -2,12 +2,12 @@
 runner:
   seed: 1
   verbose: true
-  n_epochs: 60
-  lr: 0.0001
+  n_epochs: 20 # This should be the same as trainer.max_epochs
+  lr: 0.00006
   optimizer: adamw
-  scheduler: null
+  scheduler: cyclic
   batch_size: 64
-  weight_decay: 0.01
+  weight_decay: 0.0001
   amsgrad: true
   use_gpu_preprocessing: true
   dataset:
@@ -33,7 +33,7 @@ runner:
   model:
     name: ResNet18FusionPolicy
     self_att_fusion: False
-    n_core_planes: 32
+    n_core_planes: 16
     fusion_num_heads: 8
     beta: 0.3
     update_steps_max: 3
@@ -49,7 +49,7 @@ trainer:
   terminate_on_nan: true
   gpus: 1
   row_log_interval: 7
-  max_epochs: 60
+  max_epochs: 20
   val_check_interval: 150 # Every 100 training batches
   resume_from_checkpoint: null
 other:

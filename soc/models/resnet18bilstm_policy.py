@@ -115,6 +115,7 @@ class ResNet18BiLSTMConcatPolicy(nn.Module):
         self.fusion = nn.Sequential()
 
         # Heads
+        F_text = self.text_input_size[-1]
         self.spatial_state_head = nn.Sequential(
             nn.Conv2d(
                 self.n_core_planes,
@@ -134,14 +135,13 @@ class ResNet18BiLSTMConcatPolicy(nn.Module):
                 bias=False
             )
         )
+
         self.linear_state_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
-            nn.GELU(),
-            nn.Linear(512, self.n_states)
+            nn.Linear(self.n_core_outputs + F_text, 512), nn.GELU(), nn.Linear(512, self.n_states)
         )
 
         self.policy_head = nn.Sequential(
-            nn.Linear(self.n_core_outputs + self.text_input_size[-1], 512),
+            nn.Linear(self.n_core_outputs + F_text, 512),
             nn.GELU(),
             nn.Linear(512, self.n_actions),
         )
@@ -212,35 +212,39 @@ class ResNet18BiLSTMConcatPolicy(nn.Module):
 
     def _forward_impl(self, x, x_text, x_text_mask):
         bs, S, C, H, W = x.shape
+
+        # Game feature extraction
         x = x.view(bs, S * C, H, W)
-        # See note [TorchScript super()]
         z = self.cnn(x)
         z_linear = z.reshape(bs, -1)
 
-        # Extraction
+        # Text feature extraction
         x_text = x_text[:, -1]  # [bs, S_text, F_bert]
         x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
-        output, _ = self.extractor(x_text * x_text_mask.unsqueeze(-1))
-        output = output.view(
+        x_text_f, _ = self.extractor(x_text * x_text_mask.unsqueeze(-1))
+        x_text_f = x_text_f.view(
             bs, x_text.shape[1], 2, self.text_input_size[-1]
         )  # [bs, S_text, 2, F_bert]
-        output = torch.sum(
-            output * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
+        x_text_f = torch.sum(
+            x_text_f * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
         )  # [bs, F_bert]
-        output = output / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
+        x_text_f = x_text_f / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
 
         # Fusion
-        z_linear = torch.cat([z_linear, output], dim=1)
+        z_linear = torch.cat([z_linear, x_text_f], dim=1)
+        z_linear = self.fusion(z_linear)
 
         # Heads
         y_spatial_state_logits = self.spatial_state_head(z)
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
+
         y_state_logits = self.linear_state_head(z_linear)
         y_state_logits_seq = y_state_logits.reshape([
             bs,
         ] + self.state_output_size)
+
         y_action_logits = self.policy_head(z_linear)
         y_action_logits_seq = y_action_logits.reshape([
             bs,
@@ -253,22 +257,30 @@ class ResNet18BiLSTMConcatPolicy(nn.Module):
 
     def _forward_bypass_text_impl(self, x):
         bs, S, C, H, W = x.shape
+
+        # Game feature extraction
         x = x.view(bs, S * C, H, W)
-        # See note [TorchScript super()]
         z = self.cnn(x)
-        z_spatial = z
         z_linear = z.reshape(bs, -1)
 
-        z_linear = torch.cat([z_linear, torch.zeros(bs, self.text_input_size[1])], dim=1)
+        # Fake text feature extraction
+        x_text_f = torch.zeros(bs, self.text_input_size[1])
 
-        y_spatial_state_logits = self.spatial_state_head(z_spatial)
+        # Fusion
+        z_linear = torch.cat([z_linear, x_text_f], dim=1)
+        z_linear = self.fusion(z_linear)
+
+        # Heads
+        y_spatial_state_logits = self.spatial_state_head(z_linear.reshape(z.shape))
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
+
         y_state_logits = self.linear_state_head(z_linear)
         y_state_logits_seq = y_state_logits.reshape([
             bs,
         ] + self.state_output_size)
+
         y_action_logits = self.policy_head(z_linear)
         y_action_logits_seq = y_action_logits.reshape([
             bs,
@@ -414,6 +426,7 @@ class ResNet18BiLSTMFFPolicy(ResNet18BiLSTMConcatPolicy):
                 bias=False
             )
         )
+
         self.linear_state_head = nn.Sequential(
             nn.Linear(self.n_core_outputs, 512), nn.GELU(), nn.Linear(512, self.n_states)
         )
@@ -443,56 +456,17 @@ class ResNet18BiLSTMFFPolicy(ResNet18BiLSTMConcatPolicy):
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
 
-    def _forward_impl(self, x, x_text, x_text_mask):
-        bs, S, C, H, W = x.shape
-        x = x.view(bs, S * C, H, W)
-        # See note [TorchScript super()]
-        z = self.cnn(x)
-        z_linear = z.reshape(bs, -1)
-
-        # Extraction
-        x_text = x_text[:, -1]  # [bs, S_text, F_bert]
-        x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
-        output, _ = self.extractor(x_text * x_text_mask.unsqueeze(-1))
-        output = output.view(
-            bs, x_text.shape[1], 2, self.text_input_size[-1]
-        )  # [bs, S_text, 2, F_bert]
-        output = torch.sum(
-            output * x_text_mask.unsqueeze(-1).unsqueeze(-1), dim=(1, 2)
-        )  # [bs, F_bert]
-        output = output / (torch.sum(x_text_mask, dim=1, keepdim=True) + 1e-7)
-
-        # Fusion
-        z_linear = torch.cat([z_linear, output], dim=1)
-        z_linear = self.fusion(z_linear)
-
-        # Heads
-        y_spatial_state_logits = self.spatial_state_head(z)
-        y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
-            bs,
-        ] + self.spatial_state_output_size)
-        y_state_logits = self.linear_state_head(z_linear)
-        y_state_logits_seq = y_state_logits.reshape([
-            bs,
-        ] + self.state_output_size)
-        y_action_logits = self.policy_head(z_linear)
-        y_action_logits_seq = y_action_logits.reshape([
-            bs,
-        ] + self.action_output_size)
-
-        return y_spatial_state_logits_seq, y_state_logits_seq, y_action_logits_seq
-
 
 class ResNet18BiLSTMFFResPolicy(ResNet18BiLSTMFFPolicy):
     def _forward_impl(self, x, x_text, x_text_mask):
         bs, S, C, H, W = x.shape
 
+        # Game feature extraction
         x = x.view(bs, S * C, H, W)
-        # See note [TorchScript super()]
         z = self.cnn(x)
         z_linear = z.reshape(bs, -1)
 
-        # Extraction
+        # Text feature extraction
         x_text = x_text[:, -1]  # [bs, S_text, F_bert]
         x_text_mask = x_text_mask[:, -1]  # [bs, S_text]
         output, _ = self.extractor(x_text * x_text_mask.unsqueeze(-1))
@@ -510,14 +484,16 @@ class ResNet18BiLSTMFFResPolicy(ResNet18BiLSTMFFPolicy):
         z_linear = z_linear + self.fusion(z_linear_fus) * batch_mask
 
         # Heads
-        y_spatial_state_logits = self.spatial_state_head(z)
+        y_spatial_state_logits = self.spatial_state_head(z_linear.reshape(z.shape))
         y_spatial_state_logits_seq = y_spatial_state_logits.reshape([
             bs,
         ] + self.spatial_state_output_size)
+
         y_state_logits = self.linear_state_head(z_linear)
         y_state_logits_seq = y_state_logits.reshape([
             bs,
         ] + self.state_output_size)
+
         y_action_logits = self.policy_head(z_linear)
         y_action_logits_seq = y_action_logits.reshape([
             bs,

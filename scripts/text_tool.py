@@ -24,7 +24,9 @@ _RAW_SOC1000_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_
 
 # ckpt_path = os.path.join(cfd, 'results/resnet18bilstmconcat/humantrade.ckpt')
 # ckpt_path = os.path.join(cfd, 'results/resnet18bilstmff/humantrade.ckpt')
-ckpt_path = os.path.join(cfd, 'results/resnet18bilstmffres/humantrade.ckpt')
+# ckpt_path = os.path.join(cfd, 'results/resnet18bilstmffres/humantrade.ckpt')
+# ckpt_path = os.path.join(cfd, 'results/resnet18bilstmffres/trade.ckpt')
+ckpt_path = os.path.join(cfd, 'results/resnet18bilstmffres/full.ckpt')
 ckpt = torch.load(ckpt_path, map_location=torch.device('cpu'))
 ckpt['hyper_parameters'] = DictConfig(ckpt['hyper_parameters'])
 ckpt['hyper_parameters']['dataset'] = DictConfig(ckpt['hyper_parameters']['dataset'])
@@ -81,6 +83,13 @@ def get_formated_preds(runner, output_pr_idx, x_seq, messages):
     return format_res_tensor(ds_utils.unnormalize_playersresources(res_pred))
 
 
+def nice_print(t):
+    print('           C, O, S,Wh,Wo,Unk')
+    print('Betty:   ', t[0])
+    print('Peter:   ', t[1])
+    print('Jake:    ', t[2])
+    print('Sam:     ', t[3])
+
 input_meta = runner.train_dataset.get_input_metadata()
 spatial_metadata, linear_metadata, actions_metadata = runner.output_metadata
 input_pr_idx = input_meta['playersresources']
@@ -129,15 +138,14 @@ with torch.no_grad():
             'Data: 4 players containing 6 resources in the following order CLAY ORE SHEEP WHEAT WOOD UNKNOWN'
         )
         print(
-            'players:                                 -       Betty       -       Peter       -       Jake        -       Sam'
+            'players:                                          -       Betty       -       Peter       -       Jake        -       Sam'
         )
-        print('players_res (s_t)                      ', format_res_pred(players_res))
+        print('players_res (s^res_t)                            ', format_res_pred(players_res))
 
-        print('players_res_true (s_t+1)               ', format_res_pred(players_res_true))
-        print('players_res_preds p(s_t+1|s_t, text_t) ', format_res_pred(players_res_preds))
-        print('players_res_preds p(s_t+1|s_t, 0)      ', format_res_pred(players_res_preds_no_text))
-        print(
-            'players_res_preds p(s_t+1|0, text_t)   ', format_res_pred(players_res_preds_no_state)
+        print('players_res_true (s^res_t+1)                     ', format_res_pred(players_res_true))
+        print('players_res_preds p(s^res_t+1|s_t, a_t, text_t)  ', format_res_pred(players_res_preds))
+        print('players_res_preds p(s^res_t+1|s_t, a_t, 0)       ', format_res_pred(players_res_preds_no_text))
+        print('players_res_preds p(s^res_t+1|0, 0, text_t)      ', format_res_pred(players_res_preds_no_state)
         )
         # print(
         #     'Distance predictions <-> true values:\n',

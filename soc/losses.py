@@ -24,7 +24,7 @@ def gameturn_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 20.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -91,7 +91,7 @@ def pieces_loss(
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
     compute_random_mask=False,
-    coef: float = 5.0,
+    coef: float = 1.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -116,7 +116,7 @@ def gamestate_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -134,7 +134,7 @@ def diceresult_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -152,7 +152,7 @@ def startingplayer_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 2.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -170,7 +170,7 @@ def currentplayer_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 2.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -188,7 +188,7 @@ def devcardsleft_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]
@@ -206,7 +206,7 @@ def playeddevcard_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 5.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -222,7 +222,7 @@ def playersresources_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 200.0  # Regression
+    coef: float = 1.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -238,7 +238,7 @@ def players_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 0.1
+    coef: float = 0.0
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
@@ -254,7 +254,7 @@ def actions_loss(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
     t2_true_seq: torch.Tensor,
-    coef: float = 1.0
+    coef: float = 0.0
 ) -> torch.Tensor:
     bs = t1_logits_seq.shape[0]
     S = t1_logits_seq.shape[1]

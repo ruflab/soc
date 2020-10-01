@@ -3,7 +3,7 @@ runner:
   seed: 1
   verbose: true
   n_epochs: 20 # This should be the same as trainer.max_epochs
-  lr: 0.00006
+  lr: 0.00001
   optimizer: adamw
   scheduler: cyclic
   batch_size: 64

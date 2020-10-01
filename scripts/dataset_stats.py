@@ -13,7 +13,7 @@ _RAW_SOC100_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1
 _RAW_SOC500_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_500_raw_df.pt')
 _RAW_SOC1000_TEXT_BERT_DATASET_PATH = os.path.join(_DATA_FOLDER, 'soc_text_bert_1000_raw_df.pt')
 
-data = torch.load(_RAW_SOC50_TEXT_BERT_DATASET_PATH)
+data = torch.load(_RAW_SOC500_TEXT_BERT_DATASET_PATH)
 
 n_datapoints = 0
 n_resources_changing = 0
@@ -22,6 +22,8 @@ n_fail_trade = 0
 n_human_trade = 0
 n_shop_trade = 0
 n_bank_trade = 0
+
+mean_human_trade_changed_values = []
 
 for states_df, actions_df, chats_df in data:
     for i in range(len(states_df) - 1):
@@ -52,6 +54,7 @@ for states_df, actions_df, chats_df in data:
 
             diff = torch.sum(future_res - past_res)
             if diff == 0:
+                mean_human_trade_changed_values.append(torch.mean(((future_res - past_res) != 0) * 1.))
                 n_human_trade += 1
             elif diff == -3:
                 n_bank_trade += 1
@@ -65,3 +68,4 @@ print('n_fail_trade', n_fail_trade)
 print('n_human_trade', n_human_trade)
 print('n_bank_trade', n_bank_trade)
 print('n_shop_trade', n_shop_trade)
+print('mean_human_trade_changed_values', torch.tensor(mean_human_trade_changed_values).mean())

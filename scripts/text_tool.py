@@ -90,6 +90,7 @@ def nice_print(t):
     print('Jake:    ', t[2])
     print('Sam:     ', t[3])
 
+
 input_meta = runner.train_dataset.get_input_metadata()
 spatial_metadata, linear_metadata, actions_metadata = runner.output_metadata
 input_pr_idx = input_meta['playersresources']
@@ -142,10 +143,19 @@ with torch.no_grad():
         )
         print('players_res (s^res_t)                            ', format_res_pred(players_res))
 
-        print('players_res_true (s^res_t+1)                     ', format_res_pred(players_res_true))
-        print('players_res_preds p(s^res_t+1|s_t, a_t, text_t)  ', format_res_pred(players_res_preds))
-        print('players_res_preds p(s^res_t+1|s_t, a_t, 0)       ', format_res_pred(players_res_preds_no_text))
-        print('players_res_preds p(s^res_t+1|0, 0, text_t)      ', format_res_pred(players_res_preds_no_state)
+        print(
+            'players_res_true (s^res_t+1)                     ', format_res_pred(players_res_true)
+        )
+        print(
+            'players_res_preds p(s^res_t+1|s_t, a_t, text_t)  ', format_res_pred(players_res_preds)
+        )
+        print(
+            'players_res_preds p(s^res_t+1|s_t, a_t, 0)       ',
+            format_res_pred(players_res_preds_no_text)
+        )
+        print(
+            'players_res_preds p(s^res_t+1|0, 0, text_t)      ',
+            format_res_pred(players_res_preds_no_state)
         )
         # print(
         #     'Distance predictions <-> true values:\n',

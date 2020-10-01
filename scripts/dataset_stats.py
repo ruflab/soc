@@ -54,7 +54,9 @@ for states_df, actions_df, chats_df in data:
 
             diff = torch.sum(future_res - past_res)
             if diff == 0:
-                mean_human_trade_changed_values.append(torch.mean(((future_res - past_res) != 0) * 1.))
+                mean_human_trade_changed_values.append(
+                    torch.mean(((future_res - past_res) != 0) * 1.)
+                )
                 n_human_trade += 1
             elif diff == -3:
                 n_bank_trade += 1

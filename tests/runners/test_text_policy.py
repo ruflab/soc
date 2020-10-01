@@ -118,11 +118,11 @@ class TestTextPolicyRunner(unittest.TestCase):
             for param_copy, param in zipped_params:
                 assert not torch.all(torch.eq(param_copy, param))
 
-            zipped_params = zip(
-                r_copy.model.policy_head.parameters(), runner.model.policy_head.parameters()
-            )
-            for param_copy, param in zipped_params:
-                assert not torch.all(torch.eq(param_copy, param))
+            # zipped_params = zip(
+            #     r_copy.model.policy_head.parameters(), runner.model.policy_head.parameters()
+            # )
+            # for param_copy, param in zipped_params:
+            #     assert not torch.all(torch.eq(param_copy, param))
 
             zipped_params = zip(r_copy.model.cnn.parameters(), runner.model.cnn.parameters())
             for param_copy, param in zipped_params:

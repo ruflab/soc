@@ -27,6 +27,7 @@ setup(
     install_requires=[
         'neptune-client',
         'pytorch_lightning >= 0.8.5',
-        'hydra-core==1.0.0rc2'
+        'hydra-core >= 1.0.0',
+        'transformers >= 3.0'
     ]
 )

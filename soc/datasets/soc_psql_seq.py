@@ -2,10 +2,10 @@ import os
 import zipfile
 import shutil
 import sqlalchemy
-import numpy as np
 import pandas as pd
 import torch
-from typing import List
+from torch import Tensor
+from typing import List, Optional, Union, Tuple
 from .soc_psql import SocPSQLDataset
 from . import utils as ds_utils
 from . import soc_data
@@ -30,8 +30,13 @@ class SocPSQLSeqDataset(SocPSQLDataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-    def __len__(self) -> int:
-        return self._get_length()
+    def _set_props(self, config):
+        state_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
+        action_shape = [soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.input_shape = [state_shape, action_shape]
+        self.output_shape = [state_shape, action_shape]
+
+        self.infix = 'seq'
 
     def _get_length(self):
         if self._length == -1 and self.engine is not None:
@@ -44,38 +49,23 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         return self._length
 
-    def __getitem__(self, idx: int) -> SocDatasetItem:
+    def __getitem__(self, idx: int):
         """
             Return one datapoint from the dataset
 
             A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
 
         """
-        df_states = self._get_states_from_db(idx)
-        df_actions = self._get_actions_from_db(idx)
+        states_df = self._get_states_from_db(idx)
+        actions_df = self._get_actions_from_db(idx)
 
-        assert len(df_states.index) == len(df_actions.index)
-        game_length = len(df_states)
+        assert len(states_df.index) == len(actions_df.index)
 
-        df_states = ds_utils.preprocess_states(df_states)
-        df_actions = ds_utils.preprocess_actions(df_actions)
+        states_df = ds_utils.preprocess_states(states_df)
+        actions_df = ds_utils.preprocess_actions(actions_df)
 
-        state_seq = []
-        action_seq = []
-        for i in range(game_length):
-            current_state_df = df_states.iloc[i]
-            current_action_df = df_actions.iloc[i]
-
-            current_state_np = np.concatenate(
-                [current_state_df[col] for col in soc_data.STATE_COLS.keys()], axis=0
-            )  # yapf: ignore
-            current_action_np = current_action_df['type']
-
-            state_seq.append(torch.tensor(current_state_np, dtype=torch.float32))
-            action_seq.append(torch.tensor(current_action_np, dtype=torch.float32))
-
-        state_seq_t = torch.stack(state_seq)
-        action_seq_t = torch.stack(action_seq)
+        state_seq_t = ds_utils.stack_states_df(states_df)
+        action_seq_t = ds_utils.stack_actions_df(actions_df)
 
         return state_seq_t, action_seq_t
 
@@ -84,58 +74,71 @@ class SocPSQLSeqDataset(SocPSQLDataset):
         query = """
             SELECT *
             FROM obsgamestates_{}
+            ORDER BY id
         """.format(db_id)
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_states = pd.read_sql_query(query, con=conn)
+                states_df = pd.read_sql_query(query, con=conn)
         else:
             raise Exception('No engine detected')
 
-        return df_states
+        return states_df
 
     def _get_actions_from_db(self, idx: int) -> pd.DataFrame:
         db_id = self._first_index + idx
         query = """
             SELECT *
             FROM gameactions_{}
+            WHERE beforestate > 0
+            ORDER BY beforestate
         """.format(db_id)
 
         if self.engine is not None:
             with self.engine.connect() as conn:
-                df_actions = pd.read_sql_query(query, con=conn)
+                actions_df = pd.read_sql_query(query, con=conn)
+                # At the end of the trajectory, there is no action after the last state
+                # In this special case, we add it again
+                last_action = actions_df.iloc[-1].copy()
+                last_action['beforestate'] += 1
+                last_action['afterstate'] = -1
+                actions_df = actions_df.append(last_action)
         else:
             raise Exception('No engine detected')
 
-        return df_actions
+        return actions_df
 
     def dump_preprocessed_dataset(
         self, folder: str, testing: bool = False, separate_seq: bool = False
     ):
+        sec_trunc_idx: Optional[int] = None
         if testing is True:
-            limit = 5
+            nb_games = 3
+            sec_trunc_idx = 30
         else:
-            limit = len(self)
+            nb_games = len(self)
 
+        prefix = "{}/soc_{}_{}_fullseq".format(folder, self.infix, nb_games)
         if separate_seq:
-            folder = "{}/soc_{}_fullseq".format(folder, limit)
+            folder = prefix
 
         utils.check_folder(folder)
 
         seqs = []
-        for i in range(limit):
-            input_seq_t = self._load_input_seq(i)
-
-            if testing is True:
-                input_seq_t = input_seq_t[:8]
+        for i in range(nb_games):
+            print('processing input {}'.format(i))
+            inputs_l = self._load_input_seq(i)
+            for input_idx, input_t in enumerate(inputs_l):
+                inputs_l[input_idx] = input_t[:sec_trunc_idx]
 
             if separate_seq:
                 path = "{}/{}.pt".format(folder, i)
-                torch.save(input_seq_t, path)
+                torch.save(inputs_l, path)
             else:
-                seqs.append(input_seq_t)
+                seqs.append(inputs_l)
 
         if separate_seq:
+
             def zipdir(path, zip_filename):
                 ziph = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
 
@@ -146,14 +149,14 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
                 ziph.close()
 
-            zip_filename = "{}/../soc_{}_fullseq.zip".format(folder, limit)
+            zip_filename = "{}.zip".format(prefix)
             zipdir(folder, zip_filename)
             shutil.rmtree(folder)
         else:
-            path = "{}/soc_{}_fullseq.pt".format(folder, limit)
+            path = "{}.pt".format(prefix)
             torch.save(seqs, path)
 
-    def _load_input_seq(self, idx: int):
+    def _load_input_seq(self, idx: int) -> List[Tensor]:
         data = self[idx]
 
         state_seq_t = data[0]  # SxC_sxHxW
@@ -161,22 +164,45 @@ class SocPSQLSeqDataset(SocPSQLDataset):
 
         input_seq_t = torch.cat([state_seq_t, action_seq_t], dim=1)
 
-        return input_seq_t
+        return [input_seq_t]
 
-    def dump_raw_dataset(self, folder: str):
+    def dump_raw_dataset(
+        self,
+        folder: str,
+        testing: bool = False,
+    ):
         utils.check_folder(folder)
 
-        limit = len(self)
+        if testing is True:
+            nb_games = 3
+        else:
+            nb_games = len(self)
 
         data = []
-        for i in range(limit):
-            df_states = self._get_states_from_db(i)
-            df_actions = self._get_actions_from_db(i)
+        for i in range(nb_games):
+            df_list = self._load_input_df_list(i, testing)
+            data.append(df_list)
 
-            data.append([df_states, df_actions])
-
-        path = "{}/soc_{}_raw.pt".format(folder, limit)
+        path = "{}/soc_{}_{}_raw_df.pt".format(folder, self.infix, nb_games)
         torch.save(data, path)
+
+    def _load_input_df_list(self, idx: int, testing: bool = False) -> List[pd.DataFrame]:
+        states_df = self._get_states_from_db(idx)
+        actions_df = self._get_actions_from_db(idx)
+
+        sec_trunc_idx: Optional[int] = None
+        if testing is True:
+            sec_trunc_idx = 30
+
+            states_df = states_df[:sec_trunc_idx]
+            actions_df = actions_df[(actions_df['beforestate'] >= states_df['id'].min())
+                                    & (actions_df['beforestate'] <= states_df['id'].max())]
+
+        assert len(states_df) == len(actions_df)
+
+        df_list = [states_df, actions_df]
+
+        return df_list
 
 
 class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
@@ -190,6 +216,10 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
         Output: Next state
             Dims: S x C_states x H x W
     """
+    def _set_props(self, config):
+        self.input_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
+
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSDataset, self).__getitem__(idx)
 
@@ -202,41 +232,29 @@ class SocPSQLSeqSAToSDataset(SocPSQLSeqDataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List[int]:
-        """
-            Return the input dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
-
-    def get_output_size(self) -> List[int]:
-        """
-            Return the output dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE,
-        ] + soc_data.BOARD_SIZE
-
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        return {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-        }
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
 
 
 class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
@@ -250,6 +268,10 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
+    def _set_props(self, config):
+        self.input_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        self.output_shape = [soc_data.STATE_SIZE + soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+
     def __getitem__(self, idx: int) -> SocDatasetItem:
         data = super(SocPSQLSeqSAToSADataset, self).__getitem__(idx)
 
@@ -262,40 +284,28 @@ class SocPSQLSeqSAToSADataset(SocPSQLSeqDataset):
 
         return x_t, y_t
 
-    def get_input_size(self) -> List[int]:
-        """
-            Return the input dimension
-        """
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
-
-    def get_output_size(self) -> List:
-        """
-            Return the output dimension
-        """
-
-        return [
-            soc_data.STATE_SIZE + soc_data.ACTION_SIZE,
-        ] + soc_data.BOARD_SIZE
-
     def get_collate_fn(self):
         return ds_utils.pad_seq_sas
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 111],
-            'startingplayer': [111, 115],
-            'currentplayer': [115, 118],
-            'devcardsleft': [118, 119],
-            'playeddevcard': [119, 120],
-            'players': [120, 284],
-            'actions': [284, 301],
-        }
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata

@@ -17,3 +17,5 @@ SocSeqList = List[SocDatasetItem]
 SocSeqPolicyList = List[SocPolicyDatasetItem]
 SocCollateFn = Callable[[SocSeqList], SocBatch]
 SocDataMetadata = Dict[str, List[int]]
+
+SocSize = Union[List[int], List[List[int]]]

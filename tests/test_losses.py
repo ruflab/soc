@@ -11,41 +11,33 @@ fixture_dir = os.path.join(cfd, 'fixtures')
 
 
 class TestLosses(unittest.TestCase):
-
-    df_states: pd.DataFrame
-    df_actions: pd.DataFrame
-
-    obs_files = [
-        os.path.join(fixture_dir, 'small_obsgamestates_100.csv'),
-        os.path.join(fixture_dir, 'small_obsgamestates_101.csv'),
-    ]
-    actions_files = [
-        os.path.join(fixture_dir, 'small_gameactions_100.csv'),
-        os.path.join(fixture_dir, 'small_gameactions_101.csv'),
-    ]
-
-    _get_states_from_db_se_f = None
-    _get_actions_from_db_se_f = None
-
     @classmethod
     def setUpClass(cls):
-        cls.states = [pd.read_csv(file) for file in cls.obs_files]
-        cls.actions = [pd.read_csv(file) for file in cls.actions_files]
+        data = torch.load(os.path.join(fixture_dir, 'soc_seq_3_raw_df.pt'))
+
+        def _get_states_from_db_se_f(self, idx: int) -> pd.DataFrame:
+            return data[idx][0]
+
+        def _get_actions_from_db_se_f(self, idx: int) -> pd.DataFrame:
+            return data[idx][1]
+
+        cls._get_states_from_db_se_f = _get_states_from_db_se_f
+        cls._get_actions_from_db_se_f = _get_actions_from_db_se_f
 
     def test_hexlayout_loss(self):
-        state = self.states[0]
+        state = self._get_states_from_db_se_f(0)
         state = utils.preprocess_states(state)
         state = state.iloc[7]
         state_t = torch.tensor(
-            np.concatenate([state[col] for col in soc_data.STATE_COLS.keys()], axis=0),
+            np.concatenate([state[col] for col in soc_data.STATE_FIELDS], axis=0),
             dtype=torch.float32
         )  # yapf: ignore
         state_t = state_t.unsqueeze(0)
 
         indexes = [0, 2]
 
-        loss = losses.hexlayout_loss(indexes, state_t, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t, state_t, 1.0)
         assert loss == 0
 
-        loss = losses.hexlayout_loss(indexes, state_t + 0.2, state_t)
+        loss = losses.hexlayout_loss(indexes, state_t + 0.2, state_t, 1.0)
         assert loss != 0

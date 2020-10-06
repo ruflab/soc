@@ -46,16 +46,18 @@ with torch.no_grad():
 
         last_action_idx = int(torch.argmax(x_seq[0][-1][-soc_data.ACTION_SIZE:, 0, 0]).item())
         last_action_name = soc_data.ACTIONS_NAMES[last_action_idx]
-        previous_dice_idx = int(torch.argmax(
-            x_seq[0][-1][
-                last_spatial_id + dice_distrib_idx[0]:last_spatial_id + dice_distrib_idx[1],
-                0,
-                0
-            ].item()))
+        previous_dice_idx = int(
+            torch.argmax(
+                x_seq[0][-1][last_spatial_id + dice_distrib_idx[0]:last_spatial_id
+                             + dice_distrib_idx[1],
+                             0,
+                             0].item()
+            )
+        )
         previous_dice_val = soc_data.DICE_RESULTS[previous_dice_idx]
-        future_dice_idx = int(torch.argmax(
-            y_s_true_seq[0][0][dice_distrib_idx[0]:dice_distrib_idx[1]]
-        ).item())
+        future_dice_idx = int(
+            torch.argmax(y_s_true_seq[0][0][dice_distrib_idx[0]:dice_distrib_idx[1]]).item()
+        )
         future_dice_val = soc_data.DICE_RESULTS[future_dice_idx]
 
         dice_logits_preds = y_s_logits_seq[0][0][dice_distrib_idx[0]:dice_distrib_idx[1]]
@@ -70,5 +72,4 @@ with torch.no_grad():
         if last_action_name == 'ROLL':
             dice_values = [-1, 0] + list(range(2, 13))
             sns.barplot(x=dice_values, y=dice_distrib_preds)
-            # breakpoint()
             # plt.show()

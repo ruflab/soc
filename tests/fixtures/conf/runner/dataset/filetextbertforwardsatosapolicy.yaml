@@ -1,0 +1,7 @@
+# @package _group_
+name: SocFileTextBertForwardSAToSAPolicyDataset
+history_length: 3
+future_length: 2
+tokenizer_path: null
+bert_model_path: null
+set_empty_text_to_zero: false

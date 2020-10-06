@@ -4,7 +4,6 @@ from torch.utils.data import Dataset
 from dataclasses import dataclass
 from omegaconf import MISSING, DictConfig
 from typing import Any
-from ..typing import SocCollateFn
 
 
 @dataclass
@@ -35,9 +34,6 @@ class SocPSQLDataset(Dataset):
             dataset: (Dataset) A pytorch Dataset giving access to the data
 
     """
-
-    _length: int
-
     def __init__(self, omegaConf: DictConfig) -> None:
         super(SocPSQLDataset, self).__init__()
 
@@ -71,20 +67,34 @@ class SocPSQLDataset(Dataset):
 
         self._set_props(omegaConf)
 
-    def _set_props(self, omegaConf: DictConfig):
+    def _set_props(self, config):
         pass
 
     def __len__(self) -> int:
+        return self._get_length()
+
+    def _get_length(self):
         raise NotImplementedError
 
     def __getitem__(self, idx: int) -> Any:
         raise NotImplementedError
 
-    def get_input_size(self) -> Any:
-        raise NotImplementedError
+    def get_input_size(self):
+        """
+            Return the input dimension
+        """
 
-    def get_output_size(self) -> Any:
-        raise NotImplementedError
+        return self.input_shape
 
-    def get_collate_fn(self) -> SocCollateFn:
+    def get_output_size(self):
+        """
+            Return the output dimension
+        """
+
+        return self.output_shape
+
+    def get_collate_fn(self):
+        return None
+
+    def get_output_metadata(self):
         raise NotImplementedError

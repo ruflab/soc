@@ -60,7 +60,10 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
         return x_t, y_t
 
     def _get_data(self, idx: int) -> torch.Tensor:
-        return self.data[idx]
+        seq = self.data[idx]
+        if isinstance(seq, list):
+            seq = seq[0]
+        return seq
 
     def get_input_size(self) -> List[int]:
         """
@@ -79,20 +82,24 @@ class SocPreprocessedSeqSAToSDataset(Dataset):
     def get_collate_fn(self) -> Callable:
         return ds_utils.pad_seq_sas
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 112],
-            'startingplayer': [112, 116],
-            'currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'playeddevcard': [121, 122],
-            'players': [122, 286],
-        }
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         return metadata
 
@@ -119,21 +126,15 @@ class SocPreprocessedSeqSAToSADataset(SocPreprocessedSeqSAToSDataset):
 
         return x_t, y_t
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-            'gamestate': [75, 99],
-            'diceresult': [99, 112],
-            'startingplayer': [112, 116],
-            'currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'playeddevcard': [121, 122],
-            'players': [122, 286],
-            'actions': [286, 303],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata['mean_' + field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -173,23 +174,25 @@ class SocPreprocessedSeqSAToSAPolicyDataset(SocPreprocessedSeqSAToSADataset):
     def get_collate_fn(self) -> Callable:
         return ds_utils.pad_seq_policy
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],

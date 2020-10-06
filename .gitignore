@@ -1,11 +1,14 @@
 # App
+soc/models/hopfield
 scripts/results
 scripts/*.ckpt
 data/
 tmp/
+tests/fixtures/*.pt
 
 # hydra
 outputs/
+multirun/
 
 # Python
 __pycache__

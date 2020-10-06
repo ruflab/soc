@@ -1,0 +1,10 @@
+# @package _group_
+name: SocPSQLTextBertForwardSAToSAPolicyDataset
+no_db: True
+first_index: 0
+psql_password: "dummy"
+history_length: 3
+future_length: 2
+tokenizer_path: null
+bert_model_path: null
+set_empty_text_to_zero: False

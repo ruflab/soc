@@ -43,6 +43,32 @@ def get_stats(metadata: SocDataMetadata, x: torch.Tensor, y: Union[torch.Tensor,
     return stats_dict
 
 
+def compute_field_acc_post_action(
+    field_key: str,
+    indexes: List[int],
+    x_seq: torch.Tensor,
+    y_a_true_seq: torch.Tensor,
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    # We are interested only in the last action of the history
+    select = ds_utils.find_actions_idxs(x_seq, 'TRADE')
+    select = select[:, -1]
+
+    if torch.all(torch.eq(select, False)):
+        return torch.tensor(-1.)
+
+    # We evaluate only the next state
+    t1_logits_seq_trunc = t1_logits_seq[select, :1]
+    t2_true_seq_trunc = t2_true_seq[select, :1]
+
+    assert len(t1_logits_seq_trunc.shape) == 3
+
+    acc = acc_mapping[field_key](indexes, t1_logits_seq_trunc, t2_true_seq_trunc)
+
+    return acc
+
+
 def mean_acc(
     indexes: List[int],
     t1_logits_seq: torch.Tensor,
@@ -54,6 +80,22 @@ def mean_acc(
     hexlayout_true = t2_true_seq[:, :, start_i:end_i]
 
     acc_eq = (hexlayout_preds == hexlayout_true)
+    acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
+
+    return acc
+
+
+def gameturn_acc(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    gameturn_preds = ds_utils.unnormalize_gameturn(t1_logits_seq[:, :, start_i:end_i])
+    gameturn_true = ds_utils.unnormalize_gameturn(t2_true_seq[:, :, start_i:end_i])
+
+    acc_eq = (gameturn_preds == gameturn_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
 
     return acc
@@ -232,10 +274,19 @@ def devcardsleft_acc(
 ) -> torch.Tensor:
     start_i, end_i = indexes
 
-    devcardsleft_preds = ds_utils.unnormalize_devcardsleft(t1_logits_seq[:, :, start_i])
-    devcardsleft_true = ds_utils.unnormalize_devcardsleft(t2_true_seq[:, :, start_i])
+    devcardsleft_logits_seq = t1_logits_seq[:, :, start_i:end_i]
+    devcardsleft_true_seq = t2_true_seq[:, :, start_i:end_i]
+    if len(t1_logits_seq.shape) == 5:
+        # We are dealing with spatial data
+        devcardsleft_logits_seq = devcardsleft_logits_seq.mean(dim=[3, 4])
+        devcardsleft_true_seq = devcardsleft_true_seq.mean(dim=[3, 4])
 
-    acc_eq = (devcardsleft_preds == devcardsleft_true)
+    bs = t1_logits_seq.shape[0]
+    S = t1_logits_seq.shape[1]
+    devcardsleft_pred_idx = torch.argmax(devcardsleft_logits_seq.reshape(bs * S, -1), dim=1)
+    devcardsleft_true_pos = torch.argmax(devcardsleft_true_seq.reshape(bs * S, -1), dim=1)
+
+    acc_eq = (devcardsleft_pred_idx == devcardsleft_true_pos)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
 
     return acc
@@ -252,6 +303,24 @@ def playeddevcard_acc(
     playeddevcard_true = t2_true_seq[:, :, start_i]
 
     acc_eq = (playeddevcard_preds == playeddevcard_true)
+    acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
+
+    return acc
+
+
+def playersresources_acc(
+    indexes: List[int],
+    t1_logits_seq: torch.Tensor,
+    t2_true_seq: torch.Tensor,
+) -> torch.Tensor:
+    start_i, end_i = indexes
+
+    playersresources_preds = ds_utils.unnormalize_playersresources(
+        t1_logits_seq[:, :, start_i:end_i]
+    )
+    playersresources_true = ds_utils.unnormalize_playersresources(t2_true_seq[:, :, start_i:end_i])
+
+    acc_eq = (playersresources_preds == playersresources_true)
     acc = acc_eq.type(t1_logits_seq.dtype).mean()  # type: ignore
 
     return acc
@@ -314,6 +383,7 @@ def compute_accs(
 
 
 acc_mapping = {
+    'gameturn': gameturn_acc,
     'hexlayout': hexlayout_acc,
     'numberlayout': numberlayout_acc,
     'robberhex': robber_acc,
@@ -324,6 +394,7 @@ acc_mapping = {
     'currentplayer': currentplayer_acc,
     'devcardsleft': devcardsleft_acc,
     'playeddevcard': playeddevcard_acc,
+    'playersresources': playersresources_acc,
     'players': players_acc,
     'actions': actions_acc,
 }

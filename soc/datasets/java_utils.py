@@ -238,7 +238,7 @@ def parse_pieces(pieces: str) -> np.ndarray:
 def parse_player_infos(p_infos: str) -> np.ndarray:
     """
         Parse the JAVA representation for players
-        4 arrays of 41 datum
+        4 arrays of 35 datum
         It is a list of int ordered as:
             - 0, player's ID (from the db, int)
             - 1, public vp (int)
@@ -252,19 +252,45 @@ def parse_player_infos(p_infos: str) -> np.ndarray:
             - 12:16, all the newly bought dev cards (int)
             - 17, how many knight (moving robber) cards played by this player
 
-            - 18:23, number of each resource (clay, ore, sheep, wheat, wood, unknown)
+            - 18:22, which resource types the player is touching
+            - 23:28, which port types the player is touching
+            - 29, roads left to build
+            - 30, settlements left to build
+            - 31, cities left to build
 
-            - 24:28, which resource types the player is touching
-            - 19:34, which port types the player is touching
-            - 35, roads left to build
-            - 36, settlements left to build
-            - 37, cities left to build
-
-            - 38, how many road building cards played by this player
-            - 39, how many monopoly cards played by this player
-            - 40, how many discovery cards played by this player
+            - 32, how many road building cards played by this player
+            - 33, how many monopoly cards played by this player
+            - 34, how many discovery cards played by this player
 
         All booleans (LA, LR, touching stuff are represented in 1 for true or 0 for false).
+    """
+    if isinstance(p_infos, str):
+        p_infos_separated = [
+            re.sub(r'\{|\}', '', e).split(',') for e in re.findall(r'\{.*?\}', p_infos)
+        ]
+        p_infos_cleaned = [map(int, arr) for arr in p_infos_separated]
+    else:
+        p_infos_cleaned = p_infos
+
+    all_player_infos = []
+    for player_info in p_infos_cleaned:
+        p_info = np.concatenate([get_replicated_plan(v) for v in player_info], axis=0)
+        all_player_infos.append(p_info)
+
+    return np.concatenate(all_player_infos, axis=0)
+
+
+def parse_player_resources(p_infos: str) -> np.ndarray:
+    """
+        Parse the JAVA representation for players resources
+        4 arrays of 6 datum
+        It is a list of int ordered as:
+            - 0, CLAY
+            - 1, ORE
+            - 2, SHEEP
+            - 3, WHEAT
+            - 4, WOOD
+            - 5, UNKNOWN
     """
     if isinstance(p_infos, str):
         p_infos_separated = [
@@ -291,31 +317,38 @@ def parse_game_phases(game_phase: int):
     return game_phase_plan
 
 
-def parse_current_player(current_player: int):
-    player_plan = np.zeros([4, 7, 7])
-    player_plan[current_player, :, :] = 1
+def parse_devcardsleft(devcardsleft: int):
+    devcardsleft_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['devcardsleft'], 7, 7])
+    devcardsleft_plan[devcardsleft, :, :] = 1
 
-    return player_plan
-
-
-def parse_starting_player(starting_player: int):
-    player_plan = np.zeros([4, 7, 7])
-    player_plan[starting_player, :, :] = 1
-
-    return player_plan
+    return devcardsleft_plan
 
 
 def parse_dice_result(dice_result: int):
-    actions_plan = np.zeros([len(soc_data.DICE_RESULTS), 7, 7])
+    dice_result_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['diceresult'], 7, 7])
     idx = list(soc_data.DICE_RESULTS.values()).index(dice_result)
 
-    actions_plan[idx, :, :] = 1
+    dice_result_plan[idx, :, :] = 1
 
-    return actions_plan
+    return dice_result_plan
+
+
+def parse_starting_player(starting_player: int):
+    starting_player_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['currentplayer'], 7, 7])
+    starting_player_plan[starting_player, :, :] = 1
+
+    return starting_player_plan
+
+
+def parse_current_player(current_player: int):
+    current_player_plan = np.zeros([soc_data.STATE_FIELDS_SIZE['startingplayer'], 7, 7])
+    current_player_plan[current_player, :, :] = 1
+
+    return current_player_plan
 
 
 def parse_actions(action: float):
-    actions_plan = np.zeros([len(soc_data.ACTIONS), 7, 7])
+    actions_plan = np.zeros([soc_data.ACTION_SIZE, 7, 7])
     idx = list(soc_data.ACTIONS.values()).index(action)
 
     actions_plan[idx, :, :] = 1

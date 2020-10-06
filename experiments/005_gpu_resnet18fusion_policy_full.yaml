@@ -1,0 +1,57 @@
+# @package _global_
+runner:
+  seed: 1
+  verbose: true
+  n_epochs: 20 # This should be the same as trainer.max_epochs
+  lr: 0.00001
+  optimizer: adamw
+  scheduler: cyclic
+  batch_size: 64
+  weight_decay: 0.0001
+  amsgrad: true
+  use_gpu_preprocessing: true
+  dataset:
+    name: SocFileTextBertForwardSAToSAPolicyDataset
+    history_length: 1
+    future_length: 1
+    use_pooler_features: False
+    set_empty_text_to_zero: True
+    tokenizer_path: null
+    bert_model_path: null
+    shuffle: true
+    dataset_path: ???
+  val_dataset:
+    name: ${runner.dataset.name}
+    history_length: ${runner.dataset.history_length}
+    future_length: ${runner.dataset.future_length}
+    use_pooler_features: ${runner.dataset.use_pooler_features}
+    set_empty_text_to_zero: ${runner.dataset.set_empty_text_to_zero}
+    tokenizer_path: null
+    bert_model_path: null
+    shuffle: true
+    dataset_path: ???
+  model:
+    name: ResNet18FusionPolicy
+    self_att_fusion: False
+    n_core_planes: 16
+    fusion_num_heads: 8
+    beta: 0.3
+    update_steps_max: 3
+    data_input_size: ???
+    data_output_size: ???
+  runner_name: SOCTextForwardPolicyRunner
+  train_cnn: true
+  train_heads: true
+  train_fusion: true
+trainer:
+  logger: neptune
+  deterministic: true
+  terminate_on_nan: true
+  gpus: 1
+  row_log_interval: 7
+  max_epochs: 20
+  val_check_interval: 150 # Every 100 training batches
+  resume_from_checkpoint: null
+other:
+  save_top_k: 3
+  period: 1

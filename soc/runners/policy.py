@@ -28,7 +28,7 @@ class SOCForwardPolicyRunner(SOCRunner):
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq)
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         train_dict = {}
         train_dict.update(
@@ -62,7 +62,7 @@ class SOCForwardPolicyRunner(SOCRunner):
 
         y_spatial_s_logits_seq, y_s_logits_seq, y_a_logits_seq = self.model(x_seq)
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         val_dict = {}
         val_dict.update(
@@ -113,7 +113,7 @@ class SOCSeqPolicyRunner(SOCRunner):
         y_s_logits_seq = y_s_logits_seq_raw * mask_linear
         y_a_logits_seq = y_a_logits_seq_raw * mask_action
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         train_dict = {}
         train_dict.update(
@@ -177,7 +177,7 @@ class SOCSeqPolicyRunner(SOCRunner):
         y_s_logits_seq = y_s_logits_seq_raw * mask_linear
         y_a_logits_seq = y_a_logits_seq_raw * mask_action
 
-        spatial_metadata, linear_metadata, actions_metadata = self.metadata
+        spatial_metadata, linear_metadata, actions_metadata = self.output_metadata
 
         val_dict = {}
         val_dict.update(

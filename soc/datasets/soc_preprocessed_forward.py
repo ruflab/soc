@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from omegaconf import MISSING, DictConfig
 from typing import List, Tuple, Union
 from ..typing import SocDatasetItem, SocDataMetadata
+from .utils import separate_state_data
 from . import soc_data
 
 cfd = os.path.dirname(os.path.realpath(__file__))
@@ -34,14 +35,6 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-
-    _length: int = -1
-    _inc_seq_steps: List[int] = []
-    history_length: int
-    future_length: int
-    input_shape: SOCShape
-    output_shape: SOCShape
-
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocPreprocessedForwardSAToSADataset, self).__init__()
 
@@ -49,6 +42,8 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self.data = torch.load(self.path)
         self._set_props(omegaConf)
@@ -69,16 +64,19 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
             total_steps = 0
             nb_games = len(self.data)
             for i in range(nb_games):
-                total_steps += self.data[i].shape[0]
+                seq = self.data[i]
+                if isinstance(seq, list):
+                    seq = seq[0]
+                total_steps += seq.shape[0]
 
-            self._length = total_steps - nb_games * self.seq_len_per_datum
+            self._length = total_steps - nb_games * (self.seq_len_per_datum - 1)
 
         return self._length
 
     def _set_stats(self):
         nb_steps = self._get_nb_steps()
         for i, nb_step in enumerate(nb_steps):
-            seq_nb_steps = nb_step - self.seq_len_per_datum
+            seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
 
             if i == 0:
                 self._inc_seq_steps.append(seq_nb_steps)
@@ -89,7 +87,10 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         nb_games = len(self.data)
         nb_steps = []
         for i in range(nb_games):
-            nb_steps.append(self.data[i].shape[0])
+            seq = self.data[i]
+            if isinstance(seq, list):
+                seq = seq[0]
+            nb_steps.append(seq.shape[0])
 
         return nb_steps
 
@@ -117,7 +118,7 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
         start_row_id = r
         end_row_id = r + self.seq_len_per_datum
 
-        return self.data[table_id][start_row_id:end_row_id]
+        return self.data[table_id][0][start_row_id:end_row_id]
 
     def get_input_size(self) -> SOCShape:
         """
@@ -136,21 +137,26 @@ class SocPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'mean_robberhex': [2, 3],
-            'mean_piecesonboard': [3, 75],
-            'mean_gamestate': [75, 99],
-            'mean_diceresult': [99, 112],
-            'mean_startingplayer': [112, 116],
-            'mean_currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'mean_playeddevcard': [121, 122],
-            'players': [122, 286],
-            'mean_actions': [286, 303],
-        }
+    def get_input_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            # field_type = soc_data.STATE_FIELDS_TYPE[field]
+            metadata[field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        return metadata
+
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata['mean_' + field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -183,33 +189,32 @@ class SocPreprocessedForwardSAToSAPolicyDataset(SocPreprocessedForwardSAToSAData
             SocPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
-        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
-                                            dim=1)  # [S, C_ss, H, W]
-        future_lin_states_t = torch.cat(
-            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
-        )  # [S, C_ls]
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+        spatial_states_future_t, lin_states_future_t = separate_state_data(states_future_t)
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+        return (history_t, [spatial_states_future_t, lin_states_future_t, actions_future_t])
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
+
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],
@@ -229,14 +234,6 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-
-    _length: int = -1
-    _inc_seq_steps: List[int] = []
-    history_length: int
-    future_length: int
-    input_shape: SOCShape
-    output_shape: SOCShape
-
     def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
         super(SocLazyPreprocessedForwardSAToSADataset, self).__init__()
 
@@ -247,6 +244,8 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         self.history_length = omegaConf['history_length']
         self.future_length = omegaConf['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
+        self._inc_seq_steps: List[int] = []
+        self._length = -1
 
         self._set_props(omegaConf)
 
@@ -269,14 +268,14 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
                 data = torch.load("{}/{}.pt".format(self.path, i))
                 total_steps += data.shape[0]
 
-            self._length = total_steps - nb_games * self.seq_len_per_datum
+            self._length = total_steps - nb_games * (self.seq_len_per_datum - 1)
 
         return self._length
 
     def _set_stats(self):
         nb_steps = self._get_nb_steps()
         for i, nb_step in enumerate(nb_steps):
-            seq_nb_steps = nb_step - self.seq_len_per_datum
+            seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
 
             if i == 0:
                 self._inc_seq_steps.append(seq_nb_steps)
@@ -317,6 +316,8 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
         end_row_id = r + self.seq_len_per_datum
 
         data = torch.load("{}/{}.pt".format(self.path, table_id))
+        if isinstance(data, list):
+            data = data[0]
 
         return data[start_row_id:end_row_id]
 
@@ -337,21 +338,15 @@ class SocLazyPreprocessedForwardSAToSADataset(Dataset):
     def get_collate_fn(self) -> None:
         return None
 
-    def get_output_metadata(self) -> SocDataMetadata:
-        metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'mean_robberhex': [2, 3],
-            'mean_piecesonboard': [3, 75],
-            'mean_gamestate': [75, 99],
-            'mean_diceresult': [99, 112],
-            'mean_startingplayer': [112, 116],
-            'mean_currentplayer': [116, 120],
-            'devcardsleft': [120, 121],
-            'mean_playeddevcard': [121, 122],
-            'players': [122, 286],
-            'mean_actions': [286, 303],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        metadata: SocDataMetadata = {}
+        last_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            metadata['mean_' + field] = [last_idx, last_idx + soc_data.STATE_FIELDS_SIZE[field]]
+            last_idx += soc_data.STATE_FIELDS_SIZE[field]
+
+        metadata['mean_actions'] = [last_idx, last_idx + soc_data.ACTION_SIZE]
 
         return metadata
 
@@ -384,33 +379,32 @@ class SocLazyPreprocessedForwardSAToSAPolicyDataset(SocLazyPreprocessedForwardSA
             SocLazyPreprocessedForwardSAToSAPolicyDataset, self
         ).__getitem__(idx)
 
-        future_states_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
-        future_actions_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
-        future_spatial_states_t = torch.cat([future_states_t[:, 0:3], future_states_t[:, 9:81]],
-                                            dim=1)  # [S, C_ss, H, W]
-        future_lin_states_t = torch.cat(
-            [future_states_t[:, 3:9, 0, 0], future_states_t[:, 81:, 0, 0]], dim=1
-        )  # [S, C_ls]
+        states_future_t = future_t[:, :-soc_data.ACTION_SIZE]  # [S, C_s, H, W]
+        actions_future_t = future_t[:, -soc_data.ACTION_SIZE:, 0, 0]  # [S, C_a]
 
-        return (history_t, [future_spatial_states_t, future_lin_states_t, future_actions_t])
+        spatial_states_future_t, lin_states_future_t = separate_state_data(states_future_t)
 
-    def get_output_metadata(self):
-        spatial_metadata: SocDataMetadata = {
-            'hexlayout': [0, 1],
-            'numberlayout': [1, 2],
-            'robberhex': [2, 3],
-            'piecesonboard': [3, 75],
-        }
+        return (history_t, [spatial_states_future_t, lin_states_future_t, actions_future_t])
 
-        linear_metadata: SocDataMetadata = {
-            'gamestate': [0, 24],
-            'diceresult': [24, 37],
-            'startingplayer': [37, 41],
-            'currentplayer': [41, 45],
-            'devcardsleft': [45, 46],
-            'playeddevcard': [46, 47],
-            'players': [47, 211],
-        }
+    def get_output_metadata(self) -> Union[SocDataMetadata, Tuple[SocDataMetadata, ...]]:
+        spatial_metadata: SocDataMetadata = {}
+        last_spatial_idx = 0
+
+        linear_metadata: SocDataMetadata = {}
+        last_linear_idx = 0
+
+        for field in soc_data.STATE_FIELDS:
+            field_type = soc_data.STATE_FIELDS_TYPE[field]
+            if field_type in [3, 4, 5]:
+                spatial_metadata[field] = [
+                    last_spatial_idx, last_spatial_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_spatial_idx += soc_data.STATE_FIELDS_SIZE[field]
+            else:
+                linear_metadata[field] = [
+                    last_linear_idx, last_linear_idx + soc_data.STATE_FIELDS_SIZE[field]
+                ]
+                last_linear_idx += soc_data.STATE_FIELDS_SIZE[field]
 
         actions_metadata: SocDataMetadata = {
             'actions': [0, soc_data.ACTION_SIZE],

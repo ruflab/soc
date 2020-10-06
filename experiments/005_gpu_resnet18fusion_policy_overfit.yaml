@@ -1,0 +1,52 @@
+# @package _global_
+runner:
+  seed: 1
+  verbose: true
+  n_epochs: 20 # This should be the same as trainer.max_epochs
+  lr: 0.00006
+  optimizer: adamw
+  scheduler: cyclic
+  batch_size: 64
+  weight_decay: 0.0001
+  amsgrad: true
+  use_gpu_preprocessing: true
+  dataset:
+    name: SocFileTextBertForwardSAToSAPolicyDataset
+    history_length: 1
+    future_length: 1
+    use_pooler_features: False
+    set_empty_text_to_zero: True
+    tokenizer_path: null
+    bert_model_path: null
+    shuffle: true
+    dataset_path: ???
+  val_dataset: ${runner.dataset}
+  model:
+    name: ResNet18FusionPolicy
+    n_core_planes: 32
+    self_att_fusion: False
+    fusion_num_heads: 8
+    beta: 0.3
+    update_steps_max: 3
+    data_input_size: ???
+    data_output_size: ???
+  runner_name: SOCTextForwardPolicyRunner
+  train_cnn: true
+  train_heads: true
+  train_fusion: true
+trainer:
+  logger: neptune
+  deterministic: true
+  terminate_on_nan: true
+  gpus: 1
+  row_log_interval: 2
+  # The states containing text are rare, so we just train our network on a very small dataset
+  # overfit_batches: 8
+  max_epochs: 20
+  profiler: null
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  resume_from_checkpoint: null
+other:
+  save_top_k: 1
+  period: 1

@@ -1,15 +1,15 @@
 # @package _global_
-generic:
-    seed: 1
-    verbose: true
-    dataset: SocPreprocessedForwardSAToSADataset
-    history_length: 8
-    future_length: 4
-    model: resnet18
-    loss_name: mse
-    lr: 0.001
-    optimizer: adam
-    scheduler: null
-    batch_size: 256
+runner:
+  seed: 1
+  verbose: true
+  dataset: SocPreprocessedForwardSAToSADataset
+  history_length: 8
+  future_length: 4
+  model: resnet18
+  loss_name: mse
+  lr: 0.001
+  optimizer: adam
+  scheduler: null
+  batch_size: 256
 trainer:
-    gpus: 1
+  gpus: 1

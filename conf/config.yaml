@@ -1,8 +1,8 @@
 # defaults:
-# - generic: cpu
+# - runner: cpu
 # - trainer: cpu
 # - other: cpu
 
-generic: ???
+runner: ???
 trainer: ???
 other: ???

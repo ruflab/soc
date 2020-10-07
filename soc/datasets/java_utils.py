@@ -17,6 +17,15 @@ _complete_map = [
             0x71, 0x93, 0xB5, 0xD7  # noqa
 ]  # yapf: disable
 
+# Equivalent map in square
+# 0x17, 0x39, 0x5B, 0x7D,  -  ,  -  ,  -  ,
+# 0x15, 0x37, 0x59, 0x7B, 0x9D,  -  ,  -  ,
+# 0x13, 0x35, 0x57, 0x79, 0x9B, 0xBD,  -  ,
+# 0x11, 0x33, 0x55, 0x77, 0x99, 0xBB, 0xDD,
+#  -  , 0x31, 0x53, 0x75, 0x97, 0xB9, 0xDB,
+#  -  ,  -  , 0x51, 0x73, 0x95, 0xB7, 0xD9,
+#  -  ,  -  ,  -  , 0x71, 0x93, 0xB5, 0xD7,
+
 _lands_hex_1d_mapping = {
     0x37: 5,
     0x59: 6,
@@ -38,8 +47,8 @@ _lands_hex_1d_mapping = {
     0x95: 30,
     0xB7: 31
 }
-
 _lands_1d_hex_mapping = {v: k for k, v in _lands_hex_1d_mapping.items()}
+
 
 _index_mapping_2d_1d = np.array([
     [0, 1, 2, 3, -1, -1, -1],
@@ -78,25 +87,29 @@ for land, nodes in _lands_adjacent_segments_mapping.items():
         else:
             _segments_adjacent_lands_mapping[node].append(land)
 
+# Lands <-> building relative positions.
 _lands_building_rel_pos = {
-    0x01: 0,
-    0x12: 1,
-    0x21: 2,
-    0x10: 3,
-    -0x01: 4,
-    -0x10: 5,
+    0x01: 0,  # Top
+    0x12: 1,  # Top - right
+    0x21: 2,  # Bottom - right
+    0x10: 3,  # Bottom
+    -0x01: 4,  # Bottom - left
+    -0x10: 5,  # Top - left
 }
+# Lands <-> road relative positions.
 _lands_road_rel_pos = {
-    0x01: 0,
-    0x11: 1,
-    0x10: 2,
-    -0x01: 3,
-    -0x11: 4,
-    -0x10: 5,
+    0x01: 0,  # Top - right
+    0x11: 1,  # Right
+    0x10: 2,  # Bottom - right
+    -0x01: 3,  # Bottom - left
+    -0x11: 4,  # Left
+    -0x10: 5,  # Top - left
 }
 
 
 def parse_layout(raw_data: str) -> IntVector:
+    """Extract the game layout from the raw data"""
+
     if isinstance(raw_data, list):
         return raw_data
 
@@ -108,6 +121,8 @@ def parse_layout(raw_data: str) -> IntVector:
 
 
 def mapping_1d_2d(data: IntVector) -> np.ndarray:
+    """Map values in a list to a 2d numpy array"""
+
     assert len(data) == 37
 
     data_2d = np.array([
@@ -123,7 +138,9 @@ def mapping_1d_2d(data: IntVector) -> np.ndarray:
     return data_2d[np.newaxis, :, :]
 
 
-def mapping_2d_1d(data: np.ndarray) -> List:
+def mapping_2d_1d(data: np.ndarray) -> IntVector:
+    """Map values in a 2d numpy array to a list"""
+
     assert data.shape == (7, 7) or data.shape == (7, 7, 1)
 
     data_1d = data[data != -1]
@@ -133,6 +150,8 @@ def mapping_2d_1d(data: np.ndarray) -> List:
 
 
 def get_1d_id(id_2d: Tuple) -> int:
+    """Return the list id of a 2d-mapped id"""
+
     assert len(id_2d) == 2, '{} is not coordinate'.format(id_2d)
     assert id_2d[0] < 7
     assert id_2d[1] < 7
@@ -146,6 +165,7 @@ def get_1d_id(id_2d: Tuple) -> int:
 
 
 def get_2d_id(id_1d: int) -> Tuple:
+    """Return the 2d-mapped id of a list id"""
     assert id_1d > -1
     assert id_1d < 37
 
@@ -155,6 +175,8 @@ def get_2d_id(id_1d: int) -> Tuple:
 
 
 def get_1d_id_from_hex(hex_i: int) -> int:
+    """Return the list id of a hexadecimal value"""
+
     if hex_i not in _lands_hex_1d_mapping.keys():
         raise ValueError('Hex number {} is missing'.format(hex_i))
 
@@ -162,6 +184,8 @@ def get_1d_id_from_hex(hex_i: int) -> int:
 
 
 def get_one_hot_plan(coord: Tuple) -> np.ndarray:
+    """Return an 1-hot map from a 2d-mapped coordinate"""
+
     plan = np.zeros([7, 7])
     plan[coord] = 1
     plan = plan[np.newaxis, :, :]
@@ -170,6 +194,8 @@ def get_one_hot_plan(coord: Tuple) -> np.ndarray:
 
 
 def get_replicated_plan(i: int) -> np.ndarray:
+    """Return a plan by duplicating the value everywhere"""
+
     plan = np.ones([1, 7, 7]) * i
 
     return plan

@@ -56,7 +56,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
         return self._length
 
     def _set_stats(self):
-        nb_steps = self._get_nb_steps()
+        nb_steps = self._get_trajectories_length()
         for i, nb_step in enumerate(nb_steps):
             seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
 
@@ -65,7 +65,7 @@ class SocPSQLForwardSAToSADataset(SocPSQLDataset):
             else:
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
-    def _get_nb_steps(self) -> List:
+    def _get_trajectories_length(self) -> List:
         if self.engine is None:
             raise Exception('No engine found')
 

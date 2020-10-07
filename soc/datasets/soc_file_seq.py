@@ -23,17 +23,20 @@ class FileSeqConfig:
 
 class SocFileSeqDataset(Dataset):
     """
-        Defines a Settlers of Catan postgresql dataset for forward models.
-        One datapoint is a tuple (past, future)
+        Defines a Settlers of Catan file dataset for sequence models.
+        It loads the raw dataset in memory from the filesystem.
+
+        One datapoint is a dictionnary containing the full states and actions
+        game trajectory.
 
         Args:
-            config: (Dict) The dataset configuration
+            config: (DictConfig) The dataset configuration
 
         Returns:
-            dataset: (Dataset) A pytorch Dataset giving access to the data
+            dataset: (Dataset) A pytorch Dataset
 
     """
-    def __init__(self, omegaConf: DictConfig, dataset_type: str = 'train'):
+    def __init__(self, omegaConf: DictConfig):
         super(SocFileSeqDataset, self).__init__()
 
         self.path = omegaConf['dataset_path']
@@ -41,12 +44,12 @@ class SocFileSeqDataset(Dataset):
         self.data = torch.load(self.path)
         self._set_props(omegaConf)
 
-    def _set_props(self, config):
+    def _set_props(self, config: DictConfig):
         state_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
         action_shape = [soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
 
-        self.input_shape = [state_shape, action_shape]
-        self.output_shape = [state_shape, action_shape]
+        self.input_shape: SOCShape = (state_shape, action_shape)
+        self.output_shape: SOCShape = (state_shape, action_shape)
 
         self.infix = 'seq'
 
@@ -55,9 +58,12 @@ class SocFileSeqDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-            Return one datapoint from the dataset
+            Return a datapoint from the dataset
 
-            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
+            Returns:
+                data_dict: (dict)
+                    'state_seq_t': torch.Tensor (s_0, s_1, etc.)
+                    'action_seq_t': torch.Tensor (a_0, a_1, etc.)
 
         """
         states_df, actions_df = self._get_data(idx)
@@ -79,19 +85,17 @@ class SocFileSeqDataset(Dataset):
         return data_dict
 
     def _get_data(self, idx: int):
+        """Return a raw datapoint"""
+
         return self.data[idx]
 
     def get_input_size(self) -> SOCShape:
-        """
-            Return the input dimension
-        """
+        """Return the input dimension"""
 
         return self.input_shape
 
     def get_output_size(self) -> SOCShape:
-        """
-            Return the output dimension
-        """
+        """Return the output dimension"""
 
         return self.output_shape
 
@@ -147,6 +151,8 @@ class SocFileSeqDataset(Dataset):
             torch.save(seqs, path)
 
     def _load_input_seq(self, idx: int) -> List[torch.Tensor]:
+        """Return a preprocessed datapoint"""
+
         data = self[idx]
 
         state_seq_t = data['state_seq_t']  # SxC_sxHxW

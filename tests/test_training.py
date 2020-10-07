@@ -133,7 +133,7 @@ class TestTraining(unittest.TestCase):
             dataset._get_states_from_db = MagicMock(side_effect=_get_text_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=_get_text_actions_from_db_se_f)
             dataset._get_chats_from_db = MagicMock(side_effect=_get_text_chats_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(side_effect=_get_text_nb_steps_se_f)
+            dataset._get_trajectories_length = MagicMock(side_effect=_get_text_nb_steps_se_f)
             dataset._get_length = MagicMock(side_effect=_get_text_length_se_f)
 
             return dataset, None

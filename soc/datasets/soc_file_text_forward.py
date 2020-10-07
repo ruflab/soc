@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import torch
-from omegaconf import MISSING
+from omegaconf import MISSING, DictConfig
 from transformers import BertModel, BertTokenizer
 from typing import List, Union, Tuple, Dict
 from .soc_file_text_seq import FileTextConfig, SocFileTextBertSeqDataset
@@ -17,17 +17,20 @@ class FileTextForwardConfig(FileTextConfig):
 
 class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
     """
-        Defines a Settlers of Catan postgresql dataset for forward models.
-        One datapoint is a tuple (past, future)
+        Defines a Settlers of Catan file dataset for forward models.
+        It loads the raw dataset in memory from the filesystem.
+
+        One datapoint is a dictionnary containing a subset of the game trajectory
+        defined by $history_length and $future_length.
 
         Args:
-            config: (Dict) The dataset configuration
+            config: (DictConfig) The dataset configuration
 
         Returns:
-            dataset: (Dataset) A pytorch Dataset giving access to the data
+            dataset: (Dataset) A pytorch Dataset
 
     """
-    def _set_props(self, config):
+    def _set_props(self, config: DictConfig):
         self.history_length = config['history_length']
         self.future_length = config['future_length']
         self.seq_len_per_datum = self.history_length + self.future_length
@@ -59,7 +62,7 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
             text_input_shape = [
                 self.history_length, None, self.bert.encoder.layer[-1].output.dense.out_features
             ]
-        self.input_shape = [game_input_shape, text_input_shape]
+        self.input_shape = (game_input_shape, text_input_shape)
 
         self.output_shape = [
             self.future_length, soc_data.STATE_SIZE + soc_data.ACTION_SIZE
@@ -69,6 +72,11 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return self._get_length()
 
     def _get_length(self) -> int:
+        """
+            Compute the total length of the dataset.
+            It is the number of subset contained in all game trajectories
+        """
+
         if self._length == -1:
             total_steps = 0
             nb_games = len(self.data)
@@ -83,27 +91,43 @@ class SocFileTextBertForwardSAToSADataset(SocFileTextBertSeqDataset):
         return self._length
 
     def _set_stats(self):
-        nb_steps = self._get_nb_steps()
-        for i, nb_step in enumerate(nb_steps):
-            seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
+        """Precompute and store indices limits to map datapoints to trajectories"""
+
+        trajectories_length = self._get_trajectories_length()
+        for i, trajectory_length in enumerate(trajectories_length):
+            seq_nb_steps = trajectory_length - (self.seq_len_per_datum - 1)
 
             if i == 0:
                 self._inc_seq_steps.append(seq_nb_steps)
             else:
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
-    def _get_nb_steps(self) -> List[int]:
+    def _get_trajectories_length(self) -> List[int]:
+        """Return a list of trajectories length"""
+
         nb_games = len(self.data)
-        nb_steps = []
+        trajectories_length = []
         for i in range(nb_games):
             seq = self.data[i]
             if isinstance(seq, list):
                 seq = seq[0]
-            nb_steps.append(seq.shape[0])
+            trajectories_length.append(seq.shape[0])
 
-        return nb_steps
+        return trajectories_length
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        """
+            Return a datapoint from the dataset
+
+            Returns:
+                data_dict: (dict)
+                    'history_t':            torch.Tensor (sa_{t-H}, ..., sa_t)
+                    'chat_history_t':       torch.Tensor (text_{t-H}, ..., text_t),
+                    'chat_mask_history_t':  torch.Tensor (text_mask_{t-H}, ..., text_mask_t),
+                    'future_t':             torch.Tensor (sa_{t+1}, ..., sa_{t+F}),
+                    'chat_future_t':        torch.Tensor (text_{t+1}, ..., text_{t+F}),
+                    'chat_mask_future_t':   torch.Tensor (text_mask_{t+1}, ..., text_mask_{t+F}),
+        """
         states_df, actions_df, chats_df = self._get_data(idx)
 
         p_states_df = ds_utils.preprocess_states(states_df)

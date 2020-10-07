@@ -1,6 +1,5 @@
 # Roadmap
 
-
 - Clean the repo
 - Improve the README and comments
 - Refactor the code to handle pytorch-lightning >= 0.9.1

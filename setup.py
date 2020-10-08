@@ -8,7 +8,7 @@ def load_long_description():
 
 setup(
     name="soc",
-    version='0.1a1',
+    version='0.1',
     python_requires='>=3.6',
     description='Settlers of Catan AI research project',
     url='https://github.com/ruflab/soc',

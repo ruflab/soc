@@ -35,7 +35,7 @@ cd soc-0.1
 pip install .
 ```
 
-A full example to run the code on Google Collab can be found [here ](https://colab.research.google.com/drive/11lUfPFMNA7uHQNviuAU3p6yN06fZW-vg)
+A full example to run the code on Google Collab can be found [here](https://colab.research.google.com/drive/11lUfPFMNA7uHQNviuAU3p6yN06fZW-vg)
 
 ## Tests
 ```
@@ -51,9 +51,9 @@ make ci
 [Morgan Giraud](https://github.com/morgangiraud/)
 
 ## Resources
+- [Annotated slides for the presentation](https://docs.google.com/presentation/d/1MKxizuQflOzxMjbv_sUYUOTsE_oWZ-g02TQzwOFdNtg/edit#slide=id.p)
+- [The presentation video](https://youtu.be/OpnSiUJC9Qw)
 - [The JAVA simulator](https://github.com/ruflab/StacSettlers)
-- [The presentation with the work details](https://docs.google.com/presentation/d/1MKxizuQflOzxMjbv_sUYUOTsE_oWZ-g02TQzwOFdNtg/edit#slide=id.p)
-- [The video of the presentation]()
 
 
 ## License

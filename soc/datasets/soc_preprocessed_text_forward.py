@@ -32,7 +32,7 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
         Output: Next state
             Dims: [S, (C_states + C_actions), H, W]
     """
-    def __init__(self, omegaConf, dataset_type: str = 'train'):
+    def __init__(self, omegaConf):
         super(SocPreprocessedTextBertForwardSAToSADataset, self).__init__()
 
         self.path = omegaConf['dataset_path']
@@ -76,7 +76,7 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
         return self._length
 
     def _set_stats(self):
-        nb_steps = self._get_nb_steps()
+        nb_steps = self._get_trajectories_length()
         for i, nb_step in enumerate(nb_steps):
             seq_nb_steps = nb_step - (self.seq_len_per_datum - 1)
 
@@ -85,7 +85,7 @@ class SocPreprocessedTextBertForwardSAToSADataset(Dataset):
             else:
                 self._inc_seq_steps.append(seq_nb_steps + self._inc_seq_steps[-1])
 
-    def _get_nb_steps(self) -> List[int]:
+    def _get_trajectories_length(self) -> List[int]:
         nb_games = len(self.data)
         nb_steps = []
         for i in range(nb_games):

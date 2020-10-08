@@ -118,8 +118,8 @@ class Bottleneck(nn.Module):
         if norm_layer is None:
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
-            # norm_layer = nn.InstanceNorm2d
-            norm_layer = nn.GroupNorm
+            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
@@ -180,8 +180,8 @@ class ResNet(nn.Module):
         if norm_layer is None:
             # Batch norm does not fit well with regression.
             # norm_layer = nn.BatchNorm2d
-            # norm_layer = nn.InstanceNorm2d
-            norm_layer = nn.GroupNorm
+            norm_layer = nn.InstanceNorm2d
+            # norm_layer = nn.GroupNorm
         self._norm_layer = norm_layer
 
         # When we are here, the config has already been checked by OmegaConf

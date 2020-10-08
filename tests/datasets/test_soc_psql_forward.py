@@ -50,7 +50,7 @@ class TestSocPSQLForwardSAToSADataset(unittest.TestCase):
             dataset = datasets.SocPSQLForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             input_size = dataset.get_input_size()
             output_shape_spatial, output_shape, output_shape_actions = dataset.get_output_size()
@@ -101,7 +101,7 @@ class TestSocPSQLForwardSAToSAPolicyDataset(unittest.TestCase):
             dataset = datasets.SocPSQLForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             input_size = dataset.get_input_size()
             output_shape_spatial, output_shape, output_shape_actions = dataset.get_output_size()

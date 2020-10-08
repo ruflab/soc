@@ -50,7 +50,7 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
             dataset = datasets.SocPreprocessedForwardSAToSADataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             input_size = dataset.get_input_size()
             output_shape = dataset.get_output_size()
@@ -73,7 +73,7 @@ class TestSocPreprocessedForwardSAToSADataset(unittest.TestCase):
             dataset = datasets.SocPreprocessedForwardSAToSADataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             batch = dataset[0]
             y_true = batch[1]
@@ -117,7 +117,7 @@ class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
             dataset = datasets.SocPreprocessedForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             input_size = dataset.get_input_size()
             output_shape_spatial, output_shape, output_shape_actions = dataset.get_output_size()
@@ -142,7 +142,7 @@ class TestSocPreprocessedForwardSAToSAPolicyDataset(unittest.TestCase):
             dataset = datasets.SocPreprocessedForwardSAToSAPolicyDataset(config)
             dataset._get_states_from_db = MagicMock(side_effect=self._get_states_from_db_se_f)
             dataset._get_actions_from_db = MagicMock(side_effect=self._get_actions_from_db_se_f)
-            dataset._get_nb_steps = MagicMock(return_value=[9, 9])
+            dataset._get_trajectories_length = MagicMock(return_value=[9, 9])
 
             batch = dataset[0]
             y_spatial_s_true_seq, y_s_true_seq, y_a_true_seq = batch[1]

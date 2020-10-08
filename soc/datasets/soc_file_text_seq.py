@@ -2,6 +2,7 @@ import os
 import torch
 from transformers import BertModel, BertTokenizer
 from dataclasses import dataclass
+from omegaconf import DictConfig
 from typing import Tuple, List, Union, Dict, Optional
 from .soc_file_seq import SocFileSeqDataset, FileSeqConfig
 from . import utils as ds_utils
@@ -21,17 +22,20 @@ class FileTextConfig(FileSeqConfig):
 
 class SocFileTextBertSeqDataset(SocFileSeqDataset):
     """
-        Defines a Settlers of Catan postgresql dataset for forward models.
-        One datapoint is a tuple (past, future)
+        Defines a Settlers of Catan file dataset for sequence models.
+        It loads the raw dataset in memory from the filesystem.
+
+        One datapoint is a dictionnary containing the full states, actions and textual
+        game trajectory.
 
         Args:
-            config: (Dict) The dataset configuration
+            config: (DictConfig) The dataset configuration
 
         Returns:
-            dataset: (Dataset) A pytorch Dataset giving access to the data
+            dataset: (Dataset) A pytorch Dataset
 
     """
-    def _set_props(self, config):
+    def _set_props(self, config: DictConfig):
         self.use_pooler_features = config['use_pooler_features']
         self.set_empty_text_to_zero = config['set_empty_text_to_zero']
 
@@ -47,20 +51,26 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
 
         state_shape = [soc_data.STATE_SIZE] + soc_data.BOARD_SIZE
         action_shape = [soc_data.ACTION_SIZE] + soc_data.BOARD_SIZE
+        chat_shape: List[int]
         if self.use_pooler_features:
             chat_shape = [self.bert.pooler.dense.out_features]
         else:
             chat_shape = [self.bert.encoder.layer[-1].output.dense.out_features]
-        self.input_shape = [state_shape, action_shape, chat_shape]
-        self.output_shape = [state_shape, action_shape, chat_shape]
+        self.input_shape = (state_shape, action_shape, chat_shape)
+        self.output_shape = (state_shape, action_shape, chat_shape)
 
         self.infix = 'text_bert'
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-            Return one datapoint from the dataset
+            Return a datapoint from the dataset
 
-            A datapoint is a complete trajectory (s_t, a_t, s_t+1, etc.)
+            Returns:
+                data_dict: (dict)
+                    'state_seq_t': torch.Tensor (s_0, s_1, etc.)
+                    'action_seq_t': torch.Tensor (a_0, a_1, etc.)
+                    'chat_seq_t': torch.Tensor (text_0, text_1, etc.)
+                    'chat_mask_seq_t': torch.Tensor (text_mask_0, text_mask_1, etc.)
 
         """
         states_df, actions_df, chats_df = self._get_data(idx)
@@ -96,6 +106,8 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
         return data_dict
 
     def _load_input_seq(self, idx: int) -> List[torch.Tensor]:
+        """Return a preprocessed datapoint"""
+
         data = self[idx]
 
         state_seq_t = data['state_seq_t']  # SxC_sxHxW
@@ -108,6 +120,8 @@ class SocFileTextBertSeqDataset(SocFileSeqDataset):
         return input_seq_t
 
     def save_assets(self, folder: str):
+        """Save language model assets into $folder"""
+
         utils.check_folder(folder)
 
         self.tokenizer.save_pretrained(os.path.join(folder, 'soc_tokenizer'))

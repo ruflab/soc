@@ -26,7 +26,7 @@ setup(
     packages=find_packages(exclude=['tests', 'tests/*']),
     install_requires=[
         'neptune-client',
-        'pytorch_lightning >= 0.8.5',
+        'pytorch_lightning == 0.9.0',
         'hydra-core >= 1.0.0',
         'transformers >= 3.0'
     ]
